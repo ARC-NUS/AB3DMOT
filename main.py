@@ -273,6 +273,53 @@ class KalmanBoxTracker(object):
     """
     return self.kf.x[:7].reshape((7, ))
 
+# FIXME change from 3d to 2d IOU checker, check if correct or not
+def iou2d(corners1, corners2):
+    ''' Compute 3D bounding box IoU.
+
+    Input:
+        corners1: numpy array (4,2), assume up direction is negative Y
+        corners2: numpy array (4,2), assume up direction is negative Y
+    Output:
+        iou_2d: bird's eye view 2D bounding box IoU
+    '''
+    # corner points are in counter clockwise order
+    rect1 = [(corners1[i,0], corners1[i,2]) for i in range(3,-1,-1)]
+    rect2 = [(corners2[i,0], corners2[i,2]) for i in range(3,-1,-1)] 
+    area1 = poly_area(np.array(rect1)[:,0], np.array(rect1)[:,1])
+    area2 = poly_area(np.array(rect2)[:,0], np.array(rect2)[:,1])
+    inter, inter_area = convex_hull_intersection(rect1, rect2)
+    iou_2d = inter_area/(area1+area2-inter_area)
+    # ymax = min(corners1[0,1], corners2[0,1])
+    # ymin = max(corners1[4,1], corners2[4,1])
+    # inter_vol = inter_area * max(0.0, ymax-ymin)
+    # vol1 = box3d_vol(corners1)
+    # vol2 = box3d_vol(corners2)
+    # iou = inter_vol / (vol1 + vol2 - inter_vol)
+    return iou_2d
+
+# tracking in BEV
+def associate_detections_to_trackers_BEV(detections,trackers,iou_threshold=0.1):
+  """
+  Assigns detections to tracked object (both represented as bounding boxes)
+
+  detections:  N x 4 x 2
+  trackers:    M x 4 x 2
+
+  Returns 3 lists of matches, unmatched_detections and unmatched_trackers
+  """
+
+  if(len(trackers)==0):
+    return np.empty((0,2),dtype=int), np.arange(len(detections)), np.empty((0,4,2),dtype=int)    
+  iou_matrix = np.zeros((len(detections),len(trackers)),dtype=np.float32)
+
+  for d,det in enumerate(detections):
+    for t,trk in enumerate(trackers):
+      iou_matrix[d,t] = iou2d(det,trk)[0]             # TODO det: 4 x 2, trk: 4 x 2
+  matched_indices = linear_assignment(-iou_matrix)      # hougarian algorithm
+
+
+
 def associate_detections_to_trackers(detections,trackers,iou_threshold=0.1):
 # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
 # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.25):
@@ -370,7 +417,8 @@ class AB3DMOT(object):
     if len(trks_8corner) > 0: trks_8corner = np.stack(trks_8corner, axis=0)
 
     # data association(?)
-    matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner)
+    matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers_BEV(dets, trks)
+    # matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner)
     
     #update matched trackers with assigned detections
     for t,trk in enumerate(self.trackers):
