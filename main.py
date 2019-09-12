@@ -345,26 +345,31 @@ class AB3DMOT(object):
     NOTE: The number of objects returned may differ from the number of detections provided.
     """
     dets, info = dets_all['dets'], dets_all['info']         # dets: N x 7, float numpy array
-    dets = dets[:, self.reorder]
+    dets = dets[:, self.reorder] # theta l w h z y x
     self.frame_count += 1
 
-    trks = np.zeros((len(self.trackers),7))         # N x 7 , #get predicted locations from existing trackers.
+
+	#get predicted locations from existing trackers.
+    trks = np.zeros((len(self.trackers),7))         # N x 7 , 
     to_del = []
     ret = []
-    for t,trk in enumerate(trks):
-      pos = self.trackers[t].predict().reshape((-1, 1))
-      trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]]       
+    for t,trk in enumerate(trks): # t=index trk=0
+      pos = self.trackers[t].predict().reshape((-1, 1)) # predicted state of t-th tracked item
+      trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]] # predicted state of t-th tracked item
       if(np.any(np.isnan(pos))):
         to_del.append(t)
-    trks = np.ma.compress_rows(np.ma.masked_invalid(trks))   
-    for t in reversed(to_del):
+    trks = np.ma.compress_rows(np.ma.masked_invalid(trks))   # ????
+    for t in reversed(to_del): # delete tracked item if cannot predict state?! #FIXME
       self.trackers.pop(t)
 
-    dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets]
+    # convert to image plane??? WHY? #TODO change to IOU in BEV instead
+    dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets] 
     if len(dets_8corner) > 0: dets_8corner = np.stack(dets_8corner, axis=0)
     else: dets_8corner = []
     trks_8corner = [convert_3dbox_to_8corner(trk_tmp) for trk_tmp in trks]
     if len(trks_8corner) > 0: trks_8corner = np.stack(trks_8corner, axis=0)
+
+    # data association(?)
     matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner)
     
     #update matched trackers with assigned detections
