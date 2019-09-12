@@ -112,10 +112,10 @@ def roty(t):
                      [-s, 0,  c]])
 
 def convert_3dbox_to_8corner(bbox3d_input):
-    ''' Takes an object and a projection matrix (P) and projects the 3d
+    ''' Takes an object and a projection matrix (P) and projects the 3d # ??? what Projection matrix??? where???
         bounding box into the image plane.
         Returns:
-            corners_2d: (8,2) array in left image coord.
+            corners_2d: (8,2) array in left image coord. # LIES
             corners_3d: (8,3) array in in rect camera coord.
     '''
     # compute rotational matrix around yaw axis
