@@ -111,12 +111,12 @@ def roty(t):
                      [0,  1,  0],
                      [-s, 0,  c]])
 
+
+
 def convert_3dbox_to_8corner(bbox3d_input):
-    ''' Takes an object and a projection matrix (P) and projects the 3d # ??? what Projection matrix??? where???
-        bounding box into the image plane.
+    ''' Returns the 8 corners in 3D space for x y z R l w h
         Returns:
-            corners_2d: (8,2) array in left image coord. # LIES
-            corners_3d: (8,3) array in in rect camera coord.
+            corners_3d: (8,3) array in space CRS as the input.
     '''
     # compute rotational matrix around yaw axis
     bbox3d = copy.copy(bbox3d_input)
@@ -338,7 +338,7 @@ def associate_detections_to_trackers(detections,trackers,iou_threshold=0.1):
   for d,det in enumerate(detections):
     for t,trk in enumerate(trackers):
       iou_matrix[d,t] = iou3d(det,trk)[0]             # det: 8 x 3, trk: 8 x 3
-  matched_indices = linear_assignment(-iou_matrix)      # hougarian algorithm
+  matched_indices = linear_assignment(-iou_matrix)      # hugarian algorithm
 
   unmatched_detections = []
   for d,det in enumerate(detections):
@@ -366,7 +366,7 @@ def associate_detections_to_trackers(detections,trackers,iou_threshold=0.1):
 
 
 class AB3DMOT(object):
-  def __init__(self,max_age=2,min_hits=3):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
+  def __init__(self,max_age=2,min_hits=3,hung_thresh=0.1,is_jic=False):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
   # def __init__(self,max_age=3,min_hits=3):        # ablation study
   # def __init__(self,max_age=1,min_hits=3):      
   # def __init__(self,max_age=2,min_hits=1):      
@@ -379,6 +379,8 @@ class AB3DMOT(object):
     self.frame_count = 0
     self.reorder = [3, 4, 5, 6, 2, 1, 0]
     self.reorder_back = [6, 5, 4, 0, 1, 2, 3]
+    self.is_jic = is_jic
+    self.hungarian_thresh = hung_thresh
 
   def update(self,dets_all):
     """
@@ -392,7 +394,9 @@ class AB3DMOT(object):
     NOTE: The number of objects returned may differ from the number of detections provided.
     """
     dets, info = dets_all['dets'], dets_all['info']         # dets: N x 7, float numpy array
-    dets = dets[:, self.reorder] # theta l w h z y x
+    
+    if not self.is_jic:
+      dets = dets[:, self.reorder] # in the /data files the order is: h w l x y z R (which needs to be reordered to be x y z theta l w h 
     self.frame_count += 1
 
 
@@ -409,7 +413,7 @@ class AB3DMOT(object):
     for t in reversed(to_del): # delete tracked item if cannot predict state?! #FIXME
       self.trackers.pop(t)
 
-    # convert to image plane??? WHY? #TODO change to IOU in BEV instead
+    # does NOT project anything, just gives corners in 3D space
     dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets] 
     if len(dets_8corner) > 0: dets_8corner = np.stack(dets_8corner, axis=0)
     else: dets_8corner = []
@@ -417,8 +421,8 @@ class AB3DMOT(object):
     if len(trks_8corner) > 0: trks_8corner = np.stack(trks_8corner, axis=0)
 
     # data association(?)
-    matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers_BEV(dets, trks)
-    # matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner)
+#     matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers_BEV(dets, trks)
+    matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner, self.hungarian_thresh)
     
     #update matched trackers with assigned detections
     for t,trk in enumerate(self.trackers):
