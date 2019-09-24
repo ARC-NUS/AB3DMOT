@@ -1,20 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
-# get_ipython().magic(u'matplotlib')
 
 # visualise data from json files
 import json
 import numpy as np
 import cv2
-# from matplotlib import pyplot as plt
 import math
-
 import pypcd
-# import pcl
 
 from munkres import Munkres, print_matrix, DISALLOWED
 import copy
