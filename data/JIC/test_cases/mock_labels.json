@@ -1,0 +1,24 @@
+[{"id":30456,
+	"name":"00170.pcd",
+	"annotations":
+		[{"className":"truck_1",
+			"geometryType":"cuboid",
+			"classId":567,
+			"geometry":
+			{"position":
+				{"x":17,"y":-5,"z":0.013124021781149686},
+			"rotation":{"x":0,"y":0,"z":-3.0},
+			"dimensions":{"x":2.0,"y":4.9,"z":2.5938676158287617}}}]},
+
+	{"id":30456,
+	"name":"00180.pcd",
+	"annotations":
+		[{"className":"truck_1",
+			"geometryType":"cuboid",
+			"classId":567,
+			"geometry":
+			{"position":
+				{"x":15,"y":-4,"z":0.013124021781149686},
+			"rotation":{"x":0,"y":0,"z":-1.5},
+			"dimensions":{"x":3,"y":5,"z":2.5938676158287617}}}]}
+]

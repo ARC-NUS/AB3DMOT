@@ -1,0 +1,4 @@
++ change to UTM coordinates?
++ output json. feed json to notebook in ros_to_rawdata
++ check CLEAR-MOT wt the labelled json
+	+ evaluation/evaluate_kitti3dmot.py?

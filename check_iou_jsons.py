@@ -116,7 +116,7 @@ def is_in_PIXOR_FOV(label):
     x = pt[0]
     y = pt[1]
     if x <= 35.2 and x >= -35.2 and y >= -20. and y <= 20.:
-      print label['classId'] ,x , y, "inside PIXOR FOV!!!"
+#       print label['classId'] ,x , y, "inside PIXOR FOV!!!"
       return True
   
   return False
@@ -152,7 +152,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
               # match label to tracker output ##############################################
               pcd_name = labels['name']
               time_step = pcd_name.split('.')[0]
-              print "checking time step: ", time_step
+#               print "checking time step: ", time_step
               tracks = tracker_data[(index+1)*10-1] # FIXME this will only work if the files are 10 hz apart
                
               if tracks['name'] != pcd_name:
@@ -213,7 +213,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
               for i, label in enumerate(labels['annotations']):
                   for j, obj in enumerate(tracks['objects']):
                     if is_in_PIXOR_FOV(label): 
-                      print "checking label: ", label['classId']
+#                       print "checking label: ", label['classId']
                       ow = float(label['geometry']['dimensions']['x'])
                       ob = float(label['geometry']['dimensions']['y'])
                       ox_c = float(label['geometry']['position']['x'])
@@ -234,7 +234,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
   
   #             print "corresp_mat: ", corresp_mat
               munkres_cost = copy.deepcopy(corresp_mat)
-              print_matrix(munkres_cost, msg='correspondance mat:')
+#               print_matrix(munkres_cost, msg='correspondance mat:')
   
               # Munkres  algo
               m = Munkres()
@@ -244,10 +244,10 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
               
   #             print "corresp_mat: ", corresp_mat
               
-              print "munkres results:"
+#               print "munkres results:"
               for row, column in indexes:
                   value = corresp_mat[row,column]
-                  print row, column, value
+#                   print row, column, value
                   if value < thres_d: # FIXME signage different for IOU and eucledian?
   #                     print "val: ", value, "; thresh: ", thres_d
                       if labels['annotations'][row]['classId'] in mappings:
@@ -269,7 +269,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
               mappings = copy.deepcopy(new_mappings)
               # match label to tracker output complete ######################################
               
-              print "new mappings: ", new_mappings
+#               print "new mappings: ", new_mappings
               
               # calculate the false positives
               for obj in tracks['objects']:
@@ -296,17 +296,20 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
               total_mmet += mme_t
               
       
-          
-          # calculate MOTP
-          MOTP = total_dist / total_ct 
-          
-          # calculate MOTA 
-          MOTA = 1. - (total_missed*1.) / total_gt          
-          
-          print "MOTP: ", MOTP, "MOTA: ", MOTA
-          print "total dist: ", total_dist, "\ntotal num of objects per frame:", total_gt
-          print "total mt, fp, mme: ", total_mt, total_fpt, total_mmet
-          print "total tracked: ", total_ct
+          try:
+            # calculate MOTP
+            MOTP = total_dist / total_ct 
+            
+            # calculate MOTA 
+            MOTA = 1. - (total_missed*1.) / total_gt    
+          except:      
+            print "error calculating MOTA"
+#           print "MOTP: ", MOTP, "MOTA: ", MOTA
+            print "total dist: ", total_dist, "\ntotal num of objects per frame:", total_gt
+            print "total mt, fp, mme: ", total_mt, total_fpt, total_mmet
+            print "total tracked: ", total_ct
+                      
+          return MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt
           
           
 if __name__ == '__main__':
@@ -329,9 +332,10 @@ if __name__ == '__main__':
   # ibeo_json_path="/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1/ecu_obj_list/ecu_obj_list.json"
 
   # 20 hz tracker outputs:
-  tracker_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_2/tracker_age3_hits2_thresh_05.json"
+#   tracker_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_2/tracker_age3_hits2_thresh_05.json"
   # 2 hz labels:
-  labels_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_low/set_2/set2_annotations.json"
+#   labels_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_low/set_2/set2_annotations.json"
+  labels_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/Set_7_annotations.json"
 
   
   distance_metric = "IOU" # using IOU as distance metric
@@ -344,4 +348,8 @@ if __name__ == '__main__':
   # thres_d = 0.5 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
   # thres_d = 0.75 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
 
-  check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
+  for i in range(0,5):
+    tracker_params = "age3_hits2_thresh_0.05"
+    tracker_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/tracker_px_stats_" + tracker_params + str(10*i)+ ".json"
+    MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
+    print i, MOTA, MOTP, total_mmet

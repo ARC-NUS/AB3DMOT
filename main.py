@@ -146,7 +146,7 @@ class KalmanBoxTracker(object):
   This class represents the internel state of individual tracked objects observed as bbox.
   """
   count = 0
-  def __init__(self, bbox3D, info):
+  def __init__(self, bbox3D, info, R = np.identity(7), Q = np.identity(10)):
     """
     Initialises a tracker using initial bounding box.
     """
@@ -162,7 +162,7 @@ class KalmanBoxTracker(object):
                           [0,0,0,0,0,0,0,1,0,0],
                           [0,0,0,0,0,0,0,0,1,0],
                           [0,0,0,0,0,0,0,0,0,1]])     
-    
+    # x y z theta l w h 
     self.kf.H = np.array([[1,0,0,0,0,0,0,0,0,0],      # measurement function,
                           [0,1,0,0,0,0,0,0,0,0],
                           [0,0,1,0,0,0,0,0,0,0],
@@ -193,12 +193,15 @@ class KalmanBoxTracker(object):
     #                       [0,0,0,0,0,1,0,0,0,0,0],
     #                       [0,0,0,0,0,0,1,0,0,0,0]])
 
-    # self.kf.R[0:,0:] *= 10.   # measurement uncertainty
-    self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-    self.kf.P *= 10.
+    self.kf.R[0:,0:] = R   # measurement uncertainty
     
-    # self.kf.Q[-1,-1] *= 0.01    # process uncertainty
-    self.kf.Q[7:,7:] *= 0.01
+    # initialisation cov 
+    self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+    self.kf.P *= 10. # FIXME tune initialisation cov?
+    
+    # self.kf.Q[-1,-1] *= 0.01
+#     self.kf.Q[7:,7:] *= 0.01 # process uncertainty
+    self.kf.Q = Q
     self.kf.x[:7] = bbox3D.reshape((7, 1))
 
     self.time_since_update = 0
@@ -366,7 +369,8 @@ def associate_detections_to_trackers(detections,trackers,iou_threshold=0.1):
 
 
 class AB3DMOT(object):
-  def __init__(self,max_age=2,min_hits=3,hung_thresh=0.1,is_jic=False):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
+  def __init__(self,max_age=2,min_hits=3,hung_thresh=0.1,is_jic=False, 
+               R = np.identity(7), Q = np.identity(10)):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
   # def __init__(self,max_age=3,min_hits=3):        # ablation study
   # def __init__(self,max_age=1,min_hits=3):      
   # def __init__(self,max_age=2,min_hits=1):      
@@ -381,6 +385,10 @@ class AB3DMOT(object):
     self.reorder_back = [6, 5, 4, 0, 1, 2, 3]
     self.is_jic = is_jic
     self.hungarian_thresh = hung_thresh
+    
+    self.R = R
+    self.Q = Q
+    
 
   def update(self,dets_all):
     """
@@ -432,7 +440,7 @@ class AB3DMOT(object):
 
     #create and initialise new trackers for unmatched detections
     for i in unmatched_dets:        # a scalar of index
-        trk = KalmanBoxTracker(dets[i,:], info[i, :]) 
+        trk = KalmanBoxTracker(dets[i,:], info[i, :], self.R, self.Q) 
         self.trackers.append(trk)
     i = len(self.trackers)
     for trk in reversed(self.trackers):

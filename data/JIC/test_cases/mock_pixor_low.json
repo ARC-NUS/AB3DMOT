@@ -1,0 +1,57 @@
+[
+  {
+	"objects": [
+		{
+    "width": 2.635831356048584, 
+    "length": 7.099377155303955, 
+    "centroid": [
+     0.915103152014993, 
+     -20.600297689437866
+    ], 
+    "probability": 0.8029482960700989, 
+    "bbox_type": null, 
+    "heading": -0.62830650806427
+   },
+	{	
+    "width": 4, 
+    "length": 2, 
+    "centroid": [
+     17, 
+     -5
+    ], 
+    "probability": 0.8029482960700989, 
+    "bbox_type": null, 
+    "heading": -3.00
+   	}
+	], 
+  	"name": "00170.pcd"
+  },
+
+  {
+	"objects": [
+		{
+    "width": 2.635831356048584, 
+    "length": 7.099377155303955, 
+    "centroid": [
+     150.915103152014993, 
+     -20.600297689437866
+    ], 
+    "probability": 0.8029482960700989, 
+    "bbox_type": null, 
+    "heading": -0.62830650806427
+   },
+	{	
+    "width": 4.2, 
+    "length": 2.5, 
+    "centroid": [
+     17, 
+     -5
+    ], 
+    "probability": 0.8029482960700989, 
+    "bbox_type": null, 
+    "heading": -3.00
+   	}
+	], 
+  	"name": "00180.pcd"
+  }
+]
