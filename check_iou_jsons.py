@@ -348,8 +348,10 @@ if __name__ == '__main__':
   # thres_d = 0.5 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
   # thres_d = 0.75 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
 
+
+
   for i in range(0,5):
-    tracker_params = "age3_hits2_thresh_0.05"
+    tracker_params = "age3_hits2_thresh_0.005"
     tracker_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/tracker_px_stats_" + tracker_params + str(10*i)+ ".json"
     MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
     print i, MOTA, MOTP, total_mmet
