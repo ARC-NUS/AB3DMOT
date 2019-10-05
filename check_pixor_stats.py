@@ -1,19 +1,11 @@
 #/usr/bin/env python
 
 import numpy as np
-import check_iou_jsons as check_iou
+import check_iou_jsons as check_iou, is_pxpp_fov
 from shapely.geometry import Polygon
 import json
 
-# check if it can be detected by pixorpp (if it is inside the px fov)
-def is_pxpp_fov(l_pts):
-  is_in = False
   
-  if:
-  return is_in
-  
-
-
 def check_output_json(output_json, labels_json, iou_thresh):
 
     with open(output_json, "r+") as px_file:
@@ -50,6 +42,9 @@ def check_output_json(output_json, labels_json, iou_thresh):
                     oy_c = float(bb_label['geometry']['position']['y'])
                     otheta = float(bb_label['geometry']['rotation']['z'])
                     l_pts = check_iou.get_vertices(ow,ob,ox_c,oy_c,otheta,0,0,1)
+                    if not is_pxpp_fov(l_pts):
+                        continue # don;t take into account the 
+
                     is_corresp = False
                     iou_max = 0.
                     err_ss = np.zeros(5)

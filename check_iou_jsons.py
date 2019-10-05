@@ -17,12 +17,28 @@ from shapely.geometry import box, Polygon
 import sys
 from __builtin__ import True
 
+# check if it can be detected by pixorpp (if it is inside the px fov)
+# returns True if ANY corner is in 
+# l_pts is list of vertices [[x,y], [x,y], ..]
+def is_pxpp_fov(l_pts):
+    px_fov_x = 35.2
+    px_fov_y = 20.
+    is_in = False
+    for pt in l_pts:
+        if pt[0] >= -px_fov_x and pt[0] <= px_fov_x:
+            is_in = True
+            break
+        if pt[1] >= -px_fov_y and pt[1] <= px_fov_x:
+            is_in = True
+    return is_in
+
 
 def draw_border(img, pts, clr, thiccness=2):
     for i in range(len(pts) -1):
         cv2.line(img, tuple(pts[i]), tuple(pts[i+1]), clr, thiccness)
     cv2.line(img, tuple(pts[0]), tuple(pts[len(pts)-1]), clr, thiccness)
     return img
+
 
 
 # In[5]:
