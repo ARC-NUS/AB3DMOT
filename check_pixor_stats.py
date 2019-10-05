@@ -5,6 +5,15 @@ import check_iou_jsons as check_iou
 from shapely.geometry import Polygon
 import json
 
+# check if it can be detected by pixorpp (if it is inside the px fov)
+def is_pxpp_fov(l_pts):
+  is_in = False
+  
+  if:
+  return is_in
+  
+
+
 def check_output_json(output_json, labels_json, iou_thresh):
 
     with open(output_json, "r+") as px_file:
