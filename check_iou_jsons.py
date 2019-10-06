@@ -92,7 +92,9 @@ def get_area(pts):
 
 
 def get_iou(opts, tpts):
-    # Example polygon 
+    if len(tpts) < 3 or len(opts) < 3:
+        print "error in get_iou inputs: pts < 3"
+
     o_poly = Polygon(opts)
     t_poly = Polygon(tpts)
     

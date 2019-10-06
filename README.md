@@ -42,6 +42,9 @@ This code has been tested on python 2.7 and 3.5, and also requires the following
 5. pillow==5.2.0
 6. opencv-python==3.4.3.18
 7. glob2==0.6
+8. pypcd for pixor stuff
+9. munkres==1.0.12
+10. shapely>=1.6.4
 
 One can either use the system python or create a virtual enviroment (virtualenv for python2, venv for python3) specifically for this project (https://www.pythonforbeginners.com/basics/how-to-use-python-virtualenv). To install required dependencies on the system python, please run the following command at the root of this code:
 ```

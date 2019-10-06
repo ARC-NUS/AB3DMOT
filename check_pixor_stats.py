@@ -1,7 +1,8 @@
 #/usr/bin/env python
 
 import numpy as np
-import check_iou_jsons as check_iou, is_pxpp_fov
+import check_iou_jsons as check_iou
+from check_iou_jsons import is_pxpp_fov
 from shapely.geometry import Polygon
 import json
 
@@ -79,9 +80,9 @@ def check_output_json(output_json, labels_json, iou_thresh):
                     else:
                         # add to the cov
                         var += err_ss ** 2
-        if total_labelled != tp + missed:
-            print "error!  total_labelled != tp + missed"
-            print "total labelled: ", total_labelled
+        #if total_labelled != tp + missed:
+            #print "total_labelled != tp + missed" # because the total labelled is outside of the pixor fov
+            #print "total labelled: ", total_labelled
             # return None, None, None
 
         fp = total_pixor - tp
@@ -97,21 +98,22 @@ if __name__ == '__main__':
 #     labels_json = "/media/yl/downloads/set1_annotations(1).json" 
     # labels_json = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_low/set_1/set1_annotations.json"
 #     
-    pixor_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/pixor_outputs.json'
-    labels_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/Set_8_annotations.json'
+#    pixor_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/pixor_outputs.json'
+#    labels_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/Set_8_annotations.json'
 
 #     pixor_json = '/home/yl/bus_ws/src/AB3DMOT/data/JIC/test_cases/mock_pixor_low.json'
 #     labels_json = '/home/yl/bus_ws/src/AB3DMOT/data/JIC/test_cases/mock_labels.json'
-     
-    iou_thresh = 0.75
-    tp, fp, missed, var= check_output_json(pixor_json, labels_json, iou_thresh)
-    print tp, fp, missed, var
-    print "tp at iou ", iou_thresh, ": ", (tp*1.0)/ (missed+tp)
-    
-    
-    pixor_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/pixor_outputs.json'
-    labels_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/Set_7_annotations.json'
 
+    pixor_json = "/home/yl/master_arc/src/AB3DMOT/data/pixor_outputs.json"
+    labels_json = "/home/yl/master_arc/src/AB3DMOT/data/Set_7_annotations.json"
+
+    iou_thresh = 1
     tp, fp, missed, var= check_output_json(pixor_json, labels_json, iou_thresh)
     print tp, fp, missed, var
     print "tp at iou ", iou_thresh, ": ", (tp*1.0)/ (missed+tp)
+
+    for iou_thresh in np.arange(0,100,10):
+        tp, fp, missed, var= check_output_json(pixor_json, labels_json, iou_thresh)
+        print tp, fp, missed, var
+        print "tp at iou ", iou_thresh, ": ", (tp*1.0)/ (missed+tp)
+
