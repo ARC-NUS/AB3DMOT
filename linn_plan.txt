@@ -1,4 +1,25 @@
-+ change to UTM coordinates?
-+ output json. feed json to notebook in ros_to_rawdata
-+ check CLEAR-MOT wt the labelled json
-	+ evaluation/evaluate_kitti3dmot.py?
++ one last thing: test tracker wt paper stats for 3 weights: old, 65%, best
++ decide MOTA n MOTP score to tell stk
++ tidy up workflow
+
+PLAN FOR PREDICTION
+
++ I still need to find the params (using grid search?)
+  + parallise the shit out of this so-called embarassingly parallel code
+
++ edit code to propagate thru time
++ change motion model to some other model
++ test with multiple tracking inputs?
+ -- 15 Oct --
+MOVE ON TO LSTMs (CVAEs)
++ try out en-dec cvae tut
++ try out wt nuscenes/apolloscape dataset 
+
+ -- 24 Oct --
+MOVE ON TO DESIRE
++ do the CNN part
++ do the ranking part
+
+ -- 24 Nov --
+write to complete thesis. run any other remainding tests 
+
