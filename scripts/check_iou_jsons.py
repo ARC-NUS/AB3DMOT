@@ -25,11 +25,12 @@ def is_pxpp_fov(l_pts):
     px_fov_y = 20.
     is_in = False
     for pt in l_pts:
-        if pt[0] >= -px_fov_x and pt[0] <= px_fov_x:
+        if pt[0] >= -px_fov_x and pt[0] <= px_fov_x and pt[1] >= -px_fov_y and pt[1] <= px_fov_x:
             is_in = True
             break
-        if pt[1] >= -px_fov_y and pt[1] <= px_fov_x:
-            is_in = True
+    
+#     if not is_in:
+#         print "label is outside of pixor fov: ", l_pts
     return is_in
 
 
@@ -40,40 +41,36 @@ def draw_border(img, pts, clr, thiccness=2):
     return img
 
 
-
-# In[5]:
-
-
 def get_vertices(w,b,x_c,y_c,theta, img_h, img_w, scale):
-    
-    pts = np.array([[]], dtype=int)
+
+    pts = np.array([[]], dtype=float)
     
     ptx = x_c + w /2.0*math.cos(theta) - b/2.0*math.sin(theta)
     pty = y_c + w /2.0*math.sin(theta) + b/2.0*math.cos(theta)
 
-    ptx = int(round(1.0*ptx/scale + img_w/2.0)) 
-    pty = int(round(1.0*pty/scale + img_h/2.0))
+    ptx = (1.0*ptx/scale + img_w/2.0) 
+    pty = (1.0*pty/scale + img_h/2.0)
     pts = np.append(pts, [ptx, pty])
 
     ptx = x_c - w /2.0*math.cos(theta) - b/2.0*math.sin(theta)
     pty = y_c - w /2.0*math.sin(theta) + b/2.0*math.cos(theta)
 
-    ptx = int(round(1.0*ptx/scale + img_w/2.0)) 
-    pty = int(round(1.0*pty/scale + img_h/2.0))
+    ptx = (1.0*ptx/scale + img_w/2.0) 
+    pty = (1.0*pty/scale + img_h/2.0)
     pts = np.vstack((pts, [ptx, pty]))
 
     ptx = x_c - w /2.0*math.cos(theta) + b/2.0*math.sin(theta)
     pty = y_c - w /2.0*math.sin(theta) - b/2.0*math.cos(theta)
 
-    ptx = int(round(1.0*ptx/scale + img_w/2.0)) 
-    pty = int(round(1.0*pty/scale + img_h/2.0))
+    ptx = (1.0*ptx/scale + img_w/2.0) 
+    pty = (1.0*pty/scale + img_h/2.0)
     pts = np.vstack((pts, [ptx, pty]))            
 
     ptx = x_c + w /2.0*math.cos(theta) + b/2.0*math.sin(theta)
     pty = y_c + w /2.0*math.sin(theta) - b/2.0*math.cos(theta)
 
-    ptx = int(round(1.0*ptx/scale + img_w/2.0)) 
-    pty = int(round(1.0*pty/scale + img_h/2.0))
+    ptx = (1.0*ptx/scale + img_w/2.0) 
+    pty = (1.0*pty/scale + img_h/2.0)
     pts = np.vstack((pts, [ptx, pty]))        
     return pts
 
@@ -102,7 +99,7 @@ def get_iou(opts, tpts):
     area_intersect = o_poly.intersection(t_poly).area
 #     print "area of int: ", area_intersect
     area_union = get_area(opts) + get_area(tpts) - area_intersect
-    iou = 100. * area_intersect / area_union
+    iou = (100. * area_intersect) / area_union
 #     print "iou: ", iou
     return iou
 
@@ -120,6 +117,8 @@ def get_MOT_dist(opts, tpts, dist_type):
 
 # takes inputs in baselink frame
 def is_in_PIXOR_FOV(label):
+  px_fov_x = 35.199
+  px_fov_y = 19.99
   
   w = float(label['geometry']['dimensions']['x'])
   b = float(label['geometry']['dimensions']['y'])
@@ -127,19 +126,10 @@ def is_in_PIXOR_FOV(label):
   y_c = float(label['geometry']['position']['y'])
   theta = float(label['geometry']['rotation']['z'])
 
+  return x_c >= -px_fov_x and x_c <= px_fov_x and y_c >= -px_fov_y and y_c <= px_fov_y
   
-  pts = get_vertices(w,b,x_c,y_c,theta, 0, 0, 1)
-
-  for pt in pts:
-    x = pt[0]
-    y = pt[1]
-    if x <= 35.2 and x >= -35.2 and y >= -20. and y <= 20.:
-#       print label['classId'] ,x , y, "inside PIXOR FOV!!!"
-      return True
-  
-  return False
-
-
+#   pts = get_vertices(w,b,x_c,y_c,theta, 0, 0, 1)
+#   return is_pxpp_fov(pts)
 
 def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_metric = "IOU"):
   with open(labels_json_path) as labels_json_file:
@@ -353,7 +343,7 @@ if __name__ == '__main__':
 #   tracker_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_2/tracker_age3_hits2_thresh_05.json"
   # 2 hz labels:
 #   labels_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_low/set_2/set2_annotations.json"
-  labels_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/Set_7_annotations.json"
+  labels_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json"
 
   
   distance_metric = "IOU" # using IOU as distance metric
@@ -368,8 +358,10 @@ if __name__ == '__main__':
 
 
 
-  for i in range(0,5):
+  for i in range(0,1):
     tracker_params = "age3_hits2_thresh_0.005"
-    tracker_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/tracker_px_stats_" + tracker_params + str(10*i)+ ".json"
+#     tracker_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/tracker_px_stats_" + tracker_params + str(10*i)+ ".json"
+    tracker_json_path = "/media/yl/downloads/tracker_results/set_7/tracker_results_age3_hits2_thresh_0.01/tracker_tf_epoch_36_valloss_0.0037_max_age=3,min_hits=2,hung_thresh=0.01_Q_xy1_ori1_wx1_ly1_v-2.0.json"
     MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
-    print i, MOTA, MOTP, total_mmet
+#     print i, MOTA, MOTP, total_mmet
+    print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt

@@ -1,4 +1,28 @@
 + one last thing: test tracker wt paper stats for 3 weights: old, 65%, best
+
+	+ before transfer learning (/home/yl/bus_ws/src/pixorpp/pixorpp_torch/models_trained/pixorpp_kitti_nuscene_stk.pt)
+		+ pixor eval.py: ('Total true positive:', 815.0, ' total false positive:', 1357.0, ' total ground labels:', 4496, ' ave precision:', 0.17641051437838176): precision@80%IoU75: 37.52%, recall:18.13%
+
+	+ best at earliest epoch : pixor_outputs_tf_epoch_36_valloss_0.0037.json
+		+ pixor eval.py: 
+			+ ('Total true positive:', 4140.0, ' total false positive:', 429.0, ' total ground labels:', 4496, ' ave precision:', 0.9088012796855227): precision@80%IoU75: 90.61%, recall:92.08%
+			+ wt full set7 (no augmentation): ('Total true positive:', 296.0, ' total false positive:', 28.0, ' total ground labels:', 333, ' ave precision:', 0.9192659580498866); p: 91.36%, r: 88.89%
+		+ check pixor stats:
+			+ 296 28 37 [0.01365446 0.00623535 0.01652125 0.20904382 0.03391041] precision at iou  75 :  91.3580246914 recall:  88.8888888889
+		+ check iou jsons: 
+			+ tracker_tf_epoch_36_valloss_0.0037_max_age=3,min_hits=2,hung_thresh=0.01_Q_xy3_ori1_wx1_ly1_v0.5;
+				+tracker results [MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt]: 
+			+ tracker_tf_epoch_36_valloss_0.0037_max_age=3,min_hits=2,hung_thresh=0.01_Q_xy1_ori1_wx1_ly1_v-2.0.json
+				+ (for centroid counted as inside)
+
+	+ 65% : pixor_outputs_tf_epoch_3_valloss_0.0093.json
+		+ pixor eval.py 
+			+ wt set178 val set: ('Total true positive:', 3055.0, ' total false positive:', 1118.0, ' total ground labels:', 4496, ' ave precision:', 0.6515434431078192): precision@80%IoU75: 73.21%, recall:67.95%
+			+ wt full set7(no augmentation): ('Total true positive:', 249.0, ' total false positive:', 53.0, ' total ground labels:', 333, ' ave precision:', 0.8088135770975056); p:82.45%, recall:74.77%
+		+ check pixor stats (tp, fp, fn, var=[x,y,w,b,theta]): 
+			+ 249 53 84 [0.0303634  0.0064686  0.02192744 0.39213453 0.04425857] precision at iou  75 :  82.45% recall:  74.77%
+
+
 + decide MOTA n MOTP score to tell stk
 + tidy up workflow
 
@@ -23,3 +47,4 @@ MOVE ON TO DESIRE
  -- 24 Nov --
 write to complete thesis. run any other remainding tests 
 
+tp, fp, fn, var

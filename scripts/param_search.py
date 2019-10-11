@@ -25,23 +25,34 @@ def p_grid_search():
   fused_pose_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
   
   
-  min_MOTP = float('inf')
-  max_MOTA = float('inf') * -1.
-  min_MOTP_file = None
-  max_MOTA_file = None
-  best_MOT = float('inf') * -1.
-  best_MOT_file = None
-  best_MOTA = None
-  best_MOTP = None
+
+#   min_MOTP_file = None
+#   max_MOTA_file = None
+#   best_MOT_file = None
+  
+  pmin_hits_size = 4
+  pmax_age_size = 4
+  overall_mota = float('inf')
+  overall_motp = float('inf') * -1.
+  overall_MOT = float('inf') * -1.
   
   for pq_xy in prange(11):
       for pq_wx in prange(11):
         for pq_ly in prange(11):
           for pq_v in prange(11):
+            
             for pq_heading in prange(11):
-              for pmax_age in prange(4):
-                for pmin_hits in prange(4):
+              pmax_age_arr = np.zeros((pmax_age_size, 3)) # mota, motp, mot
+              for pmax_age in prange(pmax_age_size):
+                pmin_hits_arr = np.zeros((pmin_hits_size, 3)) # mota, motp, mot
+                for pmin_hits in prange(pmin_hits_size):
                   for ha_thresh in np.arange(0.1,1.0,0.4):
+                    
+                    min_MOTP = float('inf')
+                    max_MOTA = float('inf') * -1.
+                    best_MOTA = None
+                    best_MOTP = None
+                    best_MOT = float('inf') * -1.
                     
                     q_xy = pq_xy-5
                     q_wx = pq_wx-5 
@@ -55,7 +66,7 @@ def p_grid_search():
                     
                     # TODO param search wt HA thresh?
     #                 ha_thresh = ha_thresh_exp
-                    tracker_params = "age" + str(max_age) + "_hits" + str(min_hits) +"_thresh" + str(ha_thresh)
+#                     tracker_params = "age" + str(max_age) + "_hits" + str(min_hits) +"_thresh" + str(ha_thresh)
                     
                     Q = np.identity(10) # KF Process uncertainty/noise
                     Q[0,0] = 10.**q_xy # x
@@ -69,11 +80,11 @@ def p_grid_search():
                     Q[8,8] = 10.**q_v # v_y
                     Q[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
                     
-                    q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
+#                     q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
                     
-                    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/tracker_px_stats_" + tracker_params +"_Q"+ q_params + ".json"
+#                     tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/tracker_px_stats_" + tracker_params +"_Q"+ q_params + ".json"
                     dummy_file =  "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy.json"
-                    print tracker_params, q_params, tracker_json_outfile
+#                     print tracker_params, q_params, tracker_json_outfile
                     get_tracker_json(pixor_json_name=pixor_json_name, tracker_json_outfile=dummy_file, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha_thresh, Q=Q)
                     
                     
@@ -84,25 +95,44 @@ def p_grid_search():
                     if MOTP is not None:
                       if min_MOTP > MOTP:
                         min_MOTP = MOTP
-                        min_MOTP_file = tracker_json_outfile
-                        print" min MOTP", min_MOTP, "from file: ", min_MOTP_file
+#                         min_MOTP_file = tracker_json_outfile
+#                         print" min MOTP", min_MOTP, "from file: ", tracker_json_outfile
                     
                     if MOTA is not None:
                       if max_MOTA < MOTA:
                         max_MOTA = MOTA
-                        max_MOTA_file = tracker_json_outfile
-                        print "max_MOTA: ", max_MOTA, " from file: ", max_MOTA_file
+#                         max_MOTA_file = tracker_json_outfile
+#                         print "max_MOTA: ", max_MOTA, " from file: ", tracker_json_outfile
                         
                     if MOTA > 0.5 and MOTP < 0.5:
                         if MOTA-MOTP > best_MOT: 
-                            best_MOT = MOTA-MOTP
-                            best_MOT_file = tracker_json_outfile
-                            print "best MOT: ", best_MOTA, best_MOTP, best_MOT_file
-                    
-                    print "done with ", tracker_json_outfile
-  print "max_MOTA: ", max_MOTA, " from file: ", max_MOTA_file
-  print" min MOTP", min_MOTP, "from file: ", min_MOTP_file
-  print "best MOT: ", best_MOTA, best_MOTP, best_MOT_file
+                            best_MOT = MOTA-MOTP # FIXME: also keep track of the corresp MOTA n MOTP
+#                             best_MOT_file = tracker_json_outfile
+#                             print "best MOT: ", best_MOTA, best_MOTP, tracker_json_outfile
+
+                  pmin_hits_arr[pmin_hits,0] = max_MOTA
+                  pmin_hits_arr[pmin_hits,1] = min_MOTP
+                  pmin_hits_arr[pmin_hits,2] = best_MOT
+                  print "pmin hits", pmin_hits, pmin_hits_arr
+                pmax_age_arr[pmax_age,0] = max(pmin_hits_arr[:,0])
+                pmax_age_arr[pmax_age,1] = min(pmin_hits_arr[:,1])
+                pmax_age_arr[pmax_age,2] = max(pmin_hits_arr[:,2])
+              if overall_mota < max(pmax_age_arr[:,0]):
+                overall_mota = max(pmax_age_arr[:,0])
+                print "max_MOTA: ", overall_mota
+              if overall_motp > min(pmax_age_arr[:,1]):
+                overall_motp = min(pmax_age_arr[:,1])
+                print "min_MOTA: ", overall_motp
+              if overall_MOT < max(pmax_age_arr[:,2]):
+                overall_MOT = max(pmax_age_arr[:,2])
+                print "best MOT: ", overall_MOT
+#                 print "done with ", tracker_json_outfile
+#   print "max_MOTA: ", max_MOTA, " from file: ", max_MOTA_file
+#   print" min MOTP", min_MOTP, "from file: ", min_MOTP_file
+#   print "best MOT: ", best_MOTA, best_MOTP, best_MOT_file
+  print "max_MOTA: ", max_MOTA
+  print" min MOTP", min_MOTP
+  print "best MOT: ", best_MOT
                     
 
 def no_write(tracker_json_file, labels_json_path, pixor_json_name, fused_pose_json):
@@ -235,8 +265,8 @@ if __name__ == '__main__':
   is_gen_tracks = False # FIXME permutate Q values here
   # TODO get better param range
   # generate tracker files
-  if(is_gen_tracks):
-    p_grid_search()
+#   if(is_gen_tracks):
+#     p_grid_search()
     
   if no_write:
     p_grid_search()
