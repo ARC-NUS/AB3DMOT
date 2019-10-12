@@ -135,7 +135,7 @@ def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, max
       json.dump(total_list, outfile, indent=1)
 
       
-  print "Done"
+#   print "Done"
   
   
   
@@ -208,14 +208,14 @@ if __name__ == '__main__':
   if is_tuning:
     p_grid_search()
   else:
-    tracker_params = "max_age=3,min_hits=2,hung_thresh=0.01" 
+    tracker_params = "max_age=2,min_hits=3,hung_thresh=0.1" 
     
     Q = np.identity(10) # KF Process uncertainty/noise
     
-    q_xy = 1
-    q_heading = 1
-    q_wx = 1
-    q_ly = 1
+    q_xy = 0
+    q_heading = 0
+    q_wx = 0
+    q_ly = 0
     q_v = -2.
     Q[0,0] = 10.**q_xy # x
     Q[1,1] = 10.**q_xy # y
@@ -231,8 +231,8 @@ if __name__ == '__main__':
     q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
     
 #     tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_age3_hits2_thresh_0.01/tracker_tf_epoch_36_valloss_0.0037_" + tracker_params +"_Q"+ q_params + ".json"
-    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_age3_hits2_thresh_0.01/tracker_tf_epoch_36_valloss_0.0037_" + tracker_params +"_Q"+ q_params + ".json"
-    get_tracker_json(pixor_json_name=pixor_json_name, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=3,min_hits=2,hung_thresh=0.01, Q=Q)
+    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_age2_hits3_thresh_0.01/tracker_tf_epoch_36_valloss_0.0037_" + tracker_params +"_Q"+ q_params + ".json"
+    get_tracker_json(pixor_json_name=pixor_json_name, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=2,min_hits=3,hung_thresh=0.1, Q=Q)
             
       
       
