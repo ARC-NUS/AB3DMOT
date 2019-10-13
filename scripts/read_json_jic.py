@@ -7,7 +7,7 @@ import numpy as np
 from pyquaternion import Quaternion
 from numba import prange, jit
 
-def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, max_age=3,min_hits=2,hung_thresh=0.05, Q = np.identity(10)):
+def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, max_age=3,min_hits=2,hung_thresh=0.05, Q = np.identity(10), is_write=True):
 # we set zero for z & h for BEV tracking
 
   # x y z theta l w h 
@@ -131,10 +131,10 @@ def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, max
         total_list.append({"name": pcd["name"], "objects":result_trks})
   
   # parse into json
-  with open(tracker_json_outfile, "w+") as outfile:
+  if is_write:
+    with open(tracker_json_outfile, "w+") as outfile:
       json.dump(total_list, outfile, indent=1)
-
-      
+  return total_list
 #   print "Done"
   
   
