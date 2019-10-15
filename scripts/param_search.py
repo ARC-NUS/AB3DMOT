@@ -14,7 +14,7 @@ from multiprocessing.pool import ThreadPool
 import datetime
 
 @jit(parallel=True)
-def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age_arr, pmax_age, pmin_hits_arr, pmin_hits):
+def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits):
 #   dummy_files = ["/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy0.json",
 #                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy1.json",
 #                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy2.json",
@@ -80,16 +80,18 @@ def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age_arr, pmax_age, pmin_
 #         print "max_MOTA: ", max_MOTA
 #         print pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh
         
-    if MOTA > 0.6 and MOTP < 80.:
+    if MOTA > 0.4 or MOTP < 80.:
         if MOTA-MOTP > best_MOT: 
             best_MOT = MOTA-MOTP # FIXME: also keep track of the corresp MOTA n MOTP
 #                             best_MOT_file = tracker_json_outfile
-            print "best MOT: ", best_MOTA, best_MOTP, tracker_json_outfile
-            print pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh
+            print "best MOT: ", [best_MOT, MOTP, MOTA]
+            print [pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh]
+            
+#     print MOTP, MOTA
 
-  pmin_hits_arr[pmin_hits,0] = max_MOTA
-  pmin_hits_arr[pmin_hits,1] = min_MOTP
-  pmin_hits_arr[pmin_hits,2] = best_MOT
+#   pmin_hits_arr[pmin_hits,0] = max_MOTA
+#   pmin_hits_arr[pmin_hits,1] = min_MOTP
+#   pmin_hits_arr[pmin_hits,2] = best_MOT
 #   print "pmin hits", pmin_hits, pmin_hits_arr
 #   print "end pmin hits", pmin_hits
 
@@ -127,16 +129,16 @@ def grid_search():
       for pq_wx in range(q_range):
         for pq_ly in range(q_range):
           for pq_v in range(q_range):
-            print [pq_xy, pq_wx, pq_ly, pq_v]
-            print(datetime.datetime.now())
             for pq_heading in range(q_range):
-              pmax_age_arr = np.zeros((pmax_age_size, 3)) # mota, motp, mot
+#               pmax_age_arr = np.zeros((pmax_age_size, 3)) # mota, motp, mot
               for pmax_age in range(pmax_age_size):
+                print [pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age]
+                print(datetime.datetime.now())
                 pmin_hits_arr = np.zeros((pmin_hits_size, 3)) # mota, motp, mot
                 threads = []
                 for pmin_hits in range(pmin_hits_size):
 #                   print "start pmin hits", pmin_hits
-                  x = threading.Thread(target=loop_ha, args=(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age_arr, pmax_age, pmin_hits_arr, pmin_hits))
+                  x = threading.Thread(target=loop_ha, args=(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits))
                   threads.append(x)
                   x.start()
                 for x in threads:
