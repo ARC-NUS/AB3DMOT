@@ -367,7 +367,7 @@ if __name__ == '__main__':
   for i in range(0,1):
     tracker_params = "age3_hits2_thresh_0.1"
 #     tracker_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/tracker_px_stats_" + tracker_params + str(10*i)+ ".json"
-    tracker_json_path = "/media/yl/downloads/tracker_results/set_7/tracker_results_age2_hits3_thresh_0.01/tracker_tf_epoch_36_valloss_0.0037_max_age=2,min_hits=3,hung_thresh=0.1_Q_xy0_ori0_wx0_ly0_v-2.0.json"
+    tracker_json_path = "/media/yl/downloads/tracker_results/set_7/tracker_results_age2_hits3_thresh_0.01/tracker_tf_epoch_3_valloss_0.0093_2_max_age=2,min_hits=3,hung_thresh=0.1_Q_xy0_ori0_wx0_ly0_v-2.0.json"
     MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
 #     print i, MOTA, MOTP, total_mmet
     print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt

@@ -196,12 +196,13 @@ if __name__ == '__main__':
   # load detetions
 #   pixor_json_name = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_49_valloss_0.0107.json"
 #   pixor_json_name = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_2/pixor_outputs.json"
-  pixor_json_name = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_36_valloss_0.0037.json"
+
+  pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs.json"
   # output json
   # default
   
   
-  fused_pose_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
+  fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
   
   is_tuning = False
   
@@ -231,7 +232,7 @@ if __name__ == '__main__':
     q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
     
 #     tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_age3_hits2_thresh_0.01/tracker_tf_epoch_36_valloss_0.0037_" + tracker_params +"_Q"+ q_params + ".json"
-    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_age2_hits3_thresh_0.01/tracker_tf_epoch_36_valloss_0.0037_" + tracker_params +"_Q"+ q_params + ".json"
+    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_age2_hits3_thresh_0.01/test_tracker_tf_epoch_3_valloss_0.0093_2_" + tracker_params +"_Q"+ q_params + ".json"
     get_tracker_json(pixor_json_name=pixor_json_name, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=2,min_hits=3,hung_thresh=0.1, Q=Q)
             
       

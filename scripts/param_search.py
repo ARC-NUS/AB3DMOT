@@ -80,7 +80,7 @@ def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits):
 #         print "max_MOTA: ", max_MOTA
 #         print pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh
         
-    if MOTA > 0.4 or MOTP < 80.:
+    if MOTA > 0.4 and MOTP < 82.:
         if MOTA-MOTP > best_MOT: 
             best_MOT = MOTA-MOTP # FIXME: also keep track of the corresp MOTA n MOTP
 #                             best_MOT_file = tracker_json_outfile

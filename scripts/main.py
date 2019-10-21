@@ -319,7 +319,7 @@ def associate_detections_to_trackers_BEV(detections,trackers,iou_threshold=0.1):
   for d,det in enumerate(detections):
     for t,trk in enumerate(trackers):
       iou_matrix[d,t] = iou2d(det,trk)[0]             # TODO det: 4 x 2, trk: 4 x 2
-  matched_indices = linear_assignment(-iou_matrix)      # hougarian algorithm
+  matched_indices = linear_assignment(-iou_matrix)      # hungarian algorithm
 
 
 
@@ -340,7 +340,8 @@ def associate_detections_to_trackers(detections,trackers,iou_threshold=0.1):
 
   for d,det in enumerate(detections):
     for t,trk in enumerate(trackers):
-      iou_matrix[d,t] = iou3d(det,trk)[0]             # det: 8 x 3, trk: 8 x 3
+#       iou_matrix[d,t] = iou3d(det,trk)[0]             # det: 8 x 3, trk: 8 x 3
+      iou_matrix[d,t] = iou2d(det,trk)             # det: 8 x 3, trk: 8 x 3
   matched_indices = linear_assignment(-iou_matrix)      # hugarian algorithm
 
   unmatched_detections = []
@@ -446,7 +447,8 @@ class AB3DMOT(object):
     for trk in reversed(self.trackers):
         d = trk.get_state()      # bbox location
         d = d[self.reorder_back]
-
+        
+        # choose which tracks to return
         if((trk.time_since_update < self.max_age) and (trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):      
           ret.append(np.concatenate((d, [trk.id+1], trk.info)).reshape(1,-1)) # +1 as MOT benchmark requires positive
         i -= 1
