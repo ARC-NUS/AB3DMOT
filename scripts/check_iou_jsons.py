@@ -110,10 +110,11 @@ def get_iou(opts, tpts):
 def get_MOT_dist(opts, tpts, dist_type):
     if dist_type == "IOU":
         IOU = get_iou(opts, tpts)
+        dist = 100. - IOU
     else:
         "distance metric type not supported"
-        IOU = None
-    return 100.-IOU
+        dist = None
+    return dist
 
 # takes inputs in baselink frame
 def is_in_PIXOR_FOV(label):
@@ -154,6 +155,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
   total_mmet = 0
   MOTP = None
   MOTA = None
+  total_ct_check = 0
           
   for index, labels in enumerate(labels_data): # for each pcd/timestep labelled
       # init params for each timestep
@@ -275,6 +277,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
                   new_mappings.update({labels['annotations'][row]['classId']: tracks['objects'][column]['id']})
                   
               total_dist += get_MOT_dist(opts, tpts, distance_metric)
+              total_ct_check +=1
                   
       
       total_ct += len(new_mappings) # count number of matches 
@@ -367,7 +370,9 @@ if __name__ == '__main__':
   for i in range(0,1):
     tracker_params = "age3_hits2_thresh_0.1"
 #     tracker_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/tracker_px_stats_" + tracker_params + str(10*i)+ ".json"
-    tracker_json_path = "/media/yl/downloads/tracker_results/set_7/tracker_results_age2_hits3_thresh_0.01/tracker_tf_epoch_3_valloss_0.0093_2_max_age=2,min_hits=3,hung_thresh=0.1_Q_xy0_ori0_wx0_ly0_v-2.0.json"
+#     tracker_json_path = "/media/yl/downloads/tracker_results/set_7/tracker_results_age2_hits3_thresh_0.01/tracker_tf_epoch_3_valloss_0.0093_2_max_age=2,min_hits=3,hung_thresh=0.1_Q_xy0_ori0_wx0_ly0_v-2.0.json"
+    tracker_json_path = "/media/yl/downloads/tracker_results/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2max_age=4,min_hits=4,hung_thresh=0.05_Q_xy0_ori-1.0_wx-5.0_ly-5.0_v-1.0.json"
+
     MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
 #     print i, MOTA, MOTP, total_mmet
     print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt

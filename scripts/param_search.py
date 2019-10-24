@@ -14,14 +14,8 @@ from multiprocessing.pool import ThreadPool
 import datetime
 
 @jit(parallel=True)
-def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits):
-#   dummy_files = ["/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy0.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy1.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy2.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy3.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy4.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy5.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy6.json"]
+def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, pixor_json_name,fused_pose_json,labels_json_path, thres_d, distance_metric, best_list, best_i):
+  q_arr = [-10.,0.,10.]
   thres_d = 100.
   distance_metric = "IOU"
   min_MOTP = float('inf')
@@ -30,18 +24,19 @@ def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits):
   best_MOTP = None
   best_MOT = float('inf') * -1.
     
-  q_xy = pq_xy*2
-  q_wx = pq_wx*2
-  q_ly = pq_ly*2
-  q_v = pq_v*2-2
-  q_heading = pq_heading
+  q_xy = pq_xy*2+1
+  q_wx = q_arr[pq_wx]
+  q_ly = q_arr[pq_ly]
+  q_v = -pq_v*2-1
+  q_heading = -pq_heading
    
-  max_age = pmax_age+1
-  min_hits = pmin_hits+1
-  for ha_thresh in np.arange(0.1,1.0,0.4):
-    # TODO param search wt HA thresh?
-#                 ha_thresh = ha_thresh_exp
-#                     tracker_params = "age" + str(max_age) + "_hits" + str(min_hits) +"_thresh" + str(ha_thresh)
+  max_age = pmax_age+5
+  min_hits = pmin_hits+2
+  
+  ha_arr = [0.025] 
+  
+  for ha_iter in range(1): # FIXME check the best for the ha and only return the best
+    ha_thresh = ha_arr[ha_iter]
     
     Q = np.identity(10) # KF Process uncertainty/noise
     Q[0,0] = 10.**q_xy # x
@@ -55,114 +50,96 @@ def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits):
     Q[8,8] = 10.**q_v # v_y
     Q[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
     
-#                     q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
-#                     tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/tracker_px_stats_" + tracker_params +"_Q"+ q_params + ".json"
-#     dummy_file =  dummy_files[pmin_hits]
-#                     print tracker_params, q_params, tracker_json_outfile
     total_list = get_tracker_json(pixor_json_name=pixor_json_name, tracker_json_outfile=None, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha_thresh, Q=Q, is_write=False)
     
     
     MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = \
     check_iou_json(labels_json_path, None, thres_d, distance_metric, is_write=False, total_list=total_list)
     
-    
+    MOTA *= 100.
     if MOTP is not None:
       if min_MOTP > MOTP:
         min_MOTP = MOTP
-#                         min_MOTP_file = tracker_json_outfile
-#         print" min MOTP", min_MOTP
-#         print pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh
     
     if MOTA is not None:
       if max_MOTA < MOTA:
         max_MOTA = MOTA
-#                         max_MOTA_file = tracker_json_outfile
-#         print "max_MOTA: ", max_MOTA
-#         print pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh
-        
-    if MOTA > 0.4 and MOTP < 82.:
-        if MOTA-MOTP > best_MOT: 
-            best_MOT = MOTA-MOTP # FIXME: also keep track of the corresp MOTA n MOTP
-#                             best_MOT_file = tracker_json_outfile
-            print "best MOT: ", [best_MOT, MOTP, MOTA]
-            print [pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh]
-            
-#     print MOTP, MOTA
 
-#   pmin_hits_arr[pmin_hits,0] = max_MOTA
-#   pmin_hits_arr[pmin_hits,1] = min_MOTP
-#   pmin_hits_arr[pmin_hits,2] = best_MOT
-#   print "pmin hits", pmin_hits, pmin_hits_arr
-#   print "end pmin hits", pmin_hits
+    best_MOT = MOTA-MOTP # FIXME: also keep track of the corresp MOTA n MOTP
+#     if MOTA > 82. and MOTP < 86.5:
+#         if MOTA-MOTP > best_MOT: 
+#             print "best MOT: ", [best_MOT, MOTP, MOTA]
+#             print [pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh]
+            
+    # send it back to the main thread
+    best_list[best_i] = [best_MOT, MOTP, MOTA, pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh]
+            
 
 @jit(parallel=True)
-def grid_search():
-  
-  # TODO move this to main
-  # run clear-mot calcs
-  distance_metric = "IOU" # using IOU as distance metric
-  thres_d = 100. # threshold distance to count as a correspondance, beyond it will be considered as missed detection
-  # TODO test with other distance metrics and thresholds
-  labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json"
-  pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs.json"
-  fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
-
-#   min_MOTP_file = None
-#   max_MOTA_file = None
-#   best_MOT_file = None
-  
+def grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json, pixor_stats_json):
   pmin_hits_size = 3
   pmax_age_size = 3
   overall_mota = float('inf')
   overall_motp = float('inf') * -1.
   overall_MOT = float('inf') * -1.
   q_range = 3
-#   dummy_files = ["/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy0.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy1.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy2.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy3.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy4.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy5.json",
-#                   "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/dummy6.json"]
-  
+  best_MOT_score = -float('inf')
+  best_MOT_hp = [] # TODO remove size hardcode? [best_MOT, MOTP, MOTA, pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, ha_thresh]
+
   for pq_xy in range(q_range):
-      for pq_wx in range(q_range):
-        for pq_ly in range(q_range):
-          for pq_v in range(q_range):
-            for pq_heading in range(q_range):
-#               pmax_age_arr = np.zeros((pmax_age_size, 3)) # mota, motp, mot
-              for pmax_age in range(pmax_age_size):
-                print [pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age]
-                print(datetime.datetime.now())
-                pmin_hits_arr = np.zeros((pmin_hits_size, 3)) # mota, motp, mot
-                threads = []
-                for pmin_hits in range(pmin_hits_size):
+    for pq_wx in range(q_range):
+      for pq_ly in range(q_range):
+        for pq_v in range(q_range):
+          for pq_heading in range(q_range):
+            for pmax_age in range(pmax_age_size):
+              print [pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age]
+              print(datetime.datetime.now())
+              threads = []
+              pmin_hits_list = [None] * pmin_hits_size
+              for pmin_hits in range(pmin_hits_size):
 #                   print "start pmin hits", pmin_hits
-                  x = threading.Thread(target=loop_ha, args=(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits))
-                  threads.append(x)
-                  x.start()
-                for x in threads:
-                    x.join()
-#                 pmax_age_arr[pmax_age,0] = max(pmin_hits_arr[:,0])
-#                 pmax_age_arr[pmax_age,1] = min(pmin_hits_arr[:,1])
-#                 pmax_age_arr[pmax_age,2] = max(pmin_hits_arr[:,2])
-#                 
-#               if overall_mota < max(pmax_age_arr[:,0]):
-#                 overall_mota = max(pmax_age_arr[:,0])
-#                 print "max_MOTA: ", overall_mota
-#               if overall_motp > min(pmax_age_arr[:,1]):
-#                 overall_motp = min(pmax_age_arr[:,1])
-#                 print "min_MOTP: ", overall_motp
-#               if overall_MOT < max(pmax_age_arr[:,2]):
-#                 overall_MOT = max(pmax_age_arr[:,2])
-#                 print "best MOT: ", overall_MOT
-#                 print "done with ", tracker_json_outfile
-#   print "max_MOTA: ", max_MOTA, " from file: ", max_MOTA_file
-#   print" min MOTP", min_MOTP, "from file: ", min_MOTP_file
-#   print "best MOT: ", best_MOTA, best_MOTP, best_MOT_file
-#   print "max_MOTA: ", max_MOTA
-#   print" min MOTP", min_MOTP
-#   print "best MOT: ", best_MOT
+                x = threading.Thread(target=loop_ha, args=(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits,pixor_json_name,fused_pose_json,labels_json_path, thres_d, distance_metric, pmin_hits_list, pmin_hits)) # run clear-mot calcs
+                threads.append(x)
+                x.start()
+              for x in threads:
+                x.join()
+              
+              # compare the MOTA-MOTP for the permutations of pmin and ha
+              for i, mot_list in enumerate(pmin_hits_list):
+#                 print mot_list
+                mot = mot_list[0]
+                if mot > best_MOT_score:
+                  best_MOT_score = mot
+                  best_MOT_hp = [] # TODO change to a range?
+                if mot == best_MOT_score:  # TODO change to a range?
+                  best_MOT_hp.append(pmin_hits_list[i])
+                  print "best mot" , best_MOT_hp
+                    
+  print "final best mot:" , best_MOT_hp
+  
+                 
+@jit(parallel=True)
+def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json):
+  pmin_hits_size = 3
+  pmax_age_size = 3
+  overall_mota = float('inf')
+  overall_motp = float('inf') * -1.
+  overall_MOT = float('inf') * -1.
+  q_range = 3
+  pq_xy =1
+  pq_v = 0
+  pmax_age = 1
+  pmin_hits = 1
+  pq_heading = 2
+           
+  for pq_wx in range(q_range):
+    for pq_ly in range(q_range):
+      print [pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age]
+      print(datetime.datetime.now())
+      loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits,pixor_json_name,fused_pose_json,labels_json_path, thres_d, distance_metric)
+         
+
+
 
 
 def no_write(tracker_json_file, labels_json_path, pixor_json_name, fused_pose_json):
@@ -284,22 +261,34 @@ def write_csv(tracker_json_dir, labels_json_path, pixor_json_name, fused_pose_js
 if __name__ == '__main__':
   
   # 20 hz pixor outputs:
-  pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs.json"
-  fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
-  
-  # 20 hz tracker outputs:
-  tracker_json_dir = "/media/yl/downloads/tracker_results/set_7/tracker_results_age3_hits2_thresh_0.005/"
-  # 2 hz labels:
-  labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json"
-
-  is_gen_tracks = False # FIXME permutate Q values here
+#   pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs.json"
+#   pixor_json_name = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+#   fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
+#   
+#   # 20 hz tracker outputs:
+#   tracker_json_dir = "/media/yl/downloads/tracker_results/set_7/tracker_results_age3_hits2_thresh_0.005/"
+#   # 2 hz labels:
+#   labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json"
+# 
+#   is_gen_tracks = False # FIXME permutate Q values here
   # TODO get better param range
   # generate tracker files
 #   if(is_gen_tracks):
 #     p_grid_search()
-    
+
+
+  distance_metric = "IOU" # using IOU as distance metric
+  thres_d = 100. # threshold distance to count as a correspondance, beyond it will be considered as missed detection
+  # TODO test with other distance metrics and thresholds
+  
+  # jsons
+  labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json"
+  pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+  fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
+
+  pixor_stats_json = pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
   if no_write:
-    grid_search()
+    grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json, pixor_stats_json)
   print "Done."
   
   

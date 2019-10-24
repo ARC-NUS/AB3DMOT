@@ -5,6 +5,7 @@ import check_iou_jsons as check_iou
 # from check_iou_jsons import is_pxpp_fov
 from shapely.geometry import Polygon
 import json
+from __builtin__ import True
 
   
 def check_output_json(output_json, labels_json, iou_thresh):
@@ -80,7 +81,7 @@ def check_output_json(output_json, labels_json, iou_thresh):
                             if not is_corresp:
                                 # dont count if there is another pixor already associated to this label
                                 tp += 1
-                                print "tp: ", i_label, bbpx_i, iou
+#                                 print "tp: ", i_label, bbpx_i, iou
                                 is_corresp = True
                             
                             if iou > iou_max:
@@ -125,18 +126,33 @@ if __name__ == '__main__':
 #     pixor_json = "/home/yl/master_arc/src/AB3DMOT/data/pixor_outputs.json"
 #     labels_json = "/home/yl/master_arc/src/AB3DMOT/data/Set_7_annotations.json"
 
-    pixor_json =  "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_36_valloss_0.0037.json"
+    pixor_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_36_valloss_0.0037.json"
     labels_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json'
-
+    pixor_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+    is_write = True
+    pixor_stats_json =  pixor_json[0:len(pixor_json)-5]+"_stats.json"
+    
+    if is_write:
+      print "writing stats to file" + str (pixor_stats_json)
 
     iou_thresh = 75
     tp, fp, fn, var= check_output_json(pixor_json, labels_json, iou_thresh)
     print tp, fp, fn, var
-    print "precision at iou ", iou_thresh, ": ", (tp*100.0)/ (fp+tp)
-    print "recall: ", (tp*100.0)/ (fn+tp)
+    prec = (tp*100.0)/ (fp+tp)
+    print "precision at iou ", iou_thresh, ": ", prec
+    recall = (tp*100.0)/ (fn+tp)
+    print "recall: ", recall
+    
+    if is_write:
+      # write to json
+      dict = {'precision': prec,
+              'iou_thresh': iou_thresh,
+              'recall': recall,
+              'tp': tp,
+              'fp': fp,
+              'fn': fn,
+              'var': var.tolist()}
+      with open(pixor_stats_json, "w+") as outfile:
+        json.dump(dict, outfile, indent=1)
 
-#     for iou_thresh in np.arange(0,100,75):
-#         tp, fp, fn, var= check_output_json(pixor_json, labels_json, iou_thresh)
-#         print tp, fp, fn, var
-#         print "precision@80%confidence, iou", iou_thresh, ": ", (tp*100.)/ (fp+tp), "%"
 
