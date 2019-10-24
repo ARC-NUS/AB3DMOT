@@ -128,6 +128,21 @@ def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name
       loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits,pixor_json_name,fused_pose_json,labels_json_path, thres_d, distance_metric)
 '''
 
+'''
+@brief: coordinate descent method in the paper "Discriminative Training of Kalman Filter"
+@param num_params:
+@param fn: function call
+@param init_params
+@param max_iter
+@param min_alpha
+@outputs: true if it converges and false otherwise
+'''
+def coord_descent(num_params, fn, init_params, max_iter, min_alpha):
+  is_conv = False
+  
+  return is_conv
+
+
 
 if __name__ == '__main__':
   distance_metric = "IOU" # using IOU as distance metric
