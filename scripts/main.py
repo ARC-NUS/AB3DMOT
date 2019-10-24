@@ -146,15 +146,15 @@ class KalmanBoxTracker(object):
   This class represents the internel state of individual tracked objects observed as bbox.
   """
   count = 0
-  def __init__(self, bbox3D, info, R = np.identity(7), Q = np.identity(10)):
+  def __init__(self, bbox3D, info, R = np.identity(7), Q = np.identity(10), delta_t):
     """
     Initialises a tracker using initial bounding box.
     """
     #define constant velocity model
     self.kf = KalmanFilter(dim_x=10, dim_z=7)       
-    self.kf.F = np.array([[1,0,0,0,0,0,0,1,0,0],      # state transition matrix
-                          [0,1,0,0,0,0,0,0,1,0],
-                          [0,0,1,0,0,0,0,0,0,1],
+    self.kf.F = np.array([[1,0,0,0,0,0,0,delta_t,0,0],      # state transition matrix
+                          [0,1,0,0,0,0,0,0,delta_t,0],
+                          [0,0,1,0,0,0,0,0,0,delta_t],
                           [0,0,0,1,0,0,0,0,0,0],  
                           [0,0,0,0,1,0,0,0,0,0],
                           [0,0,0,0,0,1,0,0,0,0],
@@ -371,7 +371,7 @@ def associate_detections_to_trackers(detections,trackers,iou_threshold=0.1):
 
 class AB3DMOT(object):
   def __init__(self,max_age=2,min_hits=3,hung_thresh=0.1,is_jic=False, 
-               R = np.identity(7), Q = np.identity(10)):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
+               R = np.identity(7), Q = np.identity(10), P_0=np.identity(10)):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
   # def __init__(self,max_age=3,min_hits=3):        # ablation study
   # def __init__(self,max_age=1,min_hits=3):      
   # def __init__(self,max_age=2,min_hits=1):      
@@ -389,6 +389,7 @@ class AB3DMOT(object):
     
     self.R = R
     self.Q = Q
+    self.P_0 = P_0
     
 
   def update(self,dets_all):
