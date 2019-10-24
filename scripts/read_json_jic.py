@@ -6,7 +6,9 @@ import json
 import numpy as np
 from pyquaternion import Quaternion
 from numba import prange, jit
+from __builtin__ import False
 
+import yl_utils 
 
 '''
 @brief: Gets the MOT 
@@ -14,25 +16,14 @@ from numba import prange, jit
 @param pc_folder: Folder of the validation set
 @return total_list: the list of all the object trackes for the whole input pixor json
 '''
-def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, max_age=3,min_hits=2,hung_thresh=0.05, Q = np.identity(10), is_write=True):
+def get_tracker_json(pixor_json_name, pixor_stats_json, tracker_json_outfile, fused_pose_json, max_age=3,min_hits=2,hung_thresh=0.05, Q = np.identity(10), is_write=True):
+  is_check_online = False # FIXME
 # we set zero for z & h for BEV tracking
 
-  # x y z theta l w h 
-  R = np.identity(7) # KF measurement uncertainty/noise
-  
-  # pixor stats LGCR set 7
-  # tp, fp, fn, [x y w b theta]
-  # pixor_outputs_tf_epoch_3_valloss_0.0093.json
-  # 210 92 335 [0.03953874 0.00588307 0.02431999 0.39831919 0.00211127] precision@80%iou75 :  69.54%, recall:  54.69%
-  R[0,0] = 0.03953874 #x
-  R[1,1] = 0.00588307 #y
-  R[2,2] = 0.0001 #z
-  R[3,3] = 0.00211127 #theta
-  R[4,4] = 0.39831919 #l
-  R[5,5] = 0.02431999 #w
-  R[6,6] = 0.0001 #h
-  
-  mot_tracker = AB3DMOT(is_jic=True,max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, R=R, Q=Q)
+  R = yl_utils.px_stats_get_R(pixor_stats_json)
+  P_0 = yl_utils.px_stats_get_P_0(pixor_stats_json)
+
+  mot_tracker = AB3DMOT(is_jic=True,max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, R=R, Q=Q, P_0 = P_0)
   
   det_id2str = {1:'Pedestrian', 2:'Car', 3:'Cyclist', 4:'Truck'}
   
@@ -136,8 +127,7 @@ def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, max
   if is_write:
     with open(tracker_json_outfile, "w+") as outfile:
       json.dump(total_list, outfile, indent=1)
-
-
+      
   return total_list
   
   
@@ -153,7 +143,6 @@ def p_grid_search():
               for pmax_age in prange(4):
                 for pmin_hits in prange(4):
                   for ha_thresh in np.arange(0.1,1.0,0.4):
-                    
                     q_xy = pq_xy-5
                     q_wx = pq_wx-5 
                     q_ly = pq_ly-5
@@ -162,7 +151,6 @@ def p_grid_search():
                     
                     max_age = pmax_age+2
                     min_hits = pmin_hits+2
-                    
                     
                     # TODO param search wt HA thresh?
     #                 ha_thresh = ha_thresh_exp
@@ -188,23 +176,8 @@ def p_grid_search():
   return True
 
 if __name__ == '__main__':  
-#   parser = argparse.ArgumentParser(description='a baseline for 3D MOT.')
-#   parser.add_argument("input_set", help="input set to be used. must be a valid dir in ../data")
-# #   parser.add_argument("-j", "--json", action="store_true",
-# #                     help="read from json file (instead of kitti format)")
-
-#   args = parser.parse_args()
-#   result_sha = args.input_set
-  
-  # load detetions
-#   pixor_json_name = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_49_valloss_0.0107.json"
-  pixor_json_name = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
-
-#   pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs.json"
-  # output json
-  # default
-  
-  
+  pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+  pixor_stats_json =  pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
   fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
   
   is_tuning = False
@@ -212,10 +185,7 @@ if __name__ == '__main__':
   if is_tuning:
     p_grid_search()
   else:
-    
-    
     Q = np.identity(10) # KF Process uncertainty/noise
-    
     q_xy = 0
     q_heading = -1.
     q_wx = -5.
@@ -239,9 +209,10 @@ if __name__ == '__main__':
     
     q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
     
-#     tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_age3_hits2_thresh_0.01/tracker_tf_epoch_36_valloss_0.0037_" + tracker_params +"_Q"+ q_params + ".json"
+
+    
     tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2" + tracker_params +"_Q"+ q_params + ".json"
-    get_tracker_json(pixor_json_name=pixor_json_name, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q)
-            
+    get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q)
+    print "Done"
       
       

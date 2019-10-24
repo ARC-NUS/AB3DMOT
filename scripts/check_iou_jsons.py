@@ -133,7 +133,6 @@ def is_in_PIXOR_FOV(label):
 #   return is_pxpp_fov(pts)
 
 def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_metric = "IOU", is_write=True, total_list=None):
-  
   labels_json_file = open(labels_json_path)
   labels_data = json.load(labels_json_file, encoding="utf-8")
   

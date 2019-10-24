@@ -146,7 +146,7 @@ class KalmanBoxTracker(object):
   This class represents the internel state of individual tracked objects observed as bbox.
   """
   count = 0
-  def __init__(self, bbox3D, info, R = np.identity(7), Q = np.identity(10), delta_t):
+  def __init__(self, bbox3D, info, R, Q, P_0, delta_t):
     """
     Initialises a tracker using initial bounding box.
     """
@@ -196,8 +196,11 @@ class KalmanBoxTracker(object):
     self.kf.R[0:,0:] = R   # measurement uncertainty
     
     # initialisation cov 
-    self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-    self.kf.P *= 10. # FIXME tune initialisation cov?
+#     self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+#     self.kf.P *= 10. 
+
+    # innov cov from pixor stats
+    self.kf.P = P_0
     
     # self.kf.Q[-1,-1] *= 0.01
 #     self.kf.Q[7:,7:] *= 0.01 # process uncertainty
@@ -371,7 +374,7 @@ def associate_detections_to_trackers(detections,trackers,iou_threshold=0.1):
 
 class AB3DMOT(object):
   def __init__(self,max_age=2,min_hits=3,hung_thresh=0.1,is_jic=False, 
-               R = np.identity(7), Q = np.identity(10), P_0=np.identity(10)):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
+               R = np.identity(7), Q = np.identity(10), P_0=np.identity(10), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
   # def __init__(self,max_age=3,min_hits=3):        # ablation study
   # def __init__(self,max_age=1,min_hits=3):      
   # def __init__(self,max_age=2,min_hits=1):      
@@ -390,6 +393,7 @@ class AB3DMOT(object):
     self.R = R
     self.Q = Q
     self.P_0 = P_0
+    self.delta_t = delta_t # FIXME make it variable for fusion/ live usage
     
 
   def update(self,dets_all):
@@ -442,7 +446,7 @@ class AB3DMOT(object):
 
     #create and initialise new trackers for unmatched detections
     for i in unmatched_dets:        # a scalar of index
-        trk = KalmanBoxTracker(dets[i,:], info[i, :], self.R, self.Q) 
+        trk = KalmanBoxTracker(dets[i,:], info[i, :], self.R, self.Q, self.P_0, self.delta_t) 
         self.trackers.append(trk)
     i = len(self.trackers)
     for trk in reversed(self.trackers):
