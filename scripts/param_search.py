@@ -130,14 +130,14 @@ def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name
 
 '''
 @brief: coordinate descent method in the paper "Discriminative Training of Kalman Filter"
-@param num_params:
+@param num_params: number of parameters to search for
 @param fn: function call
-@param init_params
+@param init_params: starting position for thoptional
 @param max_iter
 @param min_alpha
 @outputs: true if it converges and false otherwise
 '''
-def coord_descent(num_params, fn, init_params, max_iter, min_alpha):
+def coord_search(num_params, fn, max_iter, min_alpha, init_params=np.zeros(num_params)):
   is_conv = False
   
   return is_conv

@@ -2,13 +2,13 @@
 # coding: utf-8
 
 def x_sq(x):
-  return x**2
+  return x[0]**2
 
 
 '''
 @brief: coordinate descent method in the paper "Discriminative Training of Kalman Filter"
 @param num_params: number of parameters to search for. Must be INT
-@param fn: function call
+@param fn: function call. needs to take in the parameters as numpy array
 @param alpha_ps: the 
 @param max_iter
 @param min_alpha
@@ -24,9 +24,10 @@ def coord_descent(num_params, fn, alpha_ps, max_iter, min_alpha, init_params=Non
   
   is_conv = False
   
-  print fn(init_params[0])
+  p_test = 
+  fn(p_test)
   
   return is_conv
   
 if __name__ == '__main__':
-  coord_descent(1, x_sq, 10., max_iter, min_alpha, init_params=None):
+  coord_descent(1, x_sq, 10., 100, 0.01, init_params=[10.])
