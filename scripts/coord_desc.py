@@ -21,7 +21,7 @@ def coord_descent(num_params, fn, alpha_ps, max_iter, min_alpha, init_params=Non
     
   
   params = init_params
-  old_results = np.inf
+  best_results = -np.inf
   # TODO check num_params
   # TODO check if numpy is valid by checking size
   
@@ -32,7 +32,7 @@ def coord_descent(num_params, fn, alpha_ps, max_iter, min_alpha, init_params=Non
   test_results =fn(p_test)
   if test_results > old_results:
     params = p_test
-    
+    old_results
     
   
   
