@@ -19,13 +19,22 @@ def coord_descent(num_params, fn, alpha_ps, max_iter, min_alpha, init_params=Non
   if init_params is None:
     init_params = np.random.rand(num_params)
     
+  
+  params = init_params
+  old_results = np.inf
   # TODO check num_params
   # TODO check if numpy is valid by checking size
   
   is_conv = False
   
-  p_test = 
-  fn(p_test)
+  # test increase
+  p_test = alpha_ps * init_params
+  test_results =fn(p_test)
+  if test_results > old_results:
+    params = p_test
+    
+    
+  
   
   return is_conv
   
