@@ -63,7 +63,7 @@ def coord_descent(num_params, fn, ALPHA_PS, dec_alpha, max_iter, min_alpha, init
           test_result = fn(*fn_full)
           # print "fn params:", fn_full
         print "inc",i_param, p_test, "res", test_result
-        print test_result > best_result
+        # print test_result > best_result
         if test_result > best_result:
           params = p_test
           best_result=test_result

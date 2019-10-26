@@ -228,7 +228,7 @@ if __name__ == '__main__':
   
   # grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json, pixor_stats_json)
   
-  coord_search(10.**3, 10.**-10, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path)
+  coord_search(10.**3, 1.0, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path)
 
   print "Done."
   
