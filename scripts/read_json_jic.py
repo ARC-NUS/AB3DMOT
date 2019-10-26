@@ -20,6 +20,8 @@ def get_tracker_json(pixor_json_name, pixor_stats_json, tracker_json_outfile, fu
   is_check_online = False # FIXME
 # we set zero for z & h for BEV tracking
 
+  # print pixor_json_name, pixor_stats_json, tracker_json_outfile, fused_pose_json, max_age,min_hits,hung_thresh, Q, is_write
+  # print "get_tracker_json Q:", Q
   R = yl_utils.px_stats_get_R(pixor_stats_json)
   P_0 = yl_utils.px_stats_get_P_0(pixor_stats_json)
 

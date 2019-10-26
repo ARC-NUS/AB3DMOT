@@ -8,6 +8,7 @@ import csv
 
 from read_json_jic import get_tracker_json
 from check_iou_jsons import check_iou_json
+from coord_desc import coord_descent
 from numba import prange, jit
 import threading
 from multiprocessing.pool import ThreadPool
@@ -128,6 +129,58 @@ def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name
       loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits,pixor_json_name,fused_pose_json,labels_json_path, thres_d, distance_metric)
 '''
 
+# params: xy, wl, v, ori, ha
+def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits):
+
+  # print params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits
+
+  # check validity of param and give really bad score if not valid
+
+  q_xy = params[0]
+  q_wl = params[1]
+  q_v = params[2]
+  q_ori = params[3]
+  ha = params[4]
+
+  is_params_ok = True
+  if q_xy <= 0.:
+    is_params_ok = False
+  if q_wl <= 0.:
+    is_params_ok = False
+  if q_v <= 0.:
+    is_params_ok = False
+  if q_ori <= 0.:
+    is_params_ok = False
+  if ha <= 0. or ha >= 1.:
+    is_params_ok = False
+
+  if not is_params_ok:
+    return -np.inf
+  else:
+    
+    Q = np.identity(10) # KF Process uncertainty/noise
+    Q[0,0] = q_xy # x
+    Q[1,1] = q_xy # y
+    Q[2,2] = 0.0000000001 # z
+    Q[3,3] = q_ori
+    Q[4,4] = q_wl # x_size
+    Q[5,5] = q_wl # y_size
+    Q[6,6] = 0.0000000001 
+    Q[7,7] = q_v # v_x
+    Q[8,8] = q_v # v_y
+    Q[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
+
+    # print "get_MOT_score params:",params
+    # print "get_MOT_score Q:",Q
+    total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=pixor_stats_json, tracker_json_outfile=None, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha, Q=Q, is_write=False)
+
+    MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = \
+    check_iou_json(labels_json_path, None, 100., "IOU", is_write=False, total_list=total_list)
+    MOTA *= 100.
+    print MOTA, MOTP
+  return MOTA-MOTP
+
+
 '''
 @brief: coordinate descent method in the paper "Discriminative Training of Kalman Filter"
 @param num_params: number of parameters to search for
@@ -137,30 +190,46 @@ def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name
 @param min_alpha
 @outputs: true if it converges and false otherwise
 '''
-def coord_search(num_params, fn, max_iter, min_alpha, init_params=np.zeros(num_params)):
-  is_conv = False
+def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path):
+  # try for all params except for the ages because they are not coninuous. random init pts
+
+  # params: xy, wl, v, ori, ha
+  num_params = 5
+  alpha_ps = np.ones(num_params)*100.
+  alpha_ps[4] = 1.001 # ha
+  init_params=[1.,0.1,10.**-10,0.01,0.05]
   
+  # TODO repeat for each permutation of ages
+  max_age =2
+  min_hits=2
+
+  is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**3, 
+                min_alpha=10.**-10, init_params=init_params, fn_params=(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits))
+  print "best params:", params
+  print "best score:", get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits)
   return is_conv
 
 
 
 if __name__ == '__main__':
-  distance_metric = "IOU" # using IOU as distance metric
-  thres_d = 100. # threshold distance to count as a correspondance, beyond it will be considered as missed detection
+  # distance_metric = "IOU" # using IOU as distance metric
+  # thres_d = 100. # threshold distance to count as a correspondance, beyond it will be considered as missed detection
   # TODO test with other distance metrics and thresholds
   
   # jsons
   # 2 Hz labels
-  labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json"
+  labels_json_path = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json"
   # 20 hz pixor outputs:
-  pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+  pixor_json_name = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
   # generated pixor stats file
   pixor_stats_json = pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
   # 20 Hz fuse pose
-  fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
+  fused_pose_json = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
   
-  grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json, pixor_stats_json)
+  # grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json, pixor_stats_json)
   
+  coord_search(10.**3, 10.**-10, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path)
+
   print "Done."
   
   
