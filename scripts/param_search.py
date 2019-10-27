@@ -178,7 +178,7 @@ def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, lab
     check_iou_json(labels_json_path, None, 100., "IOU", is_write=False, total_list=total_list)
     MOTA *= 100.
     if is_print:
-      print MOTA, MOTP
+      print MOTA, MOTP, score
   return MOTA-MOTP
 
 
