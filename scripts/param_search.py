@@ -130,7 +130,7 @@ def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name
 '''
 
 # params: xy, wl, v, ori, ha
-def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits, is_print = False):
+def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits, is_print = True):
 
   # print params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits
 
