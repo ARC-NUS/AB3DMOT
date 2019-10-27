@@ -43,6 +43,7 @@ def coord_descent(num_params, fn, ALPHA_PS, dec_alpha, max_iter, min_alpha, init
 
   # choose param/direction
   for desc_iter in range(max_iter):
+    print "desc_iter", desc_iter
     if np.amax(alpha_ps) <= min_alpha:
       is_conv = True
       break
