@@ -199,14 +199,23 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
   alpha_ps[4] = 1.001 # ha
   init_params=[1.,0.1,10.**-10,0.01,0.05]
   
-  # TODO repeat for each permutation of ages
-  max_age =2
-  min_hits=2
+  best_score = -np.inf
+  best_params = []
 
-  is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**3, 
-                min_alpha=10.**-10, init_params=init_params, fn_params=(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits))
-  print "best params:", params
-  print "best score:", get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits)
+  for max_age in range(1,6,1):
+    for min_hits in range(1,6,1):
+      print "iteration:", max_age, min_hits
+      is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**4, 
+                    min_alpha=10.**-10, init_params=init_params, fn_params=(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits))
+      print "is converges:", is_conv
+      print "best params:", params
+      score = get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits)
+      print "best score:", score
+      if score > best_score:
+        best_score = score
+        best_param = params
+  print "best:", best_score, params
+
   return is_conv
 
 
