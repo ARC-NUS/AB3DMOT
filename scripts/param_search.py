@@ -197,8 +197,8 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
   # params: xy, wl, v, ori, ha
   num_params = 5
   alpha_ps = np.ones(num_params)*100.
-  alpha_ps[4] = 1.001 # ha
-  init_params=[0.01,0.1,10.**-10,0.01,0.05]
+  alpha_ps[4] = 1.1 # ha
+  init_params=[0.01,0.1,10.**-5,0.01,0.05]
   
   best_score = -np.inf
   best_params = []
