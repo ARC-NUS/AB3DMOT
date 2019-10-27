@@ -211,7 +211,7 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
       is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**3, 
                     min_alpha=1., init_params=init_params, fn_params=(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits))
       print "is converges:", is_conv
-      print "best params:", params
+      print "best params of iteration:", params
       score = get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits)
       print "best score:", score
       if score > best_score:
