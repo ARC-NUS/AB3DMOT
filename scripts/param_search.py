@@ -202,6 +202,8 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
   
   best_score = -np.inf
   best_params = []
+  best_maxage = None
+  best_minhits = None
 
   for max_age in range(1,6,1):
     for min_hits in range(1,6,1):
@@ -214,9 +216,11 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
       print "best score:", score
       if score > best_score:
         best_score = score
-        best_param = params
-  print "best:", best_score, params
-  get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits,is_print=True)
+        best_params = params
+        best_maxage=max_age
+        best_minhits=min_hits
+  print "best:", best_score, best_params, best_maxage, best_minhits
+  get_MOT_score(best_params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, best_maxage,best_minhits,is_print=True)
 
   return is_conv
 
