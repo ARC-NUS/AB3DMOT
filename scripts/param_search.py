@@ -177,7 +177,7 @@ def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, lab
     MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = \
     check_iou_json(labels_json_path, None, 100., "IOU", is_write=False, total_list=total_list)
     MOTA *= 100.
-    print MOTA, MOTP
+    # print MOTA, MOTP
   return MOTA-MOTP
 
 
@@ -215,7 +215,8 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
         best_score = score
         best_param = params
   print "best:", best_score, params
-
+  get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits)
+  
   return is_conv
 
 
