@@ -159,8 +159,8 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
           MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = \
           check_iou_json(labels_json_path, None, 100., "IOU", is_write=False, total_list=total_list)
           MOTA *= 100.
-          if is_print:
-            print MOTA, MOTP, MOTA-MOTP
+          
+          print MOTA, MOTP, MOTA-MOTP
 
 
 # params: xy, wl, v, ori, ha
