@@ -141,7 +141,7 @@ def convert_3dbox_to_8corner(bbox3d_input):
  
     return np.transpose(corners_3d)
 
-class KalmanBoxTracker(object):
+class KalmanBoxTracker(object): # CYRA TODO: change states
   """
   This class represents the internel state of individual tracked objects observed as bbox.
   """
