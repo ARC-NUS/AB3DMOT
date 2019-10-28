@@ -142,8 +142,7 @@ def convert_3dbox_to_8corner(bbox3d_input):
  
     return np.transpose(corners_3d)
 
-class KalmanBoxTracker(object):
-
+class KalmanBoxTracker(object): # CYRA TODO: change states
   """
   This class represents the internel state of individual tracked objects observed as bbox.
   """
@@ -166,9 +165,15 @@ class KalmanBoxTracker(object):
 
     self.kf.R[0:,0:] = R   # measurement uncertainty
     
+    # initialisation cov 
+#     self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+#     self.kf.P *= 10. 
+
     # innov cov from pixor stats
     self.kf.P = P_0
     
+    # self.kf.Q[-1,-1] *= 0.01
+#     self.kf.Q[7:,7:] *= 0.01 # process uncertainty
     self.kf.Q = Q
     self.kf.x[:7] = bbox3D.reshape((7, 1))
 

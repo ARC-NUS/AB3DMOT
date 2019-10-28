@@ -13,6 +13,7 @@ from numba import prange, jit
 import threading
 from multiprocessing.pool import ThreadPool
 import datetime
+from yl_utils import STATE_SIZE
 
 @jit(parallel=True)
 def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, pixor_json_name,pixor_stats_json,fused_pose_json,labels_json_path, thres_d, distance_metric, best_list, best_i):
@@ -129,6 +130,46 @@ def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name
       loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits,pixor_json_name,fused_pose_json,labels_json_path, thres_d, distance_metric)
 '''
 
+
+'''
+@brief: parallel search with the correct Q
+@param delta_t: time between predictions
+@output: best mot score anbd its params
+@qv: covariance of the velocity in the const vel motion model
+'''
+def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path,delta_t=0.05):
+  best_score = -np.inf
+  best_params = None
+  for min_hits in range(1,6,1):
+    for max_age in range(1,6,1):
+      for ha in np.arange(0.1,0.8,0.1):
+        for qv_i in np.arange(8):
+          q_v = 10.**(qv_i-4)
+          Q = np.zeros((STATE_SIZE, STATE_SIZE))
+          Q[0,0]=delta_t**3*q_v/3.
+          Q[1,1]=delta_t**3*q_v/3.
+          Q[0,7]=delta_t**2*q_v/2.
+          Q[1,8]=delta_t**2*q_v/2.
+          Q[7,0]=delta_t**2*q_v/2.
+          Q[8,1]=delta_t**2*q_v/2.
+          Q[7,7]=delta_t*q_v
+          Q[8,8]=delta_t*q_v
+
+          total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=pixor_stats_json, tracker_json_outfile=None, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha, Q=Q, is_write=False)
+
+          MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = \
+          check_iou_json(labels_json_path, None, 100., "IOU", is_write=False, total_list=total_list)
+          MOTA *= 100.
+          
+          score = MOTA-MOTP
+          if score >= best_score:
+            best_score = score
+            best_params = [min_hits, max_age, ha, qv_i, MOTA, MOTP]
+            print "params", score, best_params
+
+  print "bestest:", score, best_params
+
+
 # params: xy, wl, v, ori, ha
 def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits, is_print = True):
 
@@ -193,12 +234,7 @@ def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, lab
 '''
 def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path):
   # try for all params except for the ages because they are not coninuous. random init pts
-
   # params: xy, wl, v, ori, ha
-  num_params = 5
-  alpha_ps = np.ones(num_params)*100.
-  alpha_ps[4] = 1.1 # ha
-  init_params=[0.01,0.1,10.**-5,0.01,0.05]
   
   best_score = -np.inf
   best_params = []
@@ -207,11 +243,15 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
 
   for max_age in range(1,6,1):
     for min_hits in range(1,6,1):
+      num_params = 5
+      alpha_ps = np.ones(num_params)*100.
+      alpha_ps[4] = 2.# ha
+      init_params=[0.01,0.1,10.**-5,0.01,0.05]
       print "iteration:", max_age, min_hits
-      is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**4, 
-                    min_alpha=10.**-10, init_params=init_params, fn_params=(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits))
+      is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**3, 
+                    min_alpha=1., init_params=init_params, fn_params=(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits))
       print "is converges:", is_conv
-      print "best params:", params
+      print "best params of iteration:", params
       score = get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits)
       print "best score:", score
       if score > best_score:
@@ -243,7 +283,10 @@ if __name__ == '__main__':
   
   # grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json, pixor_stats_json)
   
-  coord_search(10.**3, 1.0, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path)
+  # coord_search(10.**3, 1.0, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path)
+
+  parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path,delta_t=0.05)
+
 
   print "Done."
   

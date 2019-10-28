@@ -40,12 +40,14 @@ def coord_descent(num_params, fn, ALPHA_PS, dec_alpha, max_iter, min_alpha, init
   is_conv = False
   alpha_ps = ALPHA_PS
 
-
   # choose param/direction
   for desc_iter in range(max_iter):
+    # print "is conv", is_conv
     if np.amax(alpha_ps) <= min_alpha:
+      print "converge at desc_iter", desc_iter
       is_conv = True
       break
+    # print "is conv", is_conv
     # alpha_ps = ALPHA_PS
     for i_param in range(num_params):
       is_moved = False
