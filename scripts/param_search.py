@@ -141,8 +141,8 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
 
   for min_age in range(1,6,1):
     for max_age in range(1,6,1):
-      for ha in range(0.1,0.8,0.1):
-        for qv_i in range(8):
+      for ha in np.arange(0.1,0.8,0.1):
+        for qv_i in np.arange(8):
           q_v = 10.**(qv_i-4)
           Q = np.zeros((STATE_SIZE, STATE_SIZE))
           Q[0,0]=delta_t**3*q_v/3.
