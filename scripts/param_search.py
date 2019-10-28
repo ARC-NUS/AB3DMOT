@@ -165,7 +165,8 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
           if score >= best_score:
             best_score = score
             best_params = [min_hits, max_age, ha, qv_i, MOTA, MOTP]
-          print "params", score, best_params
+
+  print "params", score, best_params
 
 
 # params: xy, wl, v, ori, ha
