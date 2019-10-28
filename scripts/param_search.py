@@ -205,12 +205,12 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
   for max_age in range(1,6,1):
     for min_hits in range(1,6,1):
       num_params = 5
-      alpha_ps = np.ones(num_params)*100.
+      alpha_ps = np.ones(num_params)*10.
       alpha_ps[4] = 2.# ha
-      init_params=[0.01,0.1,10.**-5,0.01,0.05]
+      init_params=[1.,0.1,10.**-10,0.01,0.05]
       print "iteration:", max_age, min_hits
       is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**3, 
-                    min_alpha=1., init_params=init_params, fn_params=(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits))
+                    min_alpha=10.**-5, init_params=init_params, fn_params=(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits))
       print "is converges:", is_conv
       print "best params of iteration:", params
       score = get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits)
