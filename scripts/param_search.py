@@ -140,11 +140,11 @@ def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name
 def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path,delta_t=0.05):
   best_score = -np.inf
   best_params = None
-  for min_hits in range(1,6,1):
-    for max_age in range(1,6,1):
-      for ha in np.arange(0.1,0.8,0.1):
-        for qv_i in np.arange(8):
-          q_v = 10.**(qv_i-4)
+  for min_hits in range(1,10,1):
+    for max_age in range(1,10,1):
+      for ha in np.arange(0.05,0.8,0.05):
+        for qv_i in np.arange(10):
+          q_v = 10.**(qv_i-5)
           Q = np.zeros((STATE_SIZE, STATE_SIZE))
           Q[0,0]=delta_t**3*q_v/3.
           Q[1,1]=delta_t**3*q_v/3.
@@ -167,7 +167,7 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
             best_params = [min_hits, max_age, ha, qv_i, MOTA, MOTP]
             print "params", score, best_params
 
-  print "bestest:", score, best_params
+  print "bestest:", best_score, best_params
 
 
 # params: xy, wl, v, ori, ha
@@ -289,9 +289,3 @@ if __name__ == '__main__':
 
 
   print "Done."
-  
-  
-  
-  
-      
-      

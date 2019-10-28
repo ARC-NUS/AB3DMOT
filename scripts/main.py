@@ -226,6 +226,7 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2    # make the theta still in the range
     if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
     self.info = info
+    print (self.kf.P)
 
   def predict(self):       
     """

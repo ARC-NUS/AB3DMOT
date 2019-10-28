@@ -114,7 +114,7 @@ def get_tracker_json(pixor_json_name, pixor_stats_json, tracker_json_outfile, fu
           else:
             obj_dict={"width":d[1], "height": d[0], "length": d[2], "x": d[3], "y": d[4], "z": d[5], "yaw": d[6], "id": d[7]}
           result_trks.append(obj_dict)
-          
+
         if is_check_online:
           # check MOTA and MOTP
           
