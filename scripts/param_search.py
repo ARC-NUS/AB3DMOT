@@ -171,11 +171,11 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
           if MOTA >= best_MOTA:
             best_MOTA = MOTA
             best_MOTA_p = [min_hits, max_age, ha, qv_i, MOTA, MOTP]
-            print "best MOTA params", MOTA, best_params
+            print "best MOTA params", MOTA, best_MOTA_p
           if MOTP <= best_MOTP:
             best_MOTP = MOTP
             best_MOTP_p = [min_hits, max_age, ha, qv_i, MOTA, MOTP]
-            print "best MOTP params", MOTP, best_params
+            print "best MOTP params", MOTP, best_MOTP_p
   print "bestest:", score, best_params
   print "best MOTA", best_MOTA, best_MOTA_p
   print "best MOTP", best_MOTP, best_MOTP_p
