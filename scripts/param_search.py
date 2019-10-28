@@ -139,7 +139,7 @@ def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name
 '''
 def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path,delta_t=0.05):
 
-  for min_age in range(1,6,1):
+  for min_hits in range(1,6,1):
     for max_age in range(1,6,1):
       for ha in np.arange(0.1,0.8,0.1):
         for qv_i in np.arange(8):
