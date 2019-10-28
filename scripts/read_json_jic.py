@@ -178,16 +178,16 @@ def p_grid_search():
   return True
 
 if __name__ == '__main__':  
-  pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+  pixor_json_name = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
   pixor_stats_json =  pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
-  fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
+  fused_pose_json = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
   
   is_tuning = False
   
   if is_tuning:
     p_grid_search()
   else:
-    Q = np.identity(10) # KF Process uncertainty/noise
+    Q = np.identity(14) # KF Process uncertainty/noise
     q_xy = 0
     q_heading = -1.
     q_wx = -5.
@@ -211,9 +211,7 @@ if __name__ == '__main__':
     
     q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
     
-
-    
-    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2" + tracker_params +"_Q"+ q_params + ".json"
+    tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/old_state" + tracker_params +"_Q"+ q_params + ".json"
     get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q)
     print "Done"
       

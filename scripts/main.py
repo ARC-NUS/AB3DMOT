@@ -5,6 +5,7 @@ from sklearn.utils.linear_assignment_ import linear_assignment
 from filterpy.kalman import KalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
+from yl_utils import STATE_SIZE, MEAS_SIZE
 
 @jit    
 def poly_area(x,y):
@@ -142,6 +143,7 @@ def convert_3dbox_to_8corner(bbox3d_input):
     return np.transpose(corners_3d)
 
 class KalmanBoxTracker(object):
+
   """
   This class represents the internel state of individual tracked objects observed as bbox.
   """
@@ -151,59 +153,22 @@ class KalmanBoxTracker(object):
     Initialises a tracker using initial bounding box.
     """
     #define constant velocity model
-    self.kf = KalmanFilter(dim_x=10, dim_z=7)       
-    self.kf.F = np.array([[1,0,0,0,0,0,0,delta_t,0,0],      # state transition matrix
-                          [0,1,0,0,0,0,0,0,delta_t,0],
-                          [0,0,1,0,0,0,0,0,0,delta_t],
-                          [0,0,0,1,0,0,0,0,0,0],  
-                          [0,0,0,0,1,0,0,0,0,0],
-                          [0,0,0,0,0,1,0,0,0,0],
-                          [0,0,0,0,0,0,1,0,0,0],
-                          [0,0,0,0,0,0,0,1,0,0],
-                          [0,0,0,0,0,0,0,0,1,0],
-                          [0,0,0,0,0,0,0,0,0,1]])     
+    self.kf = KalmanFilter(dim_x=STATE_SIZE, dim_z=MEAS_SIZE) 
+    self.kf.F = np.eye(STATE_SIZE)      
+    self.kf.F[0,7]=delta_t
+    self.kf.F[1,8]=delta_t
+    self.kf.F[1,9]=delta_t
+   
     # x y z theta l w h 
-    self.kf.H = np.array([[1,0,0,0,0,0,0,0,0,0],      # measurement function,
-                          [0,1,0,0,0,0,0,0,0,0],
-                          [0,0,1,0,0,0,0,0,0,0],
-                          [0,0,0,1,0,0,0,0,0,0],
-                          [0,0,0,0,1,0,0,0,0,0],
-                          [0,0,0,0,0,1,0,0,0,0],
-                          [0,0,0,0,0,0,1,0,0,0]])
-
-    # with angular velocity
-    # self.kf = KalmanFilter(dim_x=11, dim_z=7)       
-    # self.kf.F = np.array([[1,0,0,0,0,0,0,1,0,0,0],      # state transition matrix
-    #                       [0,1,0,0,0,0,0,0,1,0,0],
-    #                       [0,0,1,0,0,0,0,0,0,1,0],
-    #                       [0,0,0,1,0,0,0,0,0,0,1],  
-    #                       [0,0,0,0,1,0,0,0,0,0,0],
-    #                       [0,0,0,0,0,1,0,0,0,0,0],
-    #                       [0,0,0,0,0,0,1,0,0,0,0],
-    #                       [0,0,0,0,0,0,0,1,0,0,0],
-    #                       [0,0,0,0,0,0,0,0,1,0,0],
-    #                       [0,0,0,0,0,0,0,0,0,1,0],
-    #                       [0,0,0,0,0,0,0,0,0,0,1]])     
-    
-    # self.kf.H = np.array([[1,0,0,0,0,0,0,0,0,0,0],      # measurement function,
-    #                       [0,1,0,0,0,0,0,0,0,0,0],
-    #                       [0,0,1,0,0,0,0,0,0,0,0],
-    #                       [0,0,0,1,0,0,0,0,0,0,0],
-    #                       [0,0,0,0,1,0,0,0,0,0,0],
-    #                       [0,0,0,0,0,1,0,0,0,0,0],
-    #                       [0,0,0,0,0,0,1,0,0,0,0]])
+    self.kf.H = np.zeros((MEAS_SIZE,STATE_SIZE))
+    for i in range(min(MEAS_SIZE,STATE_SIZE)):
+      self.kf.H[i,i]=1.
 
     self.kf.R[0:,0:] = R   # measurement uncertainty
     
-    # initialisation cov 
-#     self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-#     self.kf.P *= 10. 
-
     # innov cov from pixor stats
     self.kf.P = P_0
     
-    # self.kf.Q[-1,-1] *= 0.01
-#     self.kf.Q[7:,7:] *= 0.01 # process uncertainty
     self.kf.Q = Q
     self.kf.x[:7] = bbox3D.reshape((7, 1))
 
