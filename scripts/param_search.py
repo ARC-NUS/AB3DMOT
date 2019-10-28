@@ -138,7 +138,8 @@ def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name
 @qv: covariance of the velocity in the const vel motion model
 '''
 def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path,delta_t=0.05):
-
+  best_score = -np.inf
+  best_params = None
   for min_hits in range(1,6,1):
     for max_age in range(1,6,1):
       for ha in np.arange(0.1,0.8,0.1):
@@ -160,7 +161,11 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
           check_iou_json(labels_json_path, None, 100., "IOU", is_write=False, total_list=total_list)
           MOTA *= 100.
           
-          print MOTA, MOTP, MOTA-MOTP
+          score = MOTA-MOTP
+          if score >= best_score:
+            best_score = score
+            best_params = [min_hits, max_age, ha, qv_i, MOTA, MOTP]
+          print "params", score, best_params
 
 
 # params: xy, wl, v, ori, ha
