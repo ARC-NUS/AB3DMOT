@@ -9,7 +9,7 @@ import json
 import numpy as np
 
 
-STATE_SIZE = 14
+STATE_SIZE = 10
 MEAS_SIZE = 7
 
 # set R based on pixor stats in json 

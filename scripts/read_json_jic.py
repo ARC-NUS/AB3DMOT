@@ -187,7 +187,7 @@ if __name__ == '__main__':
   if is_tuning:
     p_grid_search()
   else:
-    Q = np.identity(14) # KF Process uncertainty/noise
+    Q = np.identity(yl_utils.STATE_SIZE) # KF Process uncertainty/noise
     q_xy = 0
     q_heading = -1.
     q_wx = -5.
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     
     q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
     
-    tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/old_state" + tracker_params +"_Q"+ q_params + ".json"
+    tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/new_state_10" + tracker_params +"_Q"+ q_params + ".json"
     get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q)
     print "Done"
       
