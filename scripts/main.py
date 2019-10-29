@@ -192,9 +192,6 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     """ 
     Updates the state vector with observed bbox.
     """
-    print ("before",self.kf.x)
-    print ("before",self.kf.P)
-    print (bbox3D)
 
     self.time_since_update = 0
     self.history = []
@@ -231,21 +228,13 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
     self.info = info
 
-    print ("after",self.kf.x)
 
   def predict(self):       
     """
     Advances the state vector and returns the predicted bounding box estimate.
     """
 
-    print ("before pred",self.kf.x)
-    print ("before pred",self.kf.P)
-
     self.kf.predict()    
-
-    print ("aft pred",self.kf.x)
-    print ("aft pred",self.kf.P)
-
     if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2
     if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
 

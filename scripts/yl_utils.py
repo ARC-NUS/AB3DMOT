@@ -52,7 +52,7 @@ def px_stats_get_P_0(pixor_stats_json, p0_v=1000., factor=1.):
     P_0[7,7] = p0_v # vx
     P_0[8,8] = p0_v # vy
     P_0[9,9] = 0. # vz
-    print "P_O", P_0 
+    # print "P_O", P_0 
   return P_0
 
 def get_CV_Q(q_v, delta_t):
