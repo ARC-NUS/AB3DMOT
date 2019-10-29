@@ -237,7 +237,15 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     """
     Advances the state vector and returns the predicted bounding box estimate.
     """
-    self.kf.predict()      
+
+    print ("before pred",self.kf.x)
+    print ("before pred",self.kf.P)
+
+    self.kf.predict()    
+
+    print ("aft pred",self.kf.x)
+    print ("aft pred",self.kf.P)
+
     if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2
     if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
 

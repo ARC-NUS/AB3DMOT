@@ -145,7 +145,7 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
       for ha in np.arange(0.05,0.8,0.05):
         for qv_i in np.arange(10):
           q_v = 10.**(qv_i-5)
-          Q = get_CV_Q(qv)
+          Q = get_CV_Q(q_v, delta_t)
 
           total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=pixor_stats_json, tracker_json_outfile=None, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha, Q=Q, is_write=False)
 
