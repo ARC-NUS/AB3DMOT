@@ -54,3 +54,14 @@ def px_stats_get_P_0(pixor_stats_json, p0_v=1000., factor=1.):
     P_0[9,9] = p0_v # vz
   return P_0
 
+def get_CV_Q(qv):
+  Q = np.zeros((STATE_SIZE, STATE_SIZE))
+  Q[0,0]=delta_t**3*q_v/3.
+  Q[1,1]=delta_t**3*q_v/3.
+  Q[0,7]=delta_t**2*q_v/2.
+  Q[1,8]=delta_t**2*q_v/2.
+  Q[7,0]=delta_t**2*q_v/2.
+  Q[8,1]=delta_t**2*q_v/2.
+  Q[7,7]=delta_t*q_v
+  Q[8,8]=delta_t*q_v
+  return Q

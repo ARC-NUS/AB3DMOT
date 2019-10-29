@@ -187,32 +187,35 @@ if __name__ == '__main__':
   if is_tuning:
     p_grid_search()
   else:
-    Q = np.identity(yl_utils.STATE_SIZE) # KF Process uncertainty/noise
-    q_xy = 0
-    q_heading = -1.
-    q_wx = -5.
-    q_ly = -5.
-    q_v = -1.
-    max_age = 4
-    min_hits = 4
-    hung_thresh = 0.05
-    tracker_params = "max_age="+str(max_age)+",min_hits="+str(min_hits)+",hung_thresh="+str(hung_thresh)
+    # Q = np.identity(yl_utils.STATE_SIZE) # KF Process uncertainty/noise
+    # q_xy = 0
+    # q_heading = -1.
+    # q_wx = -5.
+    # q_ly = -5.
+    # q_v = -1.
+    # max_age = 4
+    # min_hits = 4
+    # hung_thresh = 0.05
+    # tracker_params = "max_age="+str(max_age)+",min_hits="+str(min_hits)+",hung_thresh="+str(hung_thresh)
     
-    Q[0,0] = 10.**q_xy # x
-    Q[1,1] = 10.**q_xy # y
-    Q[2,2] = 0.0000000001 # z
-    Q[3,3] = 10.**q_heading
-    Q[4,4] = 10.**q_wx # x_size
-    Q[5,5] = 10.**q_ly # y_size
-    Q[6,6] = 0.0000000001 
-    Q[7,7] = 10.**q_v # v_x
-    Q[8,8] = 10.**q_v # v_y
-    Q[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
+    # Q[0,0] = 10.**q_xy # x
+    # Q[1,1] = 10.**q_xy # y
+    # Q[2,2] = 0.0000000001 # z
+    # Q[3,3] = 10.**q_heading
+    # Q[4,4] = 10.**q_wx # x_size
+    # Q[5,5] = 10.**q_ly # y_size
+    # Q[6,6] = 0.0000000001 
+    # Q[7,7] = 10.**q_v # v_x
+    # Q[8,8] = 10.**q_v # v_y
+    # Q[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
     
-    q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
+    # q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
+
+    q_params="qv_10"
     
     tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/new_state_10" + tracker_params +"_Q"+ q_params + ".json"
-    get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q)
+    get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile, 
+      fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=None)
     print "Done"
       
       

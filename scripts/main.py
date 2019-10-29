@@ -192,6 +192,10 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     """ 
     Updates the state vector with observed bbox.
     """
+    print ("before",self.kf.x)
+    print ("before",self.kf.P)
+    print (bbox3D)
+
     self.time_since_update = 0
     self.history = []
     self.hits += 1
@@ -226,7 +230,8 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2    # make the theta still in the range
     if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
     self.info = info
-    print (self.kf.P)
+
+    print ("after",self.kf.x)
 
   def predict(self):       
     """
