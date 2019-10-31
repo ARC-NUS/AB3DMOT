@@ -156,7 +156,7 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     self.kf.F = np.eye(STATE_SIZE)      
     self.kf.F[0,7]=delta_t
     self.kf.F[1,8]=delta_t
-    self.kf.F[1,9]=delta_t
+    self.kf.F[2,9]=delta_t
    
     # x y z theta l w h 
     self.kf.H = np.zeros((MEAS_SIZE,STATE_SIZE))
