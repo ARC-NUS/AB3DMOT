@@ -216,10 +216,13 @@ if __name__ == '__main__':
     if yl_utils.MOTION_MODEL == "CV":
       Q=yl_utils.get_CV_Q(qv,0.05)
     else:
-      print ("unknown motion model")
-      raise ValueError
+      if yl_utils.MOTION_MODEL == "CA":
+        Q=yl_utils.get_CA_Q(qv,0.05)
+      else:
+        print ("unknown motion model")
+        raise ValueError
     
-    tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/F_new_state_10" + tracker_params +"_Q"+ q_params + ".json"
+    tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/ca_state_10" + tracker_params +"_Q"+ q_params + ".json"
     get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile, 
       fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q)
     print "Done"

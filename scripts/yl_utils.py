@@ -9,9 +9,10 @@ import json
 import numpy as np
 
 
-STATE_SIZE = 10
+STATE_SIZE = 14
 MEAS_SIZE = 7
-MOTION_MODEL="CV"
+MOTION_MODEL="CA"
+# MOTION_MODEL="CV"
 
 # set R based on pixor stats in json 
 def px_stats_get_R(pixor_stats_json):
@@ -76,3 +77,34 @@ def get_CV_F(delta_t):
   F[2,9]=delta_t
   return F
 
+def get_CA_Q(q_a, delta_t):
+  Q = np.zeros((STATE_SIZE, STATE_SIZE))
+  Q[0,0]=delta_t**5 * q_a / 20.
+  Q[1,1]=delta_t**5 * q_a / 20.
+  Q[0,7]=delta_t**4 * q_a / 8.
+  Q[1,8]=delta_t**4 * q_a / 8.
+  Q[0,10]=delta_t**3 * q_a / 6.
+  Q[1,11]=delta_t**3 * q_a / 6.
+  Q[7,0]=delta_t**4 * q_a / 8.
+  Q[8,1]=delta_t**4 * q_a / 8.
+  Q[10,0]=delta_t**3 * q_a / 6.
+  Q[11,1]=delta_t**3 * q_a / 6.
+  Q[7,7]=delta_t**3 * q_a / 3.
+  Q[8,8]=delta_t**3 * q_a / 3.
+  Q[7,10]=delta_t**2* q_a / 2.
+  Q[8,11]=delta_t**2* q_a / 2.
+  Q[7,10]=delta_t**2* q_a / 2.
+  Q[8,11]=delta_t**2* q_a / 2.
+  Q[10,10]=delta_t* q_a
+  Q[11,11]=delta_t* q_a
+  return Q
+
+def get_CA_F(delta_t):
+  F = np.eye(STATE_SIZE)     
+  F[0,7] = delta_t
+  F[1,8] = delta_t
+  F[0,10] = delta_t **2. /2.
+  F[1,11] = delta_t **2. /2.
+  F[7,10] = delta_t
+  F[8,11] = delta_t
+  return F

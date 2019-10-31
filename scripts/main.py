@@ -5,7 +5,7 @@ from sklearn.utils.linear_assignment_ import linear_assignment
 from filterpy.kalman import KalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
-from yl_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F
+from yl_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F
 
 @jit    
 def poly_area(x,y):
@@ -156,8 +156,11 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     if MOTION_MODEL == "CV":
       self.kf.F = get_CV_F(delta_t)
     else:
-      print ("unknown motion model")
-      raise ValueError
+      if MOTION_MODEL =="CA":
+        self.kf.F = get_CA_F(delta_t)
+      else:
+        print ("unknown motion model")
+        raise ValueError
 
     # x y z theta l w h 
     self.kf.H = np.zeros((MEAS_SIZE,STATE_SIZE))
