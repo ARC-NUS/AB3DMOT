@@ -107,7 +107,8 @@ def grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fus
                 print "best mot" , best_MOT_hp
                     
   print "final best mot:" , best_MOT_hp
-  
+
+
 '''              
 @jit(parallel=True)
 def fine_grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json):
@@ -147,9 +148,9 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
       for ha in np.arange(0.05,0.9,0.05):
         for qv_i in np.arange(10):
           q_v = 10.**(qv_i-5)
-          Q = np.eye(STATE_SIZE)*delta_t
-          Q[0,0]=delta_t+delta_t**3*q_v/3.
-          Q[1,1]=delta_t+delta_t**3*q_v/3.
+          Q = np.zeros((STATE_SIZE, STATE_SIZE))
+          Q[0,0]=delta_t**3*q_v/3.
+          Q[1,1]=delta_t**3*q_v/3.
           Q[0,7]=delta_t**2*q_v/2.
           Q[1,8]=delta_t**2*q_v/2.
           Q[7,0]=delta_t**2*q_v/2.
@@ -176,7 +177,7 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
             best_MOTP = MOTP
             best_MOTP_p = [min_hits, max_age, ha, qv_i, MOTA, MOTP]
             print "best MOTP params", MOTP, best_MOTP_p
-  print "bestest:", score, best_params
+  print "bestest:", best_score, best_params
   print "best MOTA", best_MOTA, best_MOTA_p
   print "best MOTP", best_MOTP, best_MOTP_p
 
@@ -251,8 +252,8 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
   best_maxage = None
   best_minhits = None
 
-  for max_age in range(1,6,1):
-    for min_hits in range(1,6,1):
+  for max_age in range(1,11,1):
+    for min_hits in range(1,11,1):
       num_params = 5
       alpha_ps = np.ones(num_params)*10.
       alpha_ps[4] = 2.# ha
