@@ -11,6 +11,7 @@ import numpy as np
 
 STATE_SIZE = 10
 MEAS_SIZE = 7
+MOTION_MODEL="CV"
 
 # set R based on pixor stats in json 
 def px_stats_get_R(pixor_stats_json):
@@ -67,3 +68,11 @@ def get_CV_Q(q_v, delta_t):
   Q[8,8]=delta_t*q_v
   # print "Q", Q
   return Q
+
+def get_CV_F(delta_t):
+  F = np.eye(STATE_SIZE)      
+  F[0,7]=delta_t
+  F[1,8]=delta_t
+  F[2,9]=delta_t
+  return F
+
