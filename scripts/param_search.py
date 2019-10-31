@@ -13,7 +13,7 @@ from numba import prange, jit
 import threading
 from multiprocessing.pool import ThreadPool
 import datetime
-from yl_utils import STATE_SIZE
+from yl_utils import STATE_SIZE, get_CA_Q,MOTION_MODEL
 
 @jit(parallel=True)
 def loop_ha(pq_xy, pq_wx, pq_ly, pq_v, pq_heading, pmax_age, pmin_hits, pixor_json_name,pixor_stats_json,fused_pose_json,labels_json_path, thres_d, distance_metric, best_list, best_i):
@@ -145,7 +145,11 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
       for ha in np.arange(0.05,0.8,0.05):
         for qv_i in np.arange(10):
           q_v = 10.**(qv_i-5)
-          Q = get_CV_Q(q_v, delta_t)
+          if MOTION_MODEL=="CA":
+            Q = get_CA_Q(q_v, delta_t)
+          else:
+            print "wrong motion model. expected: CA but got ",MOTION_MODEL
+            raise ValueException
 
           total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=pixor_stats_json, tracker_json_outfile=None, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha, Q=Q, is_write=False)
 
