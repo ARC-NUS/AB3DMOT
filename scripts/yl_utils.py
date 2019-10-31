@@ -43,14 +43,27 @@ def px_stats_get_P_0(pixor_stats_json, p0_v=1000., factor=1.):
     # 210 92 335 [0.03953874 0.00588307 0.02431999 0.39831919 0.00211127] precision@80%iou75 :  69.54%, recall:  54.69%
     P_0[0,0] = var[0] #x
     P_0[1,1] = var[1] #y
-    P_0[2,2] = 10.**-5 #z
+    P_0[2,2] = 0. #z
     P_0[3,3] = var[4] #theta
     P_0[4,4] = var[3] #l
     P_0[5,5] = var[2] #w
-    P_0[6,6] = 10.**-5 #h
+    P_0[6,6] = 0. #h
     P_0 = P_0*factor
     P_0[7,7] = p0_v # vx
     P_0[8,8] = p0_v # vy
-    P_0[9,9] = p0_v # vz
+    P_0[9,9] = 0. # vz
+    # print "P_O", P_0 
   return P_0
 
+def get_CV_Q(q_v, delta_t):
+  Q = np.zeros((STATE_SIZE, STATE_SIZE))
+  Q[0,0]=delta_t**3*q_v/3.
+  Q[1,1]=delta_t**3*q_v/3.
+  Q[0,7]=delta_t**2*q_v/2.
+  Q[1,8]=delta_t**2*q_v/2.
+  Q[7,0]=delta_t**2*q_v/2.
+  Q[8,1]=delta_t**2*q_v/2.
+  Q[7,7]=delta_t*q_v
+  Q[8,8]=delta_t*q_v
+  # print "Q", Q
+  return Q
