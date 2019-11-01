@@ -195,7 +195,7 @@ def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, lab
     return -np.inf
   else:
     
-    Q = np.identity(10) # KF Process uncertainty/noise
+    Q = np.identity(STATE_SIZE) # KF Process uncertainty/noise
     Q[0,0] = q_xy # x
     Q[1,1] = q_xy # y
     Q[2,2] = 0.0000000001 # z
@@ -279,9 +279,9 @@ if __name__ == '__main__':
   
   # grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json, pixor_stats_json)
   
-  # coord_search(10.**3, 1.0, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path)
+  coord_search(10.**3, 1.0, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path)
 
-  parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path,delta_t=0.05)
+  #parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path,delta_t=0.05)
 
 
   print "Done."
