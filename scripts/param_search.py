@@ -144,24 +144,29 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
     for max_age in range(1,10,1):
       for ha in np.arange(0.05,0.8,0.05):
         for qv_i in np.arange(10):
-          q_v = 10.**(qv_i-5)
-          if MOTION_MODEL=="CA":
-            Q = get_CA_Q(q_v, delta_t)
-          else:
-            print "wrong motion model. expected: CA but got ",MOTION_MODEL
-            raise ValueException
+          for qp_i in np.arange(10):
+            q_v = 10.**(qv_i-5)
+            q_p = 10.**(qp_i-5)
+            
+            if MOTION_MODEL=="CA":
+              Q = get_CA_Q(q_v, delta_t)
+            elif MOTION_MODEL=="CYRA":
+              Q = get_CYRA_Q(q_v, q_p, delta_t)
+            else:
+              print "wrong motion model. expected: CA but got ",MOTION_MODEL
+              raise ValueException
 
-          total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=pixor_stats_json, tracker_json_outfile=None, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha, Q=Q, is_write=False)
+            total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=pixor_stats_json, tracker_json_outfile=None, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha, Q=Q, is_write=False)
 
-          MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = \
-          check_iou_json(labels_json_path, None, 100., "IOU", is_write=False, total_list=total_list)
-          MOTA *= 100.
-          
-          score = MOTA-MOTP
-          if score >= best_score:
-            best_score = score
-            best_params = [min_hits, max_age, ha, qv_i, MOTA, MOTP]
-            print "params", score, best_params
+            MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = \
+            check_iou_json(labels_json_path, None, 100., "IOU", is_write=False, total_list=total_list)
+            MOTA *= 100.
+            
+            score = MOTA-MOTP
+            if score >= best_score:
+              best_score = score
+              best_params = [min_hits, max_age, ha, qv_i, MOTA, MOTP]
+              print "params", score, best_params
 
   print "bestest:", best_score, best_params
 

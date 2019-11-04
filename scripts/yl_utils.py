@@ -11,7 +11,8 @@ import numpy as np
 
 STATE_SIZE = 14
 MEAS_SIZE = 7
-MOTION_MODEL="CA"
+MOTION_MODEL="CYRA"
+#MOTION_MODEL="CA"
 # MOTION_MODEL="CV"
 
 # set R based on pixor stats in json 
@@ -105,6 +106,43 @@ def get_CA_F(delta_t):
   F[1,8] = delta_t
   F[0,10] = delta_t **2. /2.
   F[1,11] = delta_t **2. /2.
+  F[7,10] = delta_t
+  F[8,11] = delta_t
+  return F
+
+def get_CYRA_Q(q_a, q_p, T):
+  Q = np.zeros((STATE_SIZE, STATE_SIZE))
+  Q[0,0]=T**5 * q_a / 20.
+  Q[1,1]=T**5 * q_a / 20.
+  Q[2,2]=T**2 * q_p / 3.
+  Q[0,7]=T**4 * q_a / 8.
+  Q[1,8]=T**4 * q_a / 8.
+  Q[0,10]=T**2 * q_a / 6.
+  Q[1,11]=T**2 * q_a / 6.
+  Q[2,13]=T**2 * q_p / 2.
+  Q[7,0]=T**4 * q_a / 8.
+  Q[8,1]=T**4 * q_a / 8.
+  Q[7,7]=T**2 * q_a / 3.
+  Q[8,8]=T**2 * q_a / 3.
+  Q[7,10]=T**2 * q_a / 2.
+  Q[8,11]=T**2 * q_a / 2.
+  Q[10,0]=T**2 * q_a / 6.
+  Q[11,1]=T**2 * q_a / 6.
+  Q[13,2]=T**2 * q_p / 2.
+  Q[10,7]=T**2 * q_a / 2.
+  Q[11,8]=T**2 * q_a / 2.
+  Q[10,10]=T * q_a
+  Q[11,11]=T * q_a
+  Q[13,13]=T*q_p
+  return Q
+
+def get_CYRA_F(delta_t):
+  F = np.eye(STATE_SIZE)     
+  F[0,7] = delta_t
+  F[1,8] = delta_t
+  F[0,10] = delta_t **2. /2.
+  F[1,11] = delta_t **2. /2.
+  F[2,13] = delta_t
   F[7,10] = delta_t
   F[8,11] = delta_t
   return F
