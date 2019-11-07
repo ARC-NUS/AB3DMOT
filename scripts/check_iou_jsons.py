@@ -155,6 +155,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
   MOTP = None
   MOTA = None
   total_ct_check = 0
+  l_index = 0 # offset of label and tracker in json
           
   for index, labels in enumerate(labels_data): # for each pcd/timestep labelled
       # init params for each timestep
@@ -163,16 +164,21 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
       fp_t = 0
       new_mappings = {}
       
+      
       # match label to tracker output ##############################################
       pcd_name = labels['name']
       time_step = pcd_name.split('.')[0]
 #               print "checking time step: ", time_step
-      tracks = tracker_data[(index+1)*10-1] # FIXME this will only work if the files are 10 hz apart
+      tracks = tracker_data[(index+1)*10-1-l_index] # FIXME this will only work if the files are 10 hz apart
        
       if tracks['name'] != pcd_name:
           print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
                                 "label n tracker data must be 10 hz apart" 
-          raise ValueError # FIXME choose a more suitable error
+          #raise ValueError # FIXME choose a more suitable error
+          while tracks['name'] != pcd_name:
+            l_index +=1
+            tracks = tracker_data[(index+1)*10-1-l_index]
+          continue
       
       is_labelled = False
       corresp_label = None
@@ -351,7 +357,7 @@ if __name__ == '__main__':
 #   tracker_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_2/tracker_age3_hits2_thresh_05.json"
   # 2 hz labels:
 #   labels_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_low/set_2/set2_annotations.json"
-  labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json"
+  labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json"
 
   
   distance_metric = "IOU" # using IOU as distance metric
@@ -369,8 +375,7 @@ if __name__ == '__main__':
   for i in range(0,1):
     tracker_params = "age3_hits2_thresh_0.1"
 #     tracker_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/tracker_px_stats_" + tracker_params + str(10*i)+ ".json"
-#     tracker_json_path = "/media/yl/downloads/tracker_results/set_7/tracker_results_age2_hits3_thresh_0.01/tracker_tf_epoch_3_valloss_0.0093_2_max_age=2,min_hits=3,hung_thresh=0.1_Q_xy0_ori0_wx0_ly0_v-2.0.json"
-    tracker_json_path = "/media/yl/downloads/tracker_results/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2max_age=4,min_hits=4,hung_thresh=0.05_Q_xy0_ori-1.0_wx-5.0_ly-5.0_v-1.0.json"
+    tracker_json_path = "/media/yl/downloads/tracker_results/set_8/CA_state_10max_age=3,min_hits=6,hung_thresh=0.25_Qqv_1e-05.json"
 
     MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
 #     print i, MOTA, MOTP, total_mmet
