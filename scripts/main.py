@@ -5,6 +5,7 @@ from sklearn.utils.linear_assignment_ import linear_assignment
 from filterpy.kalman import KalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
+from yl_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F, get_CYRA_F
 
 @jit    
 def poly_area(x,y):
@@ -151,47 +152,21 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     Initialises a tracker using initial bounding box.
     """
     #define constant velocity model
-    self.kf = KalmanFilter(dim_x=10, dim_z=7)       
-    self.kf.F = np.array([[1,0,0,0,0,0,0,delta_t,0,0],      # state transition matrix
-                          [0,1,0,0,0,0,0,0,delta_t,0],
-                          [0,0,1,0,0,0,0,0,0,delta_t],
-                          [0,0,0,1,0,0,0,0,0,0],  
-                          [0,0,0,0,1,0,0,0,0,0],
-                          [0,0,0,0,0,1,0,0,0,0],
-                          [0,0,0,0,0,0,1,0,0,0],
-                          [0,0,0,0,0,0,0,1,0,0],
-                          [0,0,0,0,0,0,0,0,1,0],
-                          [0,0,0,0,0,0,0,0,0,1]])     
-    # x y z theta l w h 
-    self.kf.H = np.array([[1,0,0,0,0,0,0,0,0,0],      # measurement function,
-                          [0,1,0,0,0,0,0,0,0,0],
-                          [0,0,1,0,0,0,0,0,0,0],
-                          [0,0,0,1,0,0,0,0,0,0],
-                          [0,0,0,0,1,0,0,0,0,0],
-                          [0,0,0,0,0,1,0,0,0,0],
-                          [0,0,0,0,0,0,1,0,0,0]])
+    self.kf = KalmanFilter(dim_x=STATE_SIZE, dim_z=MEAS_SIZE) 
+    if MOTION_MODEL == "CV":
+      self.kf.F = get_CV_F(delta_t)
+    elif MOTION_MODEL =="CA":
+      self.kf.F = get_CA_F(delta_t)
+    elif MOTION_MODEL == "CYRA":
+      self.kf.F = get_CYRA_F(delta_t)
+    else:
+      print ("unknown motion model", MOTION_MODEL)
+      raise ValueError
 
-    # with angular velocity
-    # self.kf = KalmanFilter(dim_x=11, dim_z=7)       
-    # self.kf.F = np.array([[1,0,0,0,0,0,0,1,0,0,0],      # state transition matrix
-    #                       [0,1,0,0,0,0,0,0,1,0,0],
-    #                       [0,0,1,0,0,0,0,0,0,1,0],
-    #                       [0,0,0,1,0,0,0,0,0,0,1],  
-    #                       [0,0,0,0,1,0,0,0,0,0,0],
-    #                       [0,0,0,0,0,1,0,0,0,0,0],
-    #                       [0,0,0,0,0,0,1,0,0,0,0],
-    #                       [0,0,0,0,0,0,0,1,0,0,0],
-    #                       [0,0,0,0,0,0,0,0,1,0,0],
-    #                       [0,0,0,0,0,0,0,0,0,1,0],
-    #                       [0,0,0,0,0,0,0,0,0,0,1]])     
-    
-    # self.kf.H = np.array([[1,0,0,0,0,0,0,0,0,0,0],      # measurement function,
-    #                       [0,1,0,0,0,0,0,0,0,0,0],
-    #                       [0,0,1,0,0,0,0,0,0,0,0],
-    #                       [0,0,0,1,0,0,0,0,0,0,0],
-    #                       [0,0,0,0,1,0,0,0,0,0,0],
-    #                       [0,0,0,0,0,1,0,0,0,0,0],
-    #                       [0,0,0,0,0,0,1,0,0,0,0]])
+    # x y z theta l w h 
+    self.kf.H = np.zeros((MEAS_SIZE,STATE_SIZE))
+    for i in range(min(MEAS_SIZE,STATE_SIZE)):
+      self.kf.H[i,i]=1.
 
     self.kf.R[0:,0:] = R   # measurement uncertainty
     
@@ -222,6 +197,7 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     """ 
     Updates the state vector with observed bbox.
     """
+
     self.time_since_update = 0
     self.history = []
     self.hits += 1
@@ -257,11 +233,13 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
     self.info = info
 
+
   def predict(self):       
     """
     Advances the state vector and returns the predicted bounding box estimate.
     """
-    self.kf.predict()      
+
+    self.kf.predict()    
     if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2
     if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
 
