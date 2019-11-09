@@ -6,3 +6,7 @@ pillow==5.2.0
 
 opencv-python==3.4.3.18
 glob2==0.6
+pypcd
+pyquaternion
+munkres==1.0.12
+shapely
