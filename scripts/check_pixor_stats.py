@@ -126,16 +126,15 @@ if __name__ == '__main__':
 #     pixor_json = "/home/yl/master_arc/src/AB3DMOT/data/pixor_outputs.json"
 #     labels_json = "/home/yl/master_arc/src/AB3DMOT/data/Set_7_annotations.json"
 
-    pixor_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_36_valloss_0.0037.json"
-    labels_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json'
-    pixor_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+    labels_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json'
+    pixor_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/pixor_outputs_tf_epoch_3_valloss_0.0093.json"
     is_write = True
     pixor_stats_json =  pixor_json[0:len(pixor_json)-5]+"_stats.json"
     
     if is_write:
       print "writing stats to file" + str (pixor_stats_json)
 
-    iou_thresh = 75
+    iou_thresh = 50.
     tp, fp, fn, var= check_output_json(pixor_json, labels_json, iou_thresh)
     print tp, fp, fn, var
     prec = (tp*100.0)/ (fp+tp)

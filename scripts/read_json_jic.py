@@ -178,41 +178,60 @@ def p_grid_search():
   return True
 
 if __name__ == '__main__':  
+  pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/pixor_outputs_tf_epoch_3_valloss_0.0093.json"
+  pixor_stats_json =  pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
+  fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/fused_pose/fused_pose_new.json"
+  
+  '''
   pixor_json_name = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
   pixor_stats_json =  pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
-  fused_pose_json = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
-  
+  fused_pose_json = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose_new.json"
+  '''
+
   is_tuning = False
   
   if is_tuning:
     p_grid_search()
   else:
-    # Q = np.identity(yl_utils.STATE_SIZE) # KF Process uncertainty/noise
+    Q = np.identity(yl_utils.STATE_SIZE) # KF Process uncertainty/noise
     # q_xy = 0
     # q_heading = -1.
     # q_wx = -5.
     # q_ly = -5.
     # q_v = -1.
-    max_age = 4
-    min_hits = 4
-    hung_thresh = 0.05
+    max_age = 
+    min_hits = 3
+    hung_thresh = 0.25
     tracker_params = "max_age="+str(max_age)+",min_hits="+str(min_hits)+",hung_thresh="+str(hung_thresh)
     
-    # Q[0,0] = 10.**q_xy # x
-    # Q[1,1] = 10.**q_xy # y
-    # Q[2,2] = 0.0000000001 # z
-    # Q[3,3] = 10.**q_heading
-    # Q[4,4] = 10.**q_wx # x_size
-    # Q[5,5] = 10.**q_ly # y_size
-    # Q[6,6] = 0.0000000001 
-    # Q[7,7] = 10.**q_v # v_x
-    # Q[8,8] = 10.**q_v # v_y
-    # Q[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
-    
-    # q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
+    '''
+    params= [6.10351562e-01, 7.81250000e-02, 1.95312500e-08, 2.29588740e+11, 2.50000000e-02, 6.40000000e+00, 1.00000000e-01]
+    q_xy = params[0] 
+    q_wl = params[1] 
+    q_v = params[2] 
+    q_ori = params[3] 
+    ha = params[4] 
+    q_a= params[5] 
+    q_ori_dot=params[6] 
 
-    qv=10.**-3
-    qp=10.**-3
+    Q[0,0] = q_xy # x
+    Q[1,1] = q_xy # y
+    Q[2,2] = 0.0000000001 # z
+    Q[3,3] = q_ori
+    Q[4,4] = q_wl # x_size
+    Q[5,5] = q_wl # y_size
+    Q[6,6] = 0.0000000001 
+    Q[7,7] = q_v # v_x
+    Q[8,8] = q_v # v_y
+    Q[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
+    Q[10,10] = q_a # a_x
+    Q[11,11] = q_a # a_y
+    Q[12,12] = 0.0000000001 # a_z
+    Q[13,13] = q_ori_dot # phi_dot
+    q_params = "_xy" + str(q_xy) + "_ori" + str(q_ori) + "_wx" + str(q_wl) + "_ly" + str(q_wl) + "_v" +  str(q_v)
+    '''
+    qv=10.**1
+    qp=10.**-2
     q_params="qv_"+str(qv)
     if yl_utils.MOTION_MODEL == "CV":
       Q=yl_utils.get_CV_Q(qv,0.05)
@@ -224,9 +243,12 @@ if __name__ == '__main__':
       print ("unknown motion model")
       raise ValueError
     
-    tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/cyra_state_10" + tracker_params +"_Q"+ q_params + ".json"
+
+    # tracker_json_outfile = "/media/yl/downloads/tracker_results/set_8/"+yl_utils.MOTION_MODEL+"_state_10" + tracker_params +"_Q_"+ q_params + ".json"
+    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_state" + tracker_params +"_Q"+ q_params + ".json"
+
     get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile, 
       fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q)
-    print "Done"
+    print "Done writing to", tracker_json_outfile
       
       

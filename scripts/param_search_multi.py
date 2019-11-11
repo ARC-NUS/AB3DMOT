@@ -75,7 +75,7 @@ def get_MOT_score(params,high_set_v, labels_paths_v,  max_age,min_hits, is_print
 
     for label_i, labels_dir_path in enumerate(labels_paths_v):
       labels_json_path = labels_dir_path+'/'+listdir(labels_dir_path)[0] # FIXME no checks done if there isnt exactly only one label or if is a json
-      pixor_json_name = high_set_v[label_i] + "/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+      pixor_json_name = high_set_v[label_i] + "/pixor_outputs.json"
       pixor_stats_json = pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
       fused_pose_json = high_set_v[label_i] + "/fused_pose/fused_pose.json"
 
@@ -145,7 +145,8 @@ if __name__ == '__main__':
   labels_paths_v = []
   high_set_v = []
 
-  parent_dir = "/home/yl/Downloads/raw_data/"
+  # parent_dir = "/home/yl/Downloads/raw_data/"
+  parent_dir = "/media/yl/demo_ssd/raw_data/"
   for root, dirs, files in walk(parent_dir):
     # identify where sets are using the "labels" directories
     for i, dire in enumerate(dirs):

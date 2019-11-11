@@ -335,48 +335,11 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
           
           
 if __name__ == '__main__':
-  
-  # clear_mot_results = "/home/yl/bus_ws/src/AB3DMOT/json_results/clear_mot.json"
-  
-  # 20 hz pixor outputs:
-  # pixor_json_path = "/home/yl/bus_ws/src/AB3DMOT/data/JIC/linn_jicetran_2019-08-27-22-47-10_set1/high_hz_pixor_outputs.json"
-  # ibeo_json_path="/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1/ecu_obj_list/ecu_obj_list.json"
-  
-  # # 20 hz tracker outputs:
-  # tracker_json_path = "/home/yl/bus_ws/src/AB3DMOT/data/JIC/test_cases/mock_ab_results.json"
-  
-  # # 2 hz labels:
-  # labels_json_path = "/home/yl/bus_ws/src/AB3DMOT/data/JIC/test_cases/mock_labels.json"
-  
-
-  # 20 hz pixor outputs:
-  # pixor_json_path = "/home/yl/bus_ws/src/AB3DMOT/data/JIC/linn_jicetran_2019-08-27-22-47-10_set1/high_hz_pixor_outputs.json"
-  # ibeo_json_path="/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1/ecu_obj_list/ecu_obj_list.json"
-
-  # 20 hz tracker outputs:
-#   tracker_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_2/tracker_age3_hits2_thresh_05.json"
-  # 2 hz labels:
-#   labels_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_low/set_2/set2_annotations.json"
   labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json"
 
-  
   distance_metric = "IOU" # using IOU as distance metric
   thres_d = 100. # threshold distance to count as a correspondance, beyond it will be considered as missed detection
   
-  # distance_metric = "area_overlapped" # using area of overlap as distance metric
-  # distance_metric = "l2" # using euclidean distance between centroids?
-  
-  # thres_d = 0 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
-  # thres_d = 0.5 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
-  # thres_d = 0.75 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
-
-
-
-  for i in range(0,1):
-    tracker_params = "age3_hits2_thresh_0.1"
-#     tracker_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/tracker_px_stats_" + tracker_params + str(10*i)+ ".json"
-    tracker_json_path = "/media/yl/downloads/tracker_results/set_8/CA_state_10max_age=3,min_hits=6,hung_thresh=0.25_Qqv_1e-05.json"
-
-    MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
-#     print i, MOTA, MOTP, total_mmet
-    print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt
+  tracker_json_path = "/media/yl/downloads/tracker_results/set_8/cyra_statemax_age=5,min_hits=2,hung_thresh=0.25_Qqv_10.0.json"
+  MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
+  print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt

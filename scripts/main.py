@@ -442,6 +442,24 @@ class AB3DMOT(object):
       return np.concatenate(ret)      # x, y, z, theta, l, w, h, ID, other info, confidence
     return np.empty((0,15))      
     
+    
+  def predict(self, time_, qv, qp):
+    curr_trks =  copy.deepcopy(self.trackers)
+    ret =[]
+    # pred using time_ 
+    if MOTION_MODEL == "CYRA":
+      F = get_CYRA_F(time_)
+      Q = get_CYRA_Q(qv,qp,time_) 
+    else:
+      print ("unknown motion model", MOTION_MODEL)
+      raise ValueError
+    for trk in curr_trks:
+      # FIXME check if birthed or smth
+      trk.predict(F=F, Q=Q) # can set new F and Q depending on the time
+      if((trk.time_since_update < self.max_age) and (trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):        
+        ret.append(np.concatenate((d, [trk.id+1], trk.info)).reshape(1,-1))
+    return ret
+
 if __name__ == '__main__':
   if len(sys.argv)!=2:
     print("Usage: python main.py result_sha(e.g., 3d_det_test)")
