@@ -172,7 +172,7 @@ def parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_p
 
 
 # params: R: x/y phi w/l v a phi_dot; Q: qv,qp; ha
-def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits, is_print = True):
+def get_MOT_score(params, pixor_json_name, fused_pose_json, labels_json_path, max_age,min_hits, is_print = True):
 
   # print params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits
 
@@ -217,14 +217,14 @@ def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, lab
     R[12,12] = 0.0000000001
     R[13,13] = r_ori_dot
 
-    Q = np.identity(STATE_SIZE)
+    Q = np.zeros((STATE_SIZE, STATE_SIZE))
     Q[10,10] = q_a
     Q[11,11] = q_a
     Q[13,13] = r_ori_dot
 
     # print "get_MOT_score params:",params
     # print "get_MOT_score Q:",Q
-    total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=pixor_stats_json, tracker_json_outfile=None, 
+    total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=None, tracker_json_outfile=None, 
     	fused_pose_json=fused_pose_json, max_age=max_age, min_hits=min_hits, hung_thresh=ha, Q=Q, R=R, is_write=False)
 
     MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = \
@@ -244,7 +244,7 @@ def get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, lab
 @param min_alpha
 @outputs: true if it converges and false otherwise
 '''
-def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path):
+def coord_search(max_iter, min_alpha, pixor_json_name,fused_pose_json, labels_json_path):
   # try for all params except for the ages because they are not coninuous. random init pts
   # params: xy, wl, v, ori, ha
   
@@ -262,10 +262,10 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
 #       init_params=[0.01,0.1,10.**-5,0.01,0.05,0.1,0.1]
       print "iteration:", max_age, min_hits
       is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**3, 
-                    min_alpha=1., init_params=init_params, fn_params=(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits))
+                    min_alpha=1., init_params=init_params, fn_params=(pixor_json_name, fused_pose_json, labels_json_path, max_age,min_hits))
       print "is converges:", is_conv
       print "best params of iteration:", params
-      score = get_MOT_score(params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, max_age,min_hits)
+      score = get_MOT_score(params, pixor_json_name, fused_pose_json, labels_json_path, max_age,min_hits)
       print "best score:", score
       if score > best_score:
         best_score = score
@@ -273,7 +273,7 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
         best_maxage=max_age
         best_minhits=min_hits
   print "best:", best_score, best_params, best_maxage, best_minhits
-  get_MOT_score(best_params, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path, best_maxage,best_minhits,is_print=True)
+  get_MOT_score(best_params, pixor_json_name, fused_pose_json, labels_json_path, best_maxage,best_minhits,is_print=True)
 
   return is_conv
 
@@ -306,9 +306,9 @@ if __name__ == '__main__':
   '''
   #grid_search(distance_metric, thres_d, labels_json_path, pixor_json_name, fused_pose_json, pixor_stats_json)
   
-  #coord_search(10.**3, 1.0, pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path)
+  coord_search(10.**3, 1.0, pixor_json_name, fused_pose_json, labels_json_path)
 
-  parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path,delta_t=0.05)
+#   parallel_qv(pixor_json_name,pixor_stats_json, fused_pose_json, labels_json_path,delta_t=0.05)
 
 
   print "Done."
