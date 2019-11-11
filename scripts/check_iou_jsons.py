@@ -340,6 +340,6 @@ if __name__ == '__main__':
   distance_metric = "IOU" # using IOU as distance metric
   thres_d = 100. # threshold distance to count as a correspondance, beyond it will be considered as missed detection
   
-  tracker_json_path = "/media/yl/downloads/tracker_results/set_8/cyra_statemax_age=5,min_hits=2,hung_thresh=0.25_Qqv_10.0.json"
+  tracker_json_path = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
   MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
   print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt

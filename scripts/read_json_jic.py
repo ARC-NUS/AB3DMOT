@@ -16,13 +16,14 @@ import yl_utils
 @param pc_folder: Folder of the validation set
 @return total_list: the list of all the object trackes for the whole input pixor json
 '''
-def get_tracker_json(pixor_json_name, pixor_stats_json, tracker_json_outfile, fused_pose_json, max_age=3,min_hits=2,hung_thresh=0.05, Q = np.identity(10), is_write=True):
+def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, pixor_stats_json=None, max_age=3,min_hits=2,hung_thresh=0.05, Q = np.identity(yl_utils.STATE_SIZE), R=np.identity(yl_utils.STATE_SIZE), is_write=True):
   is_check_online = False # FIXME
 # we set zero for z & h for BEV tracking
 
   # print pixor_json_name, pixor_stats_json, tracker_json_outfile, fused_pose_json, max_age,min_hits,hung_thresh, Q, is_write
   # print "get_tracker_json Q:", Q
-  R = yl_utils.px_stats_get_R(pixor_stats_json)
+  if pixor_stats_json is not None:
+    R = yl_utils.px_stats_get_R(pixor_stats_json)
   P_0 = yl_utils.px_stats_get_P_0(pixor_stats_json)
 
   mot_tracker = AB3DMOT(is_jic=True,max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, R=R, Q=Q, P_0 = P_0)
@@ -199,7 +200,7 @@ if __name__ == '__main__':
     # q_wx = -5.
     # q_ly = -5.
     # q_v = -1.
-    max_age = 
+    max_age = 6
     min_hits = 3
     hung_thresh = 0.25
     tracker_params = "max_age="+str(max_age)+",min_hits="+str(min_hits)+",hung_thresh="+str(hung_thresh)
