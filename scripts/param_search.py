@@ -254,7 +254,7 @@ def coord_search(max_iter, min_alpha, pixor_json_name,pixor_stats_json, fused_po
 
   for max_age in range(1,10,1):
     for min_hits in range(1,10,1):
-      num_params = 14+2
+      num_params = 10+2 # R: x/y phi w/l v a phi_dot ;Q: qv,qp; ha
       alpha_ps = np.ones(num_params)*100.
       alpha_ps[4] = 2.# ha
       init_params=[0.01,0.1,10.**-5,0.01,0.05,0.1,0.1]
