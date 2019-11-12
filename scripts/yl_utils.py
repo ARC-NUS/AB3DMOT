@@ -146,3 +146,34 @@ def get_CYRA_F(delta_t):
   F[7,10] = delta_t
   F[8,11] = delta_t
   return F
+
+def get_dirs(parent_dir, label_dir_name):
+  labels_paths_v = []
+  high_set_v = []
+  
+  for root, dirs, files in walk(parent_dir):
+    for i, dire in enumerate(dirs): # identify where sets are using the "pixor_test" directories
+      if dire == label_dir_name:
+        labels_dir=join(root,dire)
+        low_set_dir= join(labels_dir, pardir) # location of the log_low set
+
+        set_name =  root.split('/')[-1] # set name
+
+        # loc of log_high set
+        high_set_dir=join(low_set_dir, pardir) 
+        high_set_dir=join(high_set_dir, pardir) 
+        high_set_dir=join(high_set_dir, "log_high") 
+        high_set_dir=join(high_set_dir, set_name) 
+        
+        # check if set dir has pcds and fused_poses
+        try:
+          set_contents = listdir(high_set_dir)
+          if "fused_pose" in set_contents and "pcds" in set_contents:
+            print "found set", high_set_dir
+            high_set_v.append(high_set_dir)
+            labels_paths_v.append(labels_dir)
+        except: #find the set folders of interest
+            print "found labels but not pcds or fused pose json"
+  print "high hz sets paths: ", high_set_v
+  print "low hz labels paths:", labels_paths_v
+  return high_set_v, labels_paths_v
