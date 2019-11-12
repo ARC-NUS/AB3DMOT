@@ -146,49 +146,6 @@ def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, pix
   return total_list
   
   
-  
-  
-@jit(parallel=True)
-def p_grid_search():
-  for pq_xy in prange(11):
-      for pq_wx in prange(11):
-        for pq_ly in prange(11):
-          for pq_v in prange(11):
-            for pq_heading in prange(11):
-              for pmax_age in prange(4):
-                for pmin_hits in prange(4):
-                  for ha_thresh in np.arange(0.1,1.0,0.4):
-                    q_xy = pq_xy-5
-                    q_wx = pq_wx-5 
-                    q_ly = pq_ly-5
-                    q_v = pq_v-5
-                    q_heading = pq_heading-5
-                    
-                    max_age = pmax_age+2
-                    min_hits = pmin_hits+2
-                    
-                    # TODO param search wt HA thresh?
-    #                 ha_thresh = ha_thresh_exp
-                    tracker_params = "age" + str(max_age) + "_hits" + str(min_hits) +"_thresh" + str(ha_thresh)
-                    
-                    Q = np.identity(10) # KF Process uncertainty/noise
-                    Q[0,0] = 10.**q_xy # x
-                    Q[1,1] = 10.**q_xy # y
-                    Q[2,2] = 0.0000000001 # z
-                    Q[3,3] = 10.**q_heading
-                    Q[4,4] = 10.**q_wx # x_size
-                    Q[5,5] = 10.**q_ly # y_size
-                    Q[6,6] = 0.0000000001 
-                    Q[7,7] = 10.**q_v # v_x
-                    Q[8,8] = 10.**q_v # v_y
-                    Q[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
-                    
-                    q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
-                    
-                    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/tracker_px_stats_" + tracker_params +"_Q"+ q_params + ".json"
-                    print tracker_params, q_params, tracker_json_outfile
-                    get_tracker_json(pixor_json_name=pixor_json_name, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha_thresh, Q=Q)
-  return True
 
 if __name__ == '__main__':  
   pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/pixor_outputs_tf_epoch_3_valloss_0.0093.json"
@@ -243,6 +200,7 @@ if __name__ == '__main__':
     Q[13,13] = q_ori_dot # phi_dot
     q_params = "_xy" + str(q_xy) + "_ori" + str(q_ori) + "_wx" + str(q_wl) + "_ly" + str(q_wl) + "_v" +  str(q_v)
     '''
+    
     qv=10.**1
     qp=10.**-2
     q_params="qv_"+str(qv)
@@ -256,7 +214,6 @@ if __name__ == '__main__':
       print ("unknown motion model")
       raise ValueError
     
-
     # tracker_json_outfile = "/media/yl/downloads/tracker_results/set_8/"+yl_utils.MOTION_MODEL+"_state_10" + tracker_params +"_Q_"+ q_params + ".json"
     tracker_json_outfile = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_state" + tracker_params +"_Q"+ q_params + ".json"
 
