@@ -16,7 +16,7 @@ import datetime
 from yl_utils import STATE_SIZE, get_CA_Q,MOTION_MODEL
 
 # params: R: x/y phi w/l v a phi_dot; Q: qv,qp; ha
-def get_MOT_score(params,high_set_v, labels_paths_v,  max_age,min_hits, is_print = True):
+def get_MOT_score(params,high_set_v, labels_paths_v, pixor_file_name, max_age,min_hits, is_print = True):
   
   r_xy = params[0]
   r_ori = params[1]
@@ -68,8 +68,8 @@ def get_MOT_score(params,high_set_v, labels_paths_v,  max_age,min_hits, is_print
 
     for label_i, labels_dir_path in enumerate(labels_paths_v):
       labels_json_path = labels_dir_path+'/'+listdir(labels_dir_path)[0] # FIXME no checks done if there isnt exactly only one label or if is a json
-      pixor_json_name = high_set_v[label_i] + "/pixor_outputs.json"
-      pixor_stats_json = pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
+      pixor_json_name = high_set_v[label_i] + "/" + pixor_file_name 
+#       pixor_stats_json = pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
       fused_pose_json = high_set_v[label_i] + "/fused_pose/fused_pose.json"
 
       total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=None, tracker_json_outfile=None, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha, Q=Q, R=R, is_write=False)
@@ -98,7 +98,7 @@ def get_MOT_score(params,high_set_v, labels_paths_v,  max_age,min_hits, is_print
 @outputs: true if it converges and false otherwise
 '''
 @jit
-def coord_search(max_iter, min_alpha, high_set_v,labels_paths_v):
+def coord_search(max_iter, min_alpha, high_set_v,labels_paths_v,pixor_file_name):
   # try for all params except for the ages because they are not coninuous. random init pts
   # params: R: x/y phi w/l v a phi_dot; Q: qv,qp; ha
   
@@ -112,13 +112,14 @@ def coord_search(max_iter, min_alpha, high_set_v,labels_paths_v):
       num_params = 9
       alpha_ps = np.ones(num_params)*100.
       alpha_ps[-1] = 2.# ha
+      # TODO initialise using pixor stats?
       init_params=[0.01,0.1,10.**-5,0.01,0.05,0.1,0.1,0.1,0.05]
       print "iteration:", max_age, min_hits
       is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**3, 
-                    min_alpha=0.5, init_params=init_params, fn_params=(high_set_v, labels_paths_v, max_age,min_hits))
+                    min_alpha=0.5, init_params=init_params, fn_params=(high_set_v, labels_paths_v,pixor_file_name, max_age,min_hits))
       print "is converges:", is_conv
       print "best params of iteration:", params
-      score = get_MOT_score(params, high_set_v, labels_paths_v, max_age,min_hits)
+      score = get_MOT_score(params, high_set_v, labels_paths_v,pixor_file_name, max_age,min_hits)
       print "best score:", score
       if score > best_score:
         best_score = score
@@ -126,7 +127,7 @@ def coord_search(max_iter, min_alpha, high_set_v,labels_paths_v):
         best_maxage=max_age
         best_minhits=min_hits
   print "best:", best_score, best_params, best_maxage, best_minhits
-  get_MOT_score(best_params, high_set_v, labels_paths_v, best_maxage,best_minhits,is_print=True)
+  get_MOT_score(best_params, high_set_v, labels_paths_v, pixor_file_name,best_maxage,best_minhits,is_print=True)
 
   return is_conv
 
@@ -140,21 +141,13 @@ if __name__ == '__main__':
 
   # parent_dir = "/home/yl/Downloads/raw_data/"
   parent_dir = "/media/yl/demo_ssd/raw_data/"
+  pixor_file_name = "pixor_outputs_tf3.json"
   for root, dirs, files in walk(parent_dir):
     # identify where sets are using the "labels" directories
     for i, dire in enumerate(dirs):
-      if dire == "labels":
+      if dire == "pixor_train":
         labels_dir=join(root,dire)
         low_set_dir= join(labels_dir, pardir) # location of the log_low set
-
-        # look for the dir wt the name 
-        try:
-          set_contents = listdir(low_set_dir)
-          if "pixor_train" in set_contents:
-              print "found set in log low at "
-
-
-
 
         set_name =  root.split('/')[-1] # set name
 
@@ -163,8 +156,7 @@ if __name__ == '__main__':
         high_set_dir=join(high_set_dir, pardir) 
         high_set_dir=join(high_set_dir, "log_high") 
         high_set_dir=join(high_set_dir, set_name) 
-
-        '''
+        
         # check if set dir has pcds and fused_poses
         try:
           set_contents = listdir(high_set_dir)
@@ -174,11 +166,11 @@ if __name__ == '__main__':
             labels_paths_v.append(labels_dir)
         except:
           print "labels found but missing other contents at", high_set_dir
-        '''
+
 
   # print high_set_v
   # print labels_paths_v
   
-  coord_search(10.**3, 1.0, high_set_v,labels_paths_v)
+  coord_search(10.**3, 1.0, high_set_v,labels_paths_v,pixor_file_name)
 
   print "Done."
