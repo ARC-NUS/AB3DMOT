@@ -6,7 +6,6 @@ import json
 import numpy as np
 from pyquaternion import Quaternion
 from numba import prange, jit
-from __builtin__ import False
 
 import yl_utils 
 
@@ -18,13 +17,26 @@ import yl_utils
 '''
 def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, pixor_stats_json=None, max_age=3,min_hits=2,hung_thresh=0.05, Q = np.identity(yl_utils.STATE_SIZE), R=np.identity(yl_utils.STATE_SIZE), is_write=True):
   is_check_online = False # FIXME
+  
+  p_v = 1000.
 # we set zero for z & h for BEV tracking
 
   # print pixor_json_name, pixor_stats_json, tracker_json_outfile, fused_pose_json, max_age,min_hits,hung_thresh, Q, is_write
   # print "get_tracker_json Q:", Q
   if pixor_stats_json is not None:
     R = yl_utils.px_stats_get_R(pixor_stats_json)
-  P_0 = yl_utils.px_stats_get_P_0(pixor_stats_json)
+    P_0 = yl_utils.px_stats_get_P_0(pixor_stats_json)
+  else:
+#     print "creating P_0 from R wt pv ", p_v
+    P_0 = np.identity(yl_utils.STATE_SIZE) # KF measurement uncertainty/noise
+    P_0[0:7,0:7] = R
+    P_0[7,7] = p_v
+    P_0[8,8] = p_v
+    P_0[9,9] = p_v
+    P_0[10,10] = p_v
+    P_0[11,11] = p_v
+    P_0[12,12] = p_v
+    P_0[13,13] = p_v
 
   mot_tracker = AB3DMOT(is_jic=True,max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, R=R, Q=Q, P_0 = P_0)
   
