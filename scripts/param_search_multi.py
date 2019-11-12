@@ -13,20 +13,17 @@ from numba import prange, jit
 import threading
 from multiprocessing.pool import ThreadPool
 import datetime
-from yl_utils import STATE_SIZE, get_CA_Q,MOTION_MODEL
+from yl_utils import STATE_SIZE, get_CA_Q,MOTION_MODEL,MEAS_SIZE, get_CYRA_Q
 
-# params: R: x/y phi w/l v a phi_dot; Q: qv,qp; ha
+# params: R: x/y phi w/l; Q: qv,qp; ha
 def get_MOT_score(params,high_set_v, labels_paths_v, pixor_file_name, max_age,min_hits, is_print = True):
   
   r_xy = params[0]
   r_ori = params[1]
   r_wl = params[2]
-  r_v = params[3]
-  r_a= params[3]
-  r_ori_dot=params[5]
-  q_a= params[6]
-  q_ori_dot=params[7]
-  ha = params[8]
+  q_a= params[3]
+  q_ori_dot=params[4]
+  ha = params[5]
 
   is_params_ok = True
   for p in params:
@@ -42,7 +39,7 @@ def get_MOT_score(params,high_set_v, labels_paths_v, pixor_file_name, max_age,mi
     print "warning: params for coord desc in get_MOT_score must be positive"
     return -np.inf
   else:
-    R = np.identity(STATE_SIZE) # KF Process uncertainty/noise
+    R = np.identity(MEAS_SIZE) # KF Process uncertainty/noise
     R[0,0] = r_xy # x
     R[1,1] = r_xy # y
     R[2,2] = 0.0000000001 # z
@@ -50,41 +47,50 @@ def get_MOT_score(params,high_set_v, labels_paths_v, pixor_file_name, max_age,mi
     R[4,4] = r_wl # x_size
     R[5,5] = r_wl # y_size
     R[6,6] = 0.0000000001 
-    R[7,7] = r_v # v_x
-    R[8,8] = r_v # v_y
-    R[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
-    R[10,10] = r_a
-    R[11,11] = r_a
-    R[12,12] = 0.0000000001
-    R[13,13] = r_ori_dot
+#     R[7,7] = r_v # v_x
+#     R[8,8] = r_v # v_y
+#     R[9,9] = 0.0000000001 # v_z should be zero # TODO check that the order of Q is correct
+#     R[10,10] = 0.0000000001
+#     R[11,11] = 0.0000000001
+#     R[12,12] = 0.0000000001
+#     R[13,13] = 0.0000000001
 
-    Q = np.zeros((STATE_SIZE, STATE_SIZE))
-    Q[10,10] = q_a
-    Q[11,11] = q_a
-    Q[13,13] = r_ori_dot
+#     Q = np.zeros((STATE_SIZE, STATE_SIZE))
+#     Q[10,10] = q_a
+#     Q[11,11] = q_a
+#     Q[13,13] = r_ori_dot
+    Q=get_CYRA_Q(q_a, q_ori_dot, 0.05)
 
     # print "get_MOT_score params:",params
     # print "get_MOT_score Q:",Q
 
     for label_i, labels_dir_path in enumerate(labels_paths_v):
-      labels_json_path = labels_dir_path+'/'+listdir(labels_dir_path)[0] # FIXME no checks done if there isnt exactly only one label or if is a json
-      pixor_json_name = high_set_v[label_i] + "/" + pixor_file_name 
+      for file in listdir(labels_dir_path):
+        if file.find("annotations.json") > 0:
+          label_file=file
+          break  
+      labels_json_path = labels_dir_path+'/'+label_file # TODO no checks done if there isnt exactly only one label or if is a json
+      pixor_json_name = labels_dir_path + "/" + pixor_file_name 
+#       print "pixor json in use: ", pixor_json_name
+#       print "labels json in use: ", labels_json_path
 #       pixor_stats_json = pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
       fused_pose_json = high_set_v[label_i] + "/fused_pose/fused_pose.json"
-
       total_list = get_tracker_json(pixor_json_name=pixor_json_name,pixor_stats_json=None, tracker_json_outfile=None, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha, Q=Q, R=R, is_write=False)
 
       MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = \
       check_iou_json(labels_json_path, None, 100., "IOU", is_write=False, total_list=total_list)
       MOTA *= 100.
-      if is_print:
-        print MOTA, MOTP, MOTA-MOTP
 
       overall_MOTP += MOTP
       overall_MOTA += MOTA
 
   overall_MOTA /= len(labels_paths_v)
   overall_MOTP /= len(labels_paths_v)
+  
+  if is_print:
+    print params
+    print overall_MOTA, overall_MOTP, overall_MOTA-overall_MOTP
+  
   return overall_MOTA-overall_MOTP
 
 
@@ -109,11 +115,12 @@ def coord_search(max_iter, min_alpha, high_set_v,labels_paths_v,pixor_file_name)
 
   for max_age in range(1,10,1):
     for min_hits in range(1,10,1):
-      num_params = 9
+      num_params = 6
       alpha_ps = np.ones(num_params)*100.
       alpha_ps[-1] = 2.# ha
       # TODO initialise using pixor stats?
-      init_params=[0.01,0.1,10.**-5,0.01,0.05,0.1,0.1,0.1,0.05]
+#       init_params=[0.01,0.1,10.**-5,0.01,0.05,0.05]
+      init_params = [0.02, 0.03, 0.2, 0.1, 0.1, 0.05]
       print "iteration:", max_age, min_hits
       is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**3, 
                     min_alpha=0.5, init_params=init_params, fn_params=(high_set_v, labels_paths_v,pixor_file_name, max_age,min_hits))
@@ -141,11 +148,11 @@ if __name__ == '__main__':
 
   # parent_dir = "/home/yl/Downloads/raw_data/"
   parent_dir = "/media/yl/demo_ssd/raw_data/"
-  pixor_file_name = "pixor_outputs_tf3.json"
+  pixor_file_name = "pixor_outputs_tf_3_0093.json"
   for root, dirs, files in walk(parent_dir):
     # identify where sets are using the "labels" directories
     for i, dire in enumerate(dirs):
-      if dire == "pixor_train":
+      if dire == "pixor_test":
         labels_dir=join(root,dire)
         low_set_dir= join(labels_dir, pardir) # location of the log_low set
 
@@ -162,6 +169,7 @@ if __name__ == '__main__':
           set_contents = listdir(high_set_dir)
           if "fused_pose" in set_contents and "pcds" in set_contents:
             print "found set", high_set_dir
+            print "labels dir: ", labels_dir
             high_set_v.append(high_set_dir)
             labels_paths_v.append(labels_dir)
         except:
