@@ -156,6 +156,9 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
   MOTA = None
   total_ct_check = 0
   l_index = 0 # offset of label and tracker in json
+  t_index=0
+  missed_frames=0 # counting missed objects when tracker misses a frame. by right should never non-zero
+  fp_frames=0
           
   for index, labels in enumerate(labels_data): # for each pcd/timestep labelled
       # init params for each timestep
@@ -169,17 +172,30 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
       pcd_name = labels['name']
       time_step = pcd_name.split('.')[0]
 #               print "checking time step: ", time_step
-      tracks = tracker_data[(index+1)*10-1-l_index] # FIXME this will only work if the files are 10 hz apart
+      tracks = tracker_data[(index+1-l_index)*10-1] # FIXME this will only work if the files are 10 hz apart
        
       if tracks['name'] != pcd_name:
           print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
                                 "label n tracker data must be 10 hz apart" 
           #raise ValueError # FIXME choose a more suitable error
-          while tracks['name'] != pcd_name:
-            l_index +=1
-            tracks = tracker_data[(index+1)*10-1-l_index]
-          continue
-      
+          if pcd_name.split('.')[0] < tracks['name'].split('.')[0]: # the tracker missed the label frame??
+              while tracks['name'] != pcd_name:
+                  l_index +=1
+                  tracks = tracker_data[(index+1-l_index)*10-1]
+                  missed_frames += len(labels['annotations'])
+                  print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
+                                "label n tracker data must be 10 hz apart"
+              continue
+          else:
+              # FIXME create empty 'label' to do mota with
+              while tracks['name'] != pcd_name:
+                  l_index -=1
+                  fp_frames += len(tracks["objects"])
+                  tracks = tracker_data[(index+1-l_index)*10-1]
+                  print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
+                                "label n tracker data must be 10 hz apart"
+              
+          
       is_labelled = False
       corresp_label = None
       corresp_track = None
