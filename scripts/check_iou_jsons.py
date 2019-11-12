@@ -157,8 +157,8 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
   total_ct_check = 0
   l_index = 0 # offset of label and tracker in json
   t_index=0
-  missed_frames=0 # counting missed objects when tracker misses a frame. by right should never non-zero
-  fp_frames=0
+#   missed_frames=0 # counting missed objects when tracker misses a frame. by right should never non-zero
+#   fp_frames=0
           
   for index, labels in enumerate(labels_data): # for each pcd/timestep labelled
       # init params for each timestep
@@ -182,7 +182,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
               while tracks['name'] != pcd_name:
                   l_index +=1
                   tracks = tracker_data[(index+1-l_index)*10-1]
-                  missed_frames += len(labels['annotations'])
+                  total_missed += len(labels['annotations'])
                   print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
                                 "label n tracker data must be 10 hz apart"
               continue
@@ -190,7 +190,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
               # FIXME create empty 'label' to do mota with
               while tracks['name'] != pcd_name:
                   l_index -=1
-                  fp_frames += len(tracks["objects"])
+                  total_fpt += len(tracks["objects"])
                   tracks = tracker_data[(index+1-l_index)*10-1]
                   print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
                                 "label n tracker data must be 10 hz apart"
