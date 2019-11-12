@@ -175,16 +175,14 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
       tracks = tracker_data[(index+1-l_index)*10-1] # FIXME this will only work if the files are 10 hz apart
        
       if tracks['name'] != pcd_name:
-          print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
-                                "label n tracker data must be 10 hz apart" 
+#           print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
+#                                 "label n tracker data must be 10 hz apart" 
           #raise ValueError # FIXME choose a more suitable error
           if pcd_name.split('.')[0] < tracks['name'].split('.')[0]: # the tracker missed the label frame??
               while tracks['name'] != pcd_name:
                   l_index +=1
                   tracks = tracker_data[(index+1-l_index)*10-1]
                   total_missed += len(labels['annotations'])
-                  print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
-                                "label n tracker data must be 10 hz apart"
               continue
           else:
               # FIXME create empty 'label' to do mota with
@@ -192,8 +190,6 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
                   l_index -=1
                   total_fpt += len(tracks["objects"])
                   tracks = tracker_data[(index+1-l_index)*10-1]
-                  print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
-                                "label n tracker data must be 10 hz apart"
               
           
       is_labelled = False
@@ -300,7 +296,6 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
               total_dist += get_MOT_dist(opts, tpts, distance_metric)
               total_ct_check +=1
                   
-      
       total_ct += len(new_mappings) # count number of matches 
       
       mappings = copy.deepcopy(new_mappings)
@@ -321,7 +316,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
           if label['classId'] not in mappings:
               # missed detection
               m_t += 1
-      
+
 #             total_gt += len(labels['annotations'])
       
       total_missed += m_t
