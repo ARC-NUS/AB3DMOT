@@ -5,8 +5,6 @@ import check_iou_jsons as check_iou
 # from check_iou_jsons import is_pxpp_fov
 from shapely.geometry import Polygon
 import json
-from __builtin__ import True
-
   
 def check_output_json(output_json, labels_json, iou_thresh):
 
