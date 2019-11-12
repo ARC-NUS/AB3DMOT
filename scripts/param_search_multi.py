@@ -147,6 +147,15 @@ if __name__ == '__main__':
         labels_dir=join(root,dire)
         low_set_dir= join(labels_dir, pardir) # location of the log_low set
 
+        # look for the dir wt the name 
+        try:
+          set_contents = listdir(low_set_dir)
+          if "pixor_train" in set_contents:
+              print "found set in log low at "
+
+
+
+
         set_name =  root.split('/')[-1] # set name
 
         # loc of log_high set
@@ -155,6 +164,7 @@ if __name__ == '__main__':
         high_set_dir=join(high_set_dir, "log_high") 
         high_set_dir=join(high_set_dir, set_name) 
 
+        '''
         # check if set dir has pcds and fused_poses
         try:
           set_contents = listdir(high_set_dir)
@@ -164,6 +174,7 @@ if __name__ == '__main__':
             labels_paths_v.append(labels_dir)
         except:
           print "labels found but missing other contents at", high_set_dir
+        '''
 
   # print high_set_v
   # print labels_paths_v
