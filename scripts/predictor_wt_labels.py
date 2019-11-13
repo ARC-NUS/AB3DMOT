@@ -4,13 +4,16 @@ import yl_utils as yl
 
 
 def get_pred_json(label_json,output_pred_json):
+  objects=[]
   with open(label_json) as json_file:
     with open(fused_pose_json) as fp_json:
       labels_data = json.load(json_file, encoding="utf-8")
       fp_data = json.load(fp_json, encoding="utf-8") # TODO use fp to do tf
       
       for index, labels in enumerate(labels_data): # for each pcd/timestep labelled
-        labels['name']
+        curr_timestep = labels['name']
+        labels 
+        if object in objects
       
       
 
