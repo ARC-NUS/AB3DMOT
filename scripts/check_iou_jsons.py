@@ -335,7 +335,8 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
     # calculate MOTA 
     MOTA = 1. - (total_missed*1.) / total_gt    
   except:      
-    pass
+    MOTA=-float('inf')
+    MOTP=0.
 #             print "error calculating MOTA"
 # #           print "MOTP: ", MOTP, "MOTA: ", MOTA
 #             print "total dist: ", total_dist, "\ntotal num of objects per frame:", total_gt
