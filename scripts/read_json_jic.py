@@ -149,9 +149,9 @@ def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, pix
   
 
 if __name__ == '__main__':  
-  pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+  pixor_json_name = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/pixor_outputs_tf_epoch_3_valloss_0.0093.json"
   pixor_stats_json =  pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
-  fused_pose_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose_new.json"
+  fused_pose_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/fused_pose/fused_pose_new.json"
   
   '''
   pixor_json_name = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
@@ -170,8 +170,8 @@ if __name__ == '__main__':
     # q_wx = -5.
     # q_ly = -5.
     # q_v = -1.
-    max_age = 6
-    min_hits = 3
+    max_age = 8
+    min_hits = 6
     hung_thresh = 0.25
     tracker_params = "max_age="+str(max_age)+",min_hits="+str(min_hits)+",hung_thresh="+str(hung_thresh)
     
@@ -202,8 +202,10 @@ if __name__ == '__main__':
     q_params = "_xy" + str(q_xy) + "_ori" + str(q_ori) + "_wx" + str(q_wl) + "_ly" + str(q_wl) + "_v" +  str(q_v)
     '''
     
-    qv=10.**1
-    qp=10.**-2
+    
+    
+    qv=0.01953125
+    qp=0.1
     q_params="qv_"+str(qv)
     if yl_utils.MOTION_MODEL == "CV":
       Q=yl_utils.get_CV_Q(qv,0.05)
@@ -214,13 +216,18 @@ if __name__ == '__main__':
     else:
       print ("unknown motion model")
       raise ValueError
+      
+    R= np.identity(yl_utils.MEAS_SIZE)
+    r_xy = 1. 
+    r_ori = 0.06
+    r_wl = 0.0390625
     
     # tracker_json_outfile = "/media/yl/downloads/tracker_results/set_8/"+yl_utils.MOTION_MODEL+"_state_10" + tracker_params +"_Q_"+ q_params + ".json"
-    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/newfp_cyra_state" + tracker_params +"_Q"+ q_params + ".json"
+    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_state" + tracker_params +"_Q"+ q_params + ".json"
     start_tick = time.time()
 
-    get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile, 
-      fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q)
+    get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=None, tracker_json_outfile=tracker_json_outfile, 
+      fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q, R=R)
 
     end_tick = time.time()
 

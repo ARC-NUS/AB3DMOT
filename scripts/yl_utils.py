@@ -34,7 +34,6 @@ def px_stats_get_R(pixor_stats_json):
     R[6,6] = 10.**-5 #h
   return R
   
-  
 def px_stats_get_P_0(pixor_stats_json, p0_v=1000., factor=1.):
   with open(pixor_stats_json) as pixor_stats_file:
     data = json.load(pixor_stats_file, encoding="utf-8")
@@ -177,3 +176,7 @@ def get_dirs(parent_dir, label_dir_name):
   print "high hz sets paths: ", high_set_v
   print "low hz labels paths:", labels_paths_v
   return high_set_v, labels_paths_v
+  
+  
+
+  
