@@ -113,14 +113,14 @@ def coord_search(max_iter, min_alpha, high_set_v,labels_paths_v,pixor_file_name)
   best_maxage = None
   best_minhits = None
 
-  for max_age in range(1,10,1):
-    for min_hits in range(1,10,1):
+  for max_age in range(6,9,1):
+    for min_hits in range(6,9,1):
       num_params = 6
       alpha_ps = np.ones(num_params)*100.
       alpha_ps[-1] = 2.# ha
       # TODO initialise using pixor stats?
 #       init_params=[0.01,0.1,10.**-5,0.01,0.05,0.05]
-      init_params = [1.2, 0.1, 0.02, 0.001, 0.2, 0.2]
+      init_params = [1.2, 0.1, 0.02, 0.001, 1.0, 0.2]
       print "iteration:", max_age, min_hits
       is_conv, params =coord_descent(num_params=num_params, fn=get_MOT_score, ALPHA_PS=alpha_ps, dec_alpha=0.5, max_iter=10**3, 
                     min_alpha=0.5, init_params=init_params, fn_params=(high_set_v, labels_paths_v,pixor_file_name, max_age,min_hits))

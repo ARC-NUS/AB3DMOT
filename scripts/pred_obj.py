@@ -13,7 +13,9 @@ PRED_STATE_SIZE = yl.STATE_SIZE
 PRED_MEAS_SIZE = yl.MEAS_SIZE
 
 obj_id_list=[]
-pred_delta_t=0.5
+pred_delta_t=0.5 # in seconds
+
+COUNT_T=0.05 # one count in dataset is equivalent to 0.05s 
 
 # @var x = x position in utm
 # TODO convert to UTM for prediction to use
@@ -59,6 +61,7 @@ class Pred_obj():
   
   def __init__(self,init_state,start_time,R,P,q_YR,q_A):
     self.id = init_state['classId']
+    start_time*=COUNT_T
     self.class_type = init_state['className']
     
     self.past_traj = []
@@ -98,6 +101,7 @@ class Pred_obj():
     return tmp_str
             
   def update(self, new_state, curr_time):
+    curr_time *= COUNT_T
     tmp=trk_pt(start_time=curr_time,init_state=new_state)
     self.past_traj.append(tmp)
     
@@ -114,44 +118,54 @@ class Pred_obj():
     pass
     
   def predict(self, curr_time, steps=6, delta_t=None, period=None): 
+    curr_time *= COUNT_T
     if PRED_MOTION_MOD == "CYRA":
-      self.predict_CYRA(curr_time, steps, delta_t, period)
+      pred=self.predict_CYRA(curr_time, steps, delta_t, period)
     else:
       print "unknown motion model:  ", PRED_MOTION_MOD
       raise TypeError
+    return pred
   
   def predict_CYRA(self, curr_time, steps=6, delta_t=None, period=None):
     prediction = []
     # print 'predictionting for obj', self.id
     if len(self.past_traj) < 3:
-      print "track too short, expected at least 3 previously known locations but only has ", \
-            len(self.past_traj)
+#       print "track too short, expected at least 3 previously known locations but only has ", \
+#             len(self.past_traj)
       return None
     else:
       # estimate const. acceleration
       for i in range(steps): 
         if delta_t is None and period is None:
-          tmp_Q=yl.get_CYRA_Q(self.q_A, self.q_YR, pred_delta_t*(i+1))
-          tmp_F=yl.get_CYRA_F(pred_delta_t*(i+1)) 
+          t = pred_delta_t*(i+1) + curr_time-self.time_last_updated
+          tmp_Q=yl.get_CYRA_Q(self.q_A, self.q_YR, t)
+          tmp_F=yl.get_CYRA_F(t) 
           # print "before: ", self.kf.x_prior
           self.kf.predict(Q=tmp_Q,F=tmp_F)
           # print "after: ", self.kf.x_prior #FIXME doble check if its correct
-          tmp = trk_pt(start_time=curr_time+pred_delta_t*(i+1),kf_x=self.kf.x_prior) # FIXME only works if curr time is same as last updated
+          tmp = trk_pt(start_time=pred_delta_t*(i+1),kf_x=self.kf.x_prior)
           prediction.append(tmp)
-        # TODO handle else
-        # TODO handel if inverse fails
-    print prediction
+    # TODO handle else
+    # TODO handel if inverse fails
+    
+#     print "obj: ", self.id
+#     for tmp_p in prediction:
+#       print tmp_p
+      
     return prediction
     
   
 
 if __name__ == '__main__':
-  #label_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json"
-  #fp_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/fused_pose/fused_pose_new.json"
-  #output_pred_json ="/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/prediction.json"
+  label_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json"
+  fp_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/fused_pose/fused_pose_new.json"
+  output_pred_json ="/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/prediction.json"
+  
+  '''
   label_json='/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json'
   output_pred_json = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out.json"
   fp_json = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
+  '''
   
   init_state = {}
   init_state['classId']=1
