@@ -13,8 +13,8 @@ PRED_STATE_SIZE = yl.STATE_SIZE
 PRED_MEAS_SIZE = yl.MEAS_SIZE
 
 obj_id_list=[]
-pred_delta_t=0.5 # in seconds
-
+pred_delta_t=0.1 # in seconds
+pred_steps = 6
 COUNT_T=0.05 # one count in dataset is equivalent to 0.05s 
 
 # @var x = x position in utm
@@ -123,16 +123,16 @@ class Pred_obj():
       raise TypeError
     pass
     
-  def predict(self, curr_time, steps=6): 
+  def predict(self, curr_time): 
     curr_time *= COUNT_T
     if PRED_MOTION_MOD == "CYRA":
-      pred=self.predict_CYRA(curr_time, steps)
+      pred=self.predict_CYRA(curr_time, pred_steps)
     else:
       print "unknown motion model:  ", PRED_MOTION_MOD
       raise TypeError
     return pred
   
-  def predict_CYRA(self, curr_time, steps=6):
+  def predict_CYRA(self, curr_time, steps):
     prediction = []
     # print 'predictionting for obj', self.id
     if len(self.past_traj) < 3:
