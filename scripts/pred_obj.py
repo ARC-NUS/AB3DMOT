@@ -54,6 +54,12 @@ class trk_pt():
     return np.array([self.x, self.y, 0.0, self.ori,
                      self.w, self.l, 1.0]).reshape(PRED_MEAS_SIZE,1)
 
+  def dict(self):
+    tmp_dict = {"x": self.x, 
+                "y": self.y,
+                "heading": self.ori}
+    return tmp_dict
+
 '''
 @param init_state: the array from the labels json
 '''
@@ -117,16 +123,16 @@ class Pred_obj():
       raise TypeError
     pass
     
-  def predict(self, curr_time, steps=6, delta_t=None, period=None): 
+  def predict(self, curr_time, steps=6): 
     curr_time *= COUNT_T
     if PRED_MOTION_MOD == "CYRA":
-      pred=self.predict_CYRA(curr_time, steps, delta_t, period)
+      pred=self.predict_CYRA(curr_time, steps)
     else:
       print "unknown motion model:  ", PRED_MOTION_MOD
       raise TypeError
     return pred
   
-  def predict_CYRA(self, curr_time, steps=6, delta_t=None, period=None):
+  def predict_CYRA(self, curr_time, steps=6):
     prediction = []
     # print 'predictionting for obj', self.id
     if len(self.past_traj) < 3:
@@ -136,15 +142,15 @@ class Pred_obj():
     else:
       # estimate const. acceleration
       for i in range(steps): 
-        if delta_t is None and period is None:
-          t = pred_delta_t*(i+1) + curr_time-self.time_last_updated
-          tmp_Q=yl.get_CYRA_Q(self.q_A, self.q_YR, t)
-          tmp_F=yl.get_CYRA_F(t) 
-          # print "before: ", self.kf.x_prior
-          self.kf.predict(Q=tmp_Q,F=tmp_F)
-          # print "after: ", self.kf.x_prior #FIXME doble check if its correct
-          tmp = trk_pt(start_time=pred_delta_t*(i+1),kf_x=self.kf.x_prior)
-          prediction.append(tmp)
+        t = pred_delta_t*(i+1) + curr_time-self.time_last_updated
+        tmp_Q=yl.get_CYRA_Q(self.q_A, self.q_YR, t)
+        tmp_F=yl.get_CYRA_F(t) 
+        # print "before: ", self.kf.x_prior
+        self.kf.predict(Q=tmp_Q,F=tmp_F)
+        # print "after: ", self.kf.x_prior #FIXME doble check if its correct
+        tmp = trk_pt(start_time=pred_delta_t*(i+1),kf_x=self.kf.x_prior) # NOTE: any time update is to be done pred must be redone or else it will use the wrong prior
+        prediction.append(tmp)
+          
     # TODO handle else
     # TODO handel if inverse fails
     
@@ -153,7 +159,8 @@ class Pred_obj():
 #       print tmp_p
       
     return prediction
-    
+  
+
   
 
 if __name__ == '__main__':
