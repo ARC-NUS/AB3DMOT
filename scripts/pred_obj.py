@@ -13,9 +13,10 @@ PRED_STATE_SIZE = yl.STATE_SIZE
 PRED_MEAS_SIZE = yl.MEAS_SIZE
 
 obj_id_list=[]
-pred_delta_t=0.1 # in seconds
+pred_delta_t=0.5 # in seconds
 pred_steps = 6
-COUNT_T=0.05 # one count in dataset is equivalent to 0.05s 
+COUNT_T=0.05 # one count in dataset is equivalent to 0.05s (for data)
+label_count=0.5 # time distance bet each label
 
 # @var x = x position in utm
 # TODO convert to UTM for prediction to use
