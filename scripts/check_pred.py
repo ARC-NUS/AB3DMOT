@@ -138,7 +138,7 @@ def draw(img,label_obj,pred_obj,iter):
 
 def dist(label_obj, pred_obj):
   x = label_obj['geometry']['position']['x'] - pred_obj['x']
-  y = label_obj['geometry']['position']['x'] - pred_obj['y']
+  y = label_obj['geometry']['position']['y'] - pred_obj['y']
   ori = label_obj['geometry']['rotation']['z'] - pred_obj['heading']
 
   # d = math.sqrt(x ** 2. + y ** 2. + ori ** 2.) # FIXME think if should scale ori
@@ -147,10 +147,15 @@ def dist(label_obj, pred_obj):
 
 
 if __name__ == '__main__':
-
+  '''
   labels_json='/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json'
   pred_json = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_0.5.json"  
   img_path ="/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/img_pred/"  
+  '''
+
+  labels_json='/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_Correct_annotations.json'
+  pred_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_0.5.json"  
+  img_path ="/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/img_pred/"  
 
 
   ADE=get_ADE(pred_json, labels_json,img_path)
