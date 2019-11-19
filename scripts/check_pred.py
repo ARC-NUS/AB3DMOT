@@ -14,7 +14,7 @@ import numpy as np
 import operator
 import yl_utils as yl
 from predictor_wt_labels import get_pred_json
-from os import listdir, walk, pardir
+from os import listdir, walk, pardir, makedirs
 
 
 is_write = False 
@@ -68,22 +68,46 @@ def get_ADE(pred_json=None, labels_json=None, img_path=None, pred_list=None):
         cv2.imwrite(img_path+str(p_i)+".jpg", im_rgb)
   return np.array(ADE), np.array(ADE_count)
   
-def get_multi_ADE(parent_folder,R,P,q_YR,q_A):
   
-  high_set_v, labels_paths_v = yl.get_dirs(parent_folder,"labels")
+  
+def get_multi_ADE(parent_folder,R,P,q_YR,q_A):
+   
+  high_set_v, labels_paths_v = yl.get_dirs(parent_folder,"pixor_train")
+  t_high_set_v, t_labels_paths_v = yl.get_dirs(parent_folder,"pixor_test")
+  high_set_v += t_high_set_v
+  labels_paths_v += t_labels_paths_v
+  t_high_set_v, t_labels_paths_v = yl.get_dirs(parent_folder,"pixor_test_hard")
+  high_set_v += t_high_set_v
+  labels_paths_v += t_labels_paths_v
+
+#   high_set_v, labels_paths_v = yl.get_dirs(parent_folder,"track_test")
+  
+#   high_set_v, labels_paths_v = yl.get_dirs(parent_folder,"pixor_train")
+  
   ADE=np.zeros(pred_steps)
   ADE_count = np.zeros(pred_steps)
     
   for l_i, label in enumerate(labels_paths_v):
     fp_json = high_set_v[l_i]+"/fused_pose/fused_pose_new.json"
-    print label
+#     print "working on file: ",label
+    img_dir = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/img_pred/" + str(l_i)
+    if is_write:
+      makedirs(img_dir)
+      img_path = img_dir+"/img_"
+    else:
+      img_path = None
     pred_list=get_pred_json(label_json=label,output_pred_json=None,
                   fused_pose_json=fp_json,R=R,P=P,q_YR=q_YR,q_A=q_A)  
-    tmp_ADE, tmp_ADE_c = get_ADE(labels_json=label, img_path=None, pred_list=pred_list)
+    tmp_ADE, tmp_ADE_c = get_ADE(labels_json=label, 
+                                 img_path=img_path,
+                                 pred_list=pred_list)
     ADE += tmp_ADE
     ADE_count += tmp_ADE_c
       
   return ADE/ADE_count
+
+
+
 
 def get_vertices(w,b,x_c,y_c,theta, img_h, img_w, scale):
   pts = np.array([[]], dtype=int)
@@ -142,11 +166,11 @@ def draw(img,label_obj,pred_obj,iter):
                  5: (210,255,255)} # D2FFFF
   '''
 
-  frac = iter/16.
+  frac = iter/8.
   l_1 =  np.array([255,20,147])
   l_2 =  np.array([255,255,10])
   p_1 = np.array([0,255,255])
-  p_2 = np.array([10,188,158])
+  p_2 = np.array([10,102,51])
 
   l_np = (l_2 - l_1) * frac + l_1
   l_clr = tuple(l_np.astype(int))
@@ -162,14 +186,14 @@ def draw(img,label_obj,pred_obj,iter):
   y_c = float(label_obj['geometry']['position']['y'])
   theta = float(label_obj['geometry']['rotation']['z'])
   pts = get_vertices(w,b,x_c,y_c,theta,img_h,img_w,scale/100.)
-  img = draw_border(img, pts, l_clr,4+(5-iter/2))
+  img = draw_border(img, pts, l_clr,4+(5-iter/3))
 
   # draw pixor labels
   x_c = float(pred_obj['x'])
   y_c = float(pred_obj['y'])
   theta = float(pred_obj['heading'])
   pts = get_vertices(w,b,x_c,y_c,theta,img_h,img_w,scale/100.)
-  img = draw_border(img, pts, p_clr, 2+(5-iter/2))
+  img = draw_border(img, pts, p_clr, 2+(5-iter/3))
 
   return img
 
@@ -196,7 +220,6 @@ def test_single_jsons():
   pred_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_8_2.json"  
   img_path ="/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/img_pred/"  
 
-
   ADE,ADE_count=get_ADE(pred_json, labels_json,img_path)
   
   for i in range(len(ADE)):
@@ -210,13 +233,21 @@ def test_single_jsons():
   
 def test_multi_jsons():
   parent_dir = "/media/yl/demo_ssd/raw_data"
-  R=np.eye(PRED_MEAS_SIZE)
-  P=np.eye(PRED_STATE_SIZE)
-  q_YR=2.
-  q_A=2.
+#   R=np.eye(PRED_MEAS_SIZE)
+#   P=np.eye(PRED_STATE_SIZE)
+#   q_YR=2.
+#   q_A=2.
+  params_v = [2.0000e+00, 6.4000e-04, 1.2500e+01, 7.8125e+00]
+  q_YR = params_v[0]
+  q_A = params_v[1]
+  R=np.eye(PRED_MEAS_SIZE) * params_v[2]
+  P=np.eye(PRED_STATE_SIZE) * params_v[3]
+  
   ADE = get_multi_ADE(parent_dir,R,P,q_YR,q_A)
   print ADE
+  
   
 if __name__ == '__main__':
   test_multi_jsons()
 #   test_single_jsons()
+

@@ -9,6 +9,7 @@ import numpy as np
 def get_pred_json(label_json,output_pred_json,fused_pose_json,R,P,q_YR,q_A):
   pred_obj_list=[]
   total_list=[]
+  po.obj_id_list=[]
   with open(label_json) as json_file:
     with open(fused_pose_json) as fp_json:
       labels_data = json.load(json_file, encoding="utf-8")
@@ -32,6 +33,7 @@ def get_pred_json(label_json,output_pred_json,fused_pose_json,R,P,q_YR,q_A):
             # print temp 
             pred_obj_list.append(temp)
           else:
+#             print pred_obj_list
             pred_obj_list[obj_idx].update(obj, curr_timestep)
             # TODO: convert to UTM
 

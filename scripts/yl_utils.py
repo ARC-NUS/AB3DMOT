@@ -171,7 +171,7 @@ def get_dirs(parent_dir, label_dir_name):
         try:
           set_contents = listdir(high_set_dir)
           if "fused_pose" in set_contents and "pcds" in set_contents:
-            print "found set", high_set_dir
+#             print "found set", high_set_dir
             high_set_v.append(high_set_dir)
             labels_paths_v.append(labels_dir)
             for file in listdir(labels_dir):
@@ -179,9 +179,9 @@ def get_dirs(parent_dir, label_dir_name):
                 labels_jsons_v.append(labels_dir+'/'+file)
         except: #find the set folders of interest
             print "found labels but not pcds or fused pose json"
-  print "high hz sets paths: ", high_set_v
-  print "low hz labels paths:", labels_paths_v
-  print "low hz labels jsons:", labels_jsons_v
+#   print "high hz sets paths: ", high_set_v
+#   print "low hz labels paths:", labels_paths_v
+#   print "low hz labels jsons:", labels_jsons_v
 
   return high_set_v, labels_jsons_v
   

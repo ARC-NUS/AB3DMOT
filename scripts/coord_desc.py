@@ -84,7 +84,7 @@ def coord_descent(num_params, fn, ALPHA_PS, dec_alpha, max_iter, min_alpha, init
           if test_result > best_result:
             params = p_test
             best_result=test_result
-            # print "best", best_result, params
+            print "best", best_result, params
             is_moved = True
           else:
             # reduce alpha

@@ -113,7 +113,7 @@ def roty(t):
                      [-s, 0,  c]])
 
 
-s
+
 def convert_3dbox_to_8corner(bbox3d_input):
     ''' Returns the 8 corners in 3D space for x y z R l w h
         Returns:
