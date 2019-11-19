@@ -11,6 +11,7 @@ import math
 from pred_obj import pred_delta_t, pred_steps, COUNT_T, label_count
 import cv2
 import numpy as np
+import operator
 
 is_write = True #
 img_h = 800
@@ -54,7 +55,10 @@ def get_ADE(pred_json, labels_json, img_path=None):
           im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
           cv2.imwrite(img_path+str(p_i)+".jpg", im_rgb)
   for i in range(len(ADE)):
-    ADE[i] /= ADE_count[i]
+    try:
+      ADE[i] /= ADE_count[i]
+    except ZeroDivisionError:
+      ADE[i]=-float('inf')
 
 
   return ADE
@@ -100,6 +104,7 @@ def draw_border(img, pts, clr, thiccness=2):
 
 
 def draw(img,label_obj,pred_obj,iter):
+  '''
   # FIXME only works for steps that are less than 6
   l_clr_dict = { 0: (255,20,147), 
                  1: (255,50,147), # FF00FF
@@ -113,9 +118,20 @@ def draw(img,label_obj,pred_obj,iter):
                  3: (99,255,255), # 99FFFF
                  4: (204,255,255), # CCFFFF
                  5: (210,255,255)} # D2FFFF
+  '''
 
-  l_clr = l_clr_dict[iter]
-  p_clr = p_clr_dict[iter]
+  frac = iter/16.
+  l_1 =  np.array([255,20,147])
+  l_2 =  np.array([255,255,10])
+  p_1 = np.array([0,255,255])
+  p_2 = np.array([10,188,158])
+
+  l_np = (l_2 - l_1) * frac + l_1
+  l_clr = tuple(l_np.astype(int))
+  p_np = (p_2 - p_1) * frac + p_1
+  p_clr = tuple(p_np.astype(int))
+
+#   print frac,l_clr, p_clr
 
   # draw label box
   w = float(label_obj['geometry']['dimensions']['x'])
@@ -124,14 +140,14 @@ def draw(img,label_obj,pred_obj,iter):
   y_c = float(label_obj['geometry']['position']['y'])
   theta = float(label_obj['geometry']['rotation']['z'])
   pts = get_vertices(w,b,x_c,y_c,theta,img_h,img_w,scale/100.)
-  img = draw_border(img, pts, l_clr,4+(5-iter))
+  img = draw_border(img, pts, l_clr,4+(5-iter/2))
 
   # draw pixor labels
   x_c = float(pred_obj['x'])
   y_c = float(pred_obj['y'])
   theta = float(pred_obj['heading'])
   pts = get_vertices(w,b,x_c,y_c,theta,img_h,img_w,scale/100.)
-  img = draw_border(img, pts, p_clr, 2+(5-iter))
+  img = draw_border(img, pts, p_clr, 2+(5-iter/2))
 
   return img
 
@@ -154,7 +170,7 @@ if __name__ == '__main__':
   '''
 
   labels_json='/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_Correct_annotations.json'
-  pred_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_0.5.json"  
+  pred_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_8.json"  
   img_path ="/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/img_pred/"  
 
 

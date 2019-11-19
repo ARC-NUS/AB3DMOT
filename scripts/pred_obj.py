@@ -14,7 +14,7 @@ PRED_MEAS_SIZE = yl.MEAS_SIZE
 
 obj_id_list=[]
 pred_delta_t=0.5 # in seconds
-pred_steps = 6
+pred_steps = 16
 COUNT_T=0.05 # one count in dataset is equivalent to 0.05s (for data)
 label_count=0.5 # time distance bet each label
 
