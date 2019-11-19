@@ -17,7 +17,7 @@ from predictor_wt_labels import get_pred_json
 from os import listdir, walk, pardir, makedirs
 
 
-is_write = False 
+is_write = True 
 img_h = 800
 img_w = 800
 scale = 10.0 # 1 px is to x cm
@@ -237,7 +237,7 @@ def test_multi_jsons():
 #   P=np.eye(PRED_STATE_SIZE)
 #   q_YR=2.
 #   q_A=2.
-  params_v = [2.0000e+00, 6.4000e-04, 1.2500e+01, 7.8125e+00]
+  params_v = [2.,   0.16, 2.5,  1.25] 
   q_YR = params_v[0]
   q_A = params_v[1]
   R=np.eye(PRED_MEAS_SIZE) * params_v[2]

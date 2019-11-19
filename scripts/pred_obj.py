@@ -7,16 +7,16 @@ from docutils.io import InputError
 import numpy as np
 
 
-SW_COUNT = 5
+# SW_COUNT = 5
 PRED_MOTION_MOD = "CYRA"
 PRED_STATE_SIZE = yl.STATE_SIZE
 PRED_MEAS_SIZE = yl.MEAS_SIZE
 
 obj_id_list=[]
-pred_delta_t=0.5 # in seconds
+pred_delta_t=1.0# in seconds
 pred_steps = 16
 COUNT_T=0.05 # one count in dataset is equivalent to 0.05s (for data)
-label_count=0.5 # time distance bet each label
+label_count=0.5 # time distance bet each label in sec
 
 # @var x = x position in utm
 # TODO convert to UTM for prediction to use
