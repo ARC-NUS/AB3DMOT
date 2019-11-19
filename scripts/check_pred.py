@@ -8,60 +8,82 @@ can also gen image using is_write boolean
 
 import json
 import math
-from pred_obj import pred_delta_t, pred_steps, COUNT_T, label_count
+from pred_obj import pred_delta_t, pred_steps, COUNT_T, label_count,PRED_MEAS_SIZE,PRED_STATE_SIZE
 import cv2
 import numpy as np
 import operator
+import yl_utils as yl
+from predictor_wt_labels import get_pred_json
+from os import listdir, walk, pardir
 
-is_write = True #
+
+is_write = False 
 img_h = 800
-img_w=800
+img_w = 800
 scale = 10.0 # 1 px is to x cm
 
-def get_ADE(pred_json, labels_json, img_path=None):
+def get_ADE(pred_json=None, labels_json=None, img_path=None, pred_list=None):
+  
+  if pred_json is not None:
+    p_json = open(pred_json)
+    p_data = json.load(p_json, encoding="utf-8")
+  elif pred_list is not None:
+    p_data = pred_list
+  else:
+    print "error, get_ADE requires either json file or list obj as input"
+    return None
+  
   with open(labels_json) as json_file:
-    with open(pred_json) as p_json:
-      labels_data = json.load(json_file, encoding="utf-8")
-      p_data = json.load(p_json, encoding="utf-8")
+    labels_data = json.load(json_file, encoding="utf-8")
 
-      ADE=[0.] * pred_steps
-      ADE_count = [0.] * pred_steps
+    ADE=[0.] * pred_steps
+    ADE_count = [0.] * pred_steps
 
-      for p_i, p_t in enumerate(p_data): # for each timestep in the p_data
-        img =  np.zeros((img_h,img_w,3), np.uint8)
-        if p_t["curr_time"] != labels_data[p_i]['name']:
-          print "error: label n pred json doesnt match. pred time: ", p_t['curr_time'], " label time: ", labels_data[p_i]['name']
-          return None ## TODO handle for mismatch cases
-        else:
-          for obj in p_t['object_pred']:
-            for t_i ,traj in enumerate(obj['traj']):
-              # if it tries to look into the future which is beyond the labels, stop
-              if p_i+int(t_i*pred_delta_t/COUNT_T) >= len(labels_data):
+    for p_i, p_t in enumerate(p_data): # for each timestep in the p_data
+      img =  np.zeros((img_h,img_w,3), np.uint8)
+      if p_t["curr_time"] != labels_data[p_i]['name']:
+        print "error: label n pred json doesnt match. pred time: ", p_t['curr_time'], " label time: ", labels_data[p_i]['name']
+        return None ## TODO handle for mismatch cases
+      else:
+        for obj in p_t['object_pred']:
+          for t_i ,traj in enumerate(obj['traj']):
+            # if it tries to look into the future which is beyond the labels, stop
+            if p_i+int(t_i*pred_delta_t/COUNT_T) >= len(labels_data):
+              break
+            # get labels list for the matching pred
+            for l_ in labels_data[p_i+int(t_i*pred_delta_t/label_count)]['annotations']:
+              if l_['classId'] == obj["obj_id"]:
+                # print l_, obj["obj_id"]
+                ADE[t_i] +=(dist(l_,traj))
+                ADE_count[t_i]+=1
+
+                if is_write:
+                  img = draw(img,l_,traj,t_i)
                 break
-              # get labels list for the matching pred
-              for l_ in labels_data[p_i+int(t_i*pred_delta_t/label_count)]['annotations']:
-                if l_['classId'] == obj["obj_id"]:
-                  # print l_, obj["obj_id"]
-                  ADE[t_i] +=(dist(l_,traj))
-                  ADE_count[t_i]+=1
+              # else:
+              #   print 'label not found for pred obj pred time: ', p_t['curr_time'], " label time: ", labels_data[p_i]['name'], "obj:", obj["obj_id"]
 
-                  if is_write:
-                    img = draw(img,l_,traj,t_i)
-                  break
-                # else:
-                #   print 'label not found for pred obj pred time: ', p_t['curr_time'], " label time: ", labels_data[p_i]['name'], "obj:", obj["obj_id"]
-
-        if is_write:
-          im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-          cv2.imwrite(img_path+str(p_i)+".jpg", im_rgb)
-  for i in range(len(ADE)):
-    try:
-      ADE[i] /= ADE_count[i]
-    except ZeroDivisionError:
-      ADE[i]=-float('inf')
-
-
-  return ADE
+      if is_write:
+        im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        cv2.imwrite(img_path+str(p_i)+".jpg", im_rgb)
+  return np.array(ADE), np.array(ADE_count)
+  
+def get_multi_ADE(parent_folder,R,P,q_YR,q_A):
+  
+  high_set_v, labels_paths_v = yl.get_dirs(parent_folder,"labels")
+  ADE=np.zeros(pred_steps)
+  ADE_count = np.zeros(pred_steps)
+    
+  for l_i, label in enumerate(labels_paths_v):
+    fp_json = high_set_v[l_i]+"/fused_pose/fused_pose_new.json"
+    print label
+    pred_list=get_pred_json(label_json=label,output_pred_json=None,
+                  fused_pose_json=fp_json,R=R,P=P,q_YR=q_YR,q_A=q_A)  
+    tmp_ADE, tmp_ADE_c = get_ADE(labels_json=label, img_path=None, pred_list=pred_list)
+    ADE += tmp_ADE
+    ADE_count += tmp_ADE_c
+      
+  return ADE/ADE_count
 
 def get_vertices(w,b,x_c,y_c,theta, img_h, img_w, scale):
   pts = np.array([[]], dtype=int)
@@ -162,7 +184,8 @@ def dist(label_obj, pred_obj):
   return d
 
 
-if __name__ == '__main__':
+
+def test_single_jsons():
   '''
   labels_json='/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_annotations.json'
   pred_json = "/home/yl/Downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_0.5.json"  
@@ -170,10 +193,30 @@ if __name__ == '__main__':
   '''
 
   labels_json='/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_Correct_annotations.json'
-  pred_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_8.json"  
+  pred_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_8_2.json"  
   img_path ="/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/img_pred/"  
 
 
-  ADE=get_ADE(pred_json, labels_json,img_path)
+  ADE,ADE_count=get_ADE(pred_json, labels_json,img_path)
+  
+  for i in range(len(ADE)):
+    try:
+      ADE[i] /= ADE_count[i]
+    except ZeroDivisionError:
+      ADE[i]=-float('inf')
 
   print ADE
+  
+  
+def test_multi_jsons():
+  parent_dir = "/media/yl/demo_ssd/raw_data"
+  R=np.eye(PRED_MEAS_SIZE)
+  P=np.eye(PRED_STATE_SIZE)
+  q_YR=2.
+  q_A=2.
+  ADE = get_multi_ADE(parent_dir,R,P,q_YR,q_A)
+  print ADE
+  
+if __name__ == '__main__':
+  test_multi_jsons()
+#   test_single_jsons()

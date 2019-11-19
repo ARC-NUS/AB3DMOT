@@ -7,6 +7,8 @@
 
 import json
 import numpy as np
+from os import listdir, walk, pardir
+from os.path import isfile, join
 
 
 STATE_SIZE = 14
@@ -149,6 +151,7 @@ def get_CYRA_F(delta_t):
 def get_dirs(parent_dir, label_dir_name):
   labels_paths_v = []
   high_set_v = []
+  labels_jsons_v=[]
   
   for root, dirs, files in walk(parent_dir):
     for i, dire in enumerate(dirs): # identify where sets are using the "pixor_test" directories
@@ -171,11 +174,16 @@ def get_dirs(parent_dir, label_dir_name):
             print "found set", high_set_dir
             high_set_v.append(high_set_dir)
             labels_paths_v.append(labels_dir)
+            for file in listdir(labels_dir):
+              if file.find("annotations.json") > 0:
+                labels_jsons_v.append(labels_dir+'/'+file)
         except: #find the set folders of interest
             print "found labels but not pcds or fused pose json"
   print "high hz sets paths: ", high_set_v
   print "low hz labels paths:", labels_paths_v
-  return high_set_v, labels_paths_v
+  print "low hz labels jsons:", labels_jsons_v
+
+  return high_set_v, labels_jsons_v
   
   
 

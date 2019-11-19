@@ -55,10 +55,11 @@ def get_pred_json(label_json,output_pred_json,fused_pose_json,R,P,q_YR,q_A):
 
       # for p_o in pred_obj_list:
       #   print (p_o)
-      
-      with open(output_pred_json, "w+") as outfile:
-        json.dump(total_list, outfile, indent=1)
+      if output_pred_json is not None:
+        with open(output_pred_json, "w+") as outfile:
+          json.dump(total_list, outfile, indent=1)
 
+      return total_list
       
 
 
@@ -71,16 +72,14 @@ if __name__ == '__main__':
   '''
 
   label_json='/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_7/labels/Set_7_Correct_annotations.json'
-  output_pred_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_8.json"
+  output_pred_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pred_out_8_2.json"
   fp_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
   
-
-
+  
   R=np.eye(po.PRED_MEAS_SIZE)
   P=np.eye(po.PRED_STATE_SIZE)
-  po.pred_delta_t=0.5
-  q_YR=1.
-  q_A=1.
+  q_YR=2.
+  q_A=2.
   get_pred_json(label_json=label_json,output_pred_json=output_pred_json,fused_pose_json=fp_json,R=R,P=P,q_YR=q_YR,q_A=q_A)
 
   print "done"
