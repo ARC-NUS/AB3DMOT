@@ -6,7 +6,7 @@ from pred_obj import Pred_obj
 import pred_obj as po
 import numpy as np
 
-def get_pred_json(label_json,output_pred_json,fused_pose_json,R,P,q_YR,q_A):
+def get_pred_json(label_json,output_pred_json,fused_pose_json,R,P,q_YR,q_A,forced_state=True):
   pred_obj_list=[]
   total_list=[]
   po.obj_id_list=[]
@@ -37,7 +37,6 @@ def get_pred_json(label_json,output_pred_json,fused_pose_json,R,P,q_YR,q_A):
             pred_obj_list[obj_idx].update(obj, curr_timestep)
             # TODO: convert to UTM
 
-
         # kill old tracks
         for pred_i, p_o in enumerate(pred_obj_list):
             if p_o.check_stale(curr_timestep):
@@ -46,7 +45,7 @@ def get_pred_json(label_json,output_pred_json,fused_pose_json,R,P,q_YR,q_A):
         fut_traj=[]
         # for each track, do the prediction
         for pred_i, p_o in enumerate(pred_obj_list):
-          prediction = p_o.predict(curr_timestep) 
+          prediction = p_o.predict(curr_timestep, forced_state) 
           
           if prediction is not None:
             prediction_dict=[] # get list of dict for json

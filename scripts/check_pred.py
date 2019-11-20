@@ -17,7 +17,7 @@ from predictor_wt_labels import get_pred_json
 from os import listdir, walk, pardir, makedirs, errno
 
 
-is_write = False 
+is_write = True 
 img_h = 2000
 img_w = 2000
 scale = 10.0 # 1 px is to x cm
@@ -41,11 +41,14 @@ def get_ADE(pred_json=None, labels_json=None, img_path=None, pred_list=None):
 
     for p_i, p_t in enumerate(p_data): # for each timestep in the p_data
       img =  np.zeros((img_h,img_w,3), np.uint8)
-      
+
+      for curr_label in labels_data[p_i]['annotations']:
+          img = draw_label(img, curr_label, -100)
       # print prev label
-      if p_i-1 >= 0 and is_write:
+      if p_i > 0 and is_write:
         for curr_label in labels_data[p_i-1]['annotations']:
           img = draw_label(img, curr_label, -1)
+        
                 
       if p_t["curr_time"] != labels_data[p_i]['name']:
         print "error: label n pred json doesnt match. pred time: ", p_t['curr_time'], " label time: ", labels_data[p_i]['name']
@@ -67,6 +70,9 @@ def get_ADE(pred_json=None, labels_json=None, img_path=None, pred_list=None):
                   ADE[t_i] +=(dist(l_,traj))
                   ADE_count[t_i]+=1
   
+                  # DEBUG 
+                  if ADE[0] > 0:
+                    pass 
                   if is_write:
                     img = draw_label(img, l_, t_i)
                   break
@@ -195,8 +201,10 @@ def draw_label(img,label_obj,iter):
   l_np = (l_2 - l_1) * frac + l_1
   l_clr = tuple(l_np.astype(int))
   
-  if iter < 0:
+  if iter == -1:
     l_clr = (125,10,70)
+  if iter == -100:
+    l_clr = (70,70,70)
 
 #   print frac,l_clr, p_clr
 
@@ -216,11 +224,12 @@ def draw_label(img,label_obj,iter):
               cv2.FONT_HERSHEY_SIMPLEX, 1, l_clr, \
               3, cv2.LINE_AA)
 
-#   cv2.putText(img,str(x_c)[0:6],\
-#               (int(round(img_w/2.0+(x_c*100./scale))) + 10, \
-#               img_h-int(round(img_h/2.0+y_c*100./scale)) + 50 ), \
-#               cv2.FONT_HERSHEY_SIMPLEX, 1, l_clr, \
-#               3, cv2.LINE_AA)
+  if iter <= 0:
+    cv2.putText(img,str(label_obj['classId']),\
+              (int(round(img_w/2.0+(x_c*100./scale))) + 10, \
+              img_h-int(round(img_h/2.0+y_c*100./scale)) - 70 ), \
+              cv2.FONT_HERSHEY_SIMPLEX, 1, l_clr, \
+              3, cv2.LINE_AA)
 #   cv2.putText(img,str(y_c)[0:6],\
 #               (int(round(img_w/2.0+(x_c*100./scale))) + 10, \
 #               img_h-int(round(img_h/2.0+y_c*100./scale)) + 80 ), \
@@ -330,7 +339,7 @@ def test_multi_jsons():
   R=np.eye(PRED_MEAS_SIZE) * (10**-10)
   
   P=np.eye(PRED_STATE_SIZE) * (10.**10.)
-  unseen_p = 10. ** 100.
+  unseen_p = 10. ** 10.
   P[7,7]=unseen_p
   P[8,8]=unseen_p
   P[10,10]=unseen_p

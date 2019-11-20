@@ -118,7 +118,7 @@ class Pred_obj():
     self.kf.P = P
     self.kf.x = self.past_traj[0].get_x()
     self.time_last_updated = start_time
-    
+    self.last_meas = None
     
   
   def check_stale(self,curr_timestep):
@@ -168,16 +168,17 @@ class Pred_obj():
     else:
       print "unknown motion model:  ", PRED_MOTION_MOD
       raise TypeError
+    self.last_meas = tmp.get_x()
     pass
     
-  def predict(self, curr_time): 
+  def predict(self, curr_time, forced_state=False): 
     curr_time *= COUNT_T
-    pred=self.predict_KF(curr_time, pred_steps)
+    pred=self.predict_KF(curr_time, pred_steps,forced_state)
     return pred
     
 
 
-  def predict_KF(self, curr_time, steps):
+  def predict_KF(self, curr_time, steps,forced_state):
     prediction = []
     # print 'predictionting for obj', self.id
     if len(self.past_traj) < MIN_AGE:
@@ -185,6 +186,17 @@ class Pred_obj():
 #             len(self.past_traj)
       return None
     else:
+      if forced_state:
+        if curr_time-self.time_last_updated == 0:
+          self.kf.x[0] = self.last_meas[0]
+          self.kf.x[1] = self.last_meas[1]
+          self.kf.x[3] = self.last_meas[3]
+          self.kf.x[4] = self.last_meas[4]
+          self.kf.x[5] = self.last_meas[5]
+        else:
+#           print "obj was not updated so cannot force fit", curr_time, self.id
+          pass
+            
       for i in range(steps): 
         t = pred_delta_t*(i) + curr_time-self.time_last_updated
 
@@ -198,9 +210,6 @@ class Pred_obj():
           print "unknown motion model:  ", PRED_MOTION_MOD
           raise TypeError
           
-        tmp_prior = deepcopy(self.kf)
-        
-        tmp_prior.predict(Q=tmp_Q,F=tmp_F)
         x_p, P_p = predict(self.kf.x, self.kf.P, tmp_F, tmp_Q)
 
         tmp = trk_pt(start_time=pred_delta_t*(i+1),kf_x=x_p) # NOTE: any time update is to be done pred must be redone or else it will use the wrong prior
