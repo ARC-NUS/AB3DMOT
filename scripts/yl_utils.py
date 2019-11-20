@@ -61,6 +61,8 @@ def px_stats_get_P_0(pixor_stats_json, p0_v=1000., factor=1.):
 
 def get_CV_Q(q_v, delta_t):
   Q = np.zeros((STATE_SIZE, STATE_SIZE))
+  
+  
   Q[0,0]=delta_t**3*q_v/3.
   Q[1,1]=delta_t**3*q_v/3.
   Q[0,7]=delta_t**2*q_v/2.
@@ -70,6 +72,9 @@ def get_CV_Q(q_v, delta_t):
   Q[7,7]=delta_t*q_v
   Q[8,8]=delta_t*q_v
   # print "Q", Q
+  
+  Q = np.eye(STATE_SIZE) * q_v # FIXME
+  
   return Q
 
 def get_CV_F(delta_t):
@@ -135,6 +140,7 @@ def get_CYRA_Q(q_a, q_p, T):
   Q[10,10]=T * q_a
   Q[11,11]=T * q_a
   Q[13,13]=T*q_p
+  
   return Q
 
 def get_CYRA_F(delta_t):

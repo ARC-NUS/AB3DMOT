@@ -19,7 +19,7 @@ def get_pred_json(label_json,output_pred_json,fused_pose_json,R,P,q_YR,q_A):
         curr_timestep = labels['name']
         curr_timestep = int(curr_timestep.split('.')[0])
 
-        
+        # use new info
         for obj in labels['annotations']:    
           obj_idx = 0
           for existing_obj_id in po.obj_id_list:
@@ -37,12 +37,17 @@ def get_pred_json(label_json,output_pred_json,fused_pose_json,R,P,q_YR,q_A):
             pred_obj_list[obj_idx].update(obj, curr_timestep)
             # TODO: convert to UTM
 
+
+        # kill old tracks
+        for pred_i, p_o in enumerate(pred_obj_list):
+            if p_o.check_stale(curr_timestep):
+              del pred_obj_list[pred_i]
+            
         fut_traj=[]
         # for each track, do the prediction
         for pred_i, p_o in enumerate(pred_obj_list):
-          prediction = p_o.predict(curr_timestep) # TODO: switch model types
+          prediction = p_o.predict(curr_timestep) 
           
-
           if prediction is not None:
             prediction_dict=[] # get list of dict for json
             for p_ in prediction:
