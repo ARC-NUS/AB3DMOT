@@ -89,6 +89,9 @@ def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, pix
           utm_y = w_q_bl.rotation_matrix[1,0] * x + \
                   w_q_bl.rotation_matrix[1,1] * y + \
                   fp_msg['pose']['position']['y']
+
+          # FIXME what about for the theta???
+          theta += w_yaw_bl
 #           print x,y, utm_x, utm_y
            # TODO check if utm transform is correct
           if is_utm:
@@ -121,12 +124,14 @@ def get_tracker_json(pixor_json_name, tracker_json_outfile, fused_pose_json, pix
                    
             bl_y = w_q_bl.rotation_matrix[0,1] * (utm_x - fp_msg['pose']['position']['x']) + \
                    w_q_bl.rotation_matrix[1,1] * (utm_y - fp_msg['pose']['position']['y'])
-                    
+            
+            bl_theta = d[6] - w_yaw_bl        
             #           print bl_x,bl_y, utm_x, utm_y
-                            
+            
+
             obj_dict={"width":d[1], "height": d[0], "length": d[2], "x": bl_x, "y": bl_y, "z": d[5], "yaw": d[6], "id": d[7]}
           else:
-            obj_dict={"width":d[1], "height": d[0], "length": d[2], "x": d[3], "y": d[4], "z": d[5], "yaw": d[6], "id": d[7]}
+            obj_dict={"width":d[1], "height": d[0], "length": d[2], "x": d[3], "y": d[4], "z": d[5], "yaw": bl_ori, "id": d[7]}
           result_trks.append(obj_dict)
 
         if is_check_online:
