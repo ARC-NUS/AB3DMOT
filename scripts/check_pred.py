@@ -17,7 +17,7 @@ from predictor_wt_labels import get_pred_json
 from os import listdir, walk, pardir, makedirs, errno
 
 
-is_write = True 
+is_write = False 
 img_h = 2000
 img_w = 2000
 scale = 10.0 # 1 px is to x cm
@@ -49,7 +49,6 @@ def get_ADE(pred_json=None, labels_json=None, img_path=None, pred_list=None):
         for curr_label in labels_data[p_i-1]['annotations']:
           img = draw_label(img, curr_label, -1)
         
-                
       if p_t["curr_time"] != labels_data[p_i]['name']:
         print "error: label n pred json doesnt match. pred time: ", p_t['curr_time'], " label time: ", labels_data[p_i]['name']
         return None ## TODO handle for mismatch cases
@@ -70,9 +69,6 @@ def get_ADE(pred_json=None, labels_json=None, img_path=None, pred_list=None):
                   ADE[t_i] +=(dist(l_,traj))
                   ADE_count[t_i]+=1
   
-                  # DEBUG 
-                  if ADE[0] > 0:
-                    pass 
                   if is_write:
                     img = draw_label(img, l_, t_i)
                   break
@@ -132,9 +128,6 @@ def get_multi_ADE(parent_folder,R,P,q_YR,q_A):
     ADE_count += tmp_ADE_c
       
   return ADE/ADE_count
-
-
-
 
 def get_vertices(w,b,x_c,y_c,theta, img_h, img_w, scale):
   pts = np.array([[]], dtype=int)
