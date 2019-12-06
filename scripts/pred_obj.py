@@ -8,8 +8,9 @@ import numpy as np
 from copy import deepcopy
 
 # SW_COUNT = 5
-PRED_MOTION_MOD = "CYRA"
+# PRED_MOTION_MOD = "CYRA"
 # PRED_MOTION_MOD = "CV"
+PRED_MOTION_MOD = "CA"
 PRED_STATE_SIZE = yl.STATE_SIZE
 PRED_MEAS_SIZE = yl.MEAS_SIZE
 
@@ -103,6 +104,9 @@ class Pred_obj():
     elif PRED_MOTION_MOD == "CV":
       self.kf.F = yl.get_CV_F(pred_delta_t) 
       self.kf.R = R
+    elif PRED_MOTION_MOD == "CA":
+      self.kf.F = yl.get_CA_F(pred_delta_t) 
+      self.kf.R = R
     else:
       print "unknown motion model:  ", PRED_MOTION_MOD
       raise TypeError
@@ -165,6 +169,15 @@ class Pred_obj():
       self.kf.predict(F=F, Q=Q) 
       self.kf.update(tmp.get_z()) 
       self.time_last_updated = curr_time
+    elif PRED_MOTION_MOD == "CA":
+      # update KF
+      delta_t = (curr_time-self.time_last_updated) 
+      F = yl.get_CA_F(delta_t)
+      Q = yl.get_CA_Q(self.q_A, delta_t)
+#       print "F,Q\n", F,Q
+      self.kf.predict(F=F, Q=Q) 
+      self.kf.update(tmp.get_z()) 
+      self.time_last_updated = curr_time
     else:
       print "unknown motion model:  ", PRED_MOTION_MOD
       raise TypeError
@@ -205,7 +218,10 @@ class Pred_obj():
           tmp_F=yl.get_CYRA_F(t)  
         elif PRED_MOTION_MOD == "CV":
           tmp_Q=yl.get_CV_Q(self.q_A, t)
-          tmp_F=yl.get_CV_F(t) 
+          tmp_F=yl.get_CV_F(t)
+        elif PRED_MOTION_MOD == "CA":
+          tmp_Q=yl.get_CA_Q(self.q_A, t)
+          tmp_F=yl.get_CA_F(t) 
         else:
           print "unknown motion model:  ", PRED_MOTION_MOD
           raise TypeError
