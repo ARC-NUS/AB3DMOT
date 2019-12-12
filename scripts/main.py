@@ -197,7 +197,7 @@ class KalmanBoxTracker(object): # CYRA TODO: change states
     """ 
     Updates the state vector with observed bbox.
     """
-
+    
     self.time_since_update = 0
     self.history = []
     self.hits += 1
