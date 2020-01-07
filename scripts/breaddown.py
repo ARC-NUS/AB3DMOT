@@ -3,23 +3,26 @@ import os.path, copy, numpy as np, time, sys
 from numba import jit
 from sklearn.utils.linear_assignment_ import linear_assignment
 from filterpy.kalman import KalmanFilter
+from filterpy.common import Q_discrete_white_noise
+from filterpy.kalman import ExtendedKalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
-from wen_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F, get_CYRA_F, HJradar, hxRadar
+from pyquaternion import Quaternion
+from wen_utils import STATE_SIZE, MEAS_SIZE, MEAS_SIZE_Radar, MOTION_MODEL, get_CV_F
+import json
 
-@jit
+@jit  # let Numba decide when and how to optimize:
 def poly_area(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
 
-@jit
+@jit  #TODO understand where this corners came from
 def box3d_vol(corners):
     ''' corners: (8,3) no assumption on axis direction '''
     a = np.sqrt(np.sum((corners[0, :] - corners[1, :]) ** 2))
     b = np.sqrt(np.sum((corners[1, :] - corners[2, :]) ** 2))
     c = np.sqrt(np.sum((corners[0, :] - corners[4, :]) ** 2))
     return a * b * c
-
 
 @jit
 def convex_hull_intersection(p1, p2):
@@ -33,7 +36,6 @@ def convex_hull_intersection(p1, p2):
         return inter_p, hull_inter.volume
     else:
         return None, 0.0
-
 
 def polygon_clip(subjectPolygon, clipPolygon):
     """ Clip a polygon with another polygon.
@@ -89,6 +91,7 @@ def iou3d(corners1, corners2):
     Output:
         iou: 3D bounding box IoU
         iou_2d: bird's eye view 2D bounding box IoU
+
     '''
     # corner points are in counter clockwise order
     rect1 = [(corners1[i, 0], corners1[i, 2]) for i in range(3, -1, -1)]
@@ -146,34 +149,50 @@ def convert_3dbox_to_8corner(bbox3d_input):
 
     return np.transpose(corners_3d)
 
-
 class KalmanBoxTracker(object):
     """
-    This class represents the internal state of individual tracked objects observed as bbox.
+    This class represents the internel state of individual tracked objects observed as bbox.
     """
     count = 0
 
-    def __init__(self, bbox3D, info):
+    def __init__(self, bbox3D, info, R, Q, P_0, delta_t):
         """
         Initialises a tracker using initial bounding box.
         """
-        # define constant velocity model with constant velocity model
-        self.kf = ExtendedKalmanFilter(dim_x = STATE_SIZE, dim_z =MEAS_SIZE_Radar)
+        # define constant velocity model
+        self.kf = KalmanFilter(dim_x=STATE_SIZE, dim_z=MEAS_SIZE)
+        self.kfr = ExtendedKalmanFilter(dim_x=STATE_SIZE, dim_z=MEAS_SIZE_Radar)
 
         if MOTION_MODEL == "CV":
             self.kf.F = get_CV_F(delta_t)
+        else:
+            print("unknown motion model", MOTION_MODEL)
 
-        self.kf.H = np.eye(MEAS_SIZE, STATE_SIZE) #TODO concatenate with the x and y
-        self.kf.HJradar = np.zeros((MEAS_SIZE_Radar, STATE_SIZE))
-        self.kf.hxRadar = np.zeros((MEAS_SIZE_Radar, 1))
+        """
+        Initilise for diff sensors 
+        """
+    # x y z theta l w h
+        self.kf.H = np.zeros((MEAS_SIZE,STATE_SIZE))
+        for i in range(min(MEAS_SIZE,STATE_SIZE)):
+          self.kf.H[i,i]=1.
 
-        # self.kf.R[0:,0:] *= 10.   # measurement uncertainty
-        self.kf.P[7:, 7:] *= 1000.  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-        self.kf.P *= 10.
+        self.kf.R[0:,0:] *= R  #10.   # measurement uncertainty
+        self.kf.P[7:,7:] *= 1000.  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+        self.kf.P *= P_0  #10.
 
+        self.kf.Q[7:, 7:] = Q
         # self.kf.Q[-1,-1] *= 0.01    # process uncertainty
-        self.kf.Q[7:, 7:] *= 0.01
+        # self.kf.Q[7:, 7:] *= 0.01
         self.kf.x[:7] = bbox3D.reshape((7, 1))
+
+        self.kfr.H = np.zeros((MEAS_SIZE_Radar, STATE_SIZE))
+        for i in range(min(MEAS_SIZE_Radar, STATE_SIZE)):
+          self.kfr.H[i, i] = 1.
+        self.kfr.x[:7] = bbox3D.reshape((7, 1))
+
+        self.kf.R[0:,0:] *= R  #10.   # measurement uncertainty
+        self.kf.P[7:,7:] *= 1000.  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+        self.kf.P *= P_0  #10.
 
         self.time_since_update = 0
         self.id = KalmanBoxTracker.count
@@ -186,7 +205,7 @@ class KalmanBoxTracker(object):
         self.age = 0
         self.info = info  # other info
 
-    def update(self, bbox3D, info):
+    def update(self, bbox3D, info,z):
         """
         Updates the state vector with observed bbox.
         """
@@ -196,6 +215,7 @@ class KalmanBoxTracker(object):
         self.hit_streak += 1  # number of continuing hit
         if self.still_first:
             self.first_continuing_hit += 1  # number of continuing hit in the fist time
+
 
         ######################### orientation correction
         if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2  # make the theta still in the range
@@ -219,24 +239,28 @@ class KalmanBoxTracker(object):
                 self.kf.x[3] += np.pi * 2
             else:
                 self.kf.x[3] -= np.pi * 2
-
         #########################
-        # FOR LIDAR POINTS
-        # self.kf.update(bbox3D)
 
-        self.kf.update(z, HJradar, hxRadar)
-        self.xs.append(rk.x)
+        self.kf.update(bbox3D)
 
         if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2  # make the theta still in the range
         if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
         self.info = info
+        ##########################
+        z = np.array([35.041, 0.1, 1]) # range, range rate, angle centroid THESE VALUES MUST BE UPDATED WITH THE READING ONES!!
+        z = z.reshape((3, 1))
+        self.kfr.update(z, HJacobian_at, hx)
+        self.kfr.xs.append(rk.x)
+
+
+
 
     def predict(self):
         """
         Advances the state vector and returns the predicted bounding box estimate.
         """
         self.kf.predict()
-        if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2    ## it's to ensure the value of theta doesn't have a sharp change in value
+        if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2
         if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
 
         self.age += 1
@@ -254,7 +278,7 @@ class KalmanBoxTracker(object):
         return self.kf.x[:7].reshape((7,))
 
 
-def associate_detections_to_trackers(detections, trackers, iou_threshold=0.1):
+def associate_detections_to_trackers(detections, trackers, iou_threshold=0.1):      #self.hungarian_thresh
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.25):
     """
@@ -298,87 +322,30 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.1):
 
 
 class AB3DMOT(object):
-    def __init__(self, max_age=2,
-                 min_hits=3):  # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
-        # def __init__(self,max_age=3,min_hits=3):        # ablation study
-        # def __init__(self,max_age=1,min_hits=3):
-        # def __init__(self,max_age=2,min_hits=1):
-        # def __init__(self,max_age=2,min_hits=5):
-        """
-        """
-        delta_t = 10
-        self.max_age = max_age
-        self.min_hits = min_hits
-        self.trackers = []
-        self.frame_count = 0
-        self.reorder = [3, 4, 5, 6, 2, 1, 0]
-        self.reorder_back = [6, 5, 4, 0, 1, 2, 3]
-        self.delta_t = delta_t
+   def __init__(self,max_age=2, min_hits=3, is_jic=False,
+               R = np.identity(7), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
+  # def __init__(self,max_age=3,min_hits=3):        # ablation study
+  # def __init__(self,max_age=1,min_hits=3):
+  # def __init__(self,max_age=2,min_hits=1):
+  # def __init__(self,max_age=2,min_hits=5):
+    """
+    """
+    self.max_age = max_age
+    self.min_hits = min_hits
+    self.trackers = []
+    self.frame_count = 0
+    self.reorder = [3, 4, 5, 6, 2, 1, 0]
+    self.reorder_back = [6, 5, 4, 0, 1, 2, 3]
+    self.is_jic = is_jic
+    self.hungarian_thresh = 0.1 # hung_thresh
+
+    self.R = R
+    self.Q = Q
+    self.P_0 = P_0
+    self.delta_t = delta_t #TODO Use for fusion
+
 
     def update(self, dets_all):
-        """
-        Params:
-          dets_all: dict
-            dets - a numpy array of detections in the format [[x,y,z,theta,l,w,h],[x,y,z,theta,l,w,h],...]
-            dets - a numpy array of detections in the format [[range, rangerate, theta],[range, rangerate, theta],...]
-            info: a array of other info for each det
-        Requires: this method must be called once for each frame even with empty detections.
-        Returns the a similar array, where the last column is the object ID.
-        NOTE: The number of objects returned may differ from the number of detections provided.
-        """
-        dets, info = dets_all['dets'], dets_all['info']  # dets: N x 3, float numpy array
-        dets = dets[:, self.reorder]
-        self.frame_count += 1
-
-        trks = np.zeros((len(self.trackers), 7))  # N x 7 , #get predicted locations from existing trackers.
-        to_del = []
-        ret = []
-        for t, trk in enumerate(trks):
-            pos = self.trackers[t].predict().reshape((-1, 1))
-            trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]]
-            if (np.any(np.isnan(pos))):
-                to_del.append(t)
-        trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
-        for t in reversed(to_del):
-            self.trackers.pop(t)
-
-        dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets]
-        if len(dets_8corner) > 0:
-            dets_8corner = np.stack(dets_8corner, axis=0)
-        else:
-            dets_8corner = []
-        trks_8corner = [convert_3dbox_to_8corner(trk_tmp) for trk_tmp in trks]
-        if len(trks_8corner) > 0: trks_8corner = np.stack(trks_8corner, axis=0)
-        matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner)
-
-        # update matched trackers with assigned detections
-        for t, trk in enumerate(self.trackers):
-            if t not in unmatched_trks:
-                d = matched[np.where(matched[:, 1] == t)[0], 0]  # a list of index
-                trk.update(dets[d, :][0], info[d, :][0])
-
-        # create and initialise new trackers for unmatched detections
-        for i in unmatched_dets:  # a scalar of index
-            trk = KalmanBoxTracker(dets[i, :], info[i, :])
-            self.trackers.append(trk)
-        i = len(self.trackers)
-        for trk in reversed(self.trackers):
-            d = trk.get_state()  # bbox location
-            d = d[self.reorder_back]
-
-            if ((trk.time_since_update < self.max_age) and (
-                    trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
-                ret.append(
-                    np.concatenate((d, [trk.id + 1], trk.info)).reshape(1, -1))  # +1 as MOT benchmark requires positive
-            i -= 1
-            # remove dead tracklet
-            if (trk.time_since_update >= self.max_age):
-                self.trackers.pop(i)
-        if (len(ret) > 0):
-            return np.concatenate(ret)  # x, y, z, theta, l, w, h, ID, other info, confidence
-        return np.empty((0, 15))
-
-    def Radarupdate(self, dets_radar_all):        #    def update(self, dets_all):
         """
         Params:
           dets_all: dict
@@ -440,90 +407,130 @@ class AB3DMOT(object):
             return np.concatenate(ret)  # x, y, z, theta, l, w, h, ID, other info, confidence
         return np.empty((0, 15))
 
+
 if __name__ == '__main__':
+
+    mot_tracker_test = AB3DMOT()
+    print("Initialise the testing of AB3DMOT")
+
     if len(sys.argv) != 2:
         print("Usage: python main.py result_sha(e.g., car_3d_det_test)")
-        sys.exit(1)
+        #sys.exit(1)
 
-    result_sha = sys.argv[1]
-    save_root = './resultsSensorFusion'
-
-    det_id2str = {1: 'Pedestrian', 2: 'Car', 3: 'Cyclist'}
-    seq_file_list, num_seq = load_list_from_folder(os.path.join('data/KITTI', result_sha))
+    #
+    result_sha = "car_3d_det_test" #sys.argv[1]
+    result_sha_2 = "JI_Cetran_Set1"
+    save_root = './results'
+    # det_id2str = {1: 'Pedestrian', 2: 'Car', 3: 'Cyclist'}
+    seq_file_list, num_seq = load_list_from_folder(os.path.join('/home/wen/AB3DMOT/data/KITTI', result_sha))
     total_time = 0.0
     total_frames = 0
-    save_dir = os.path.join(save_root, result_sha);
-    mkdir_if_missing(save_dir)
-    eval_dir = os.path.join(save_dir, 'data');
-    mkdir_if_missing(eval_dir)
-    for seq_file in seq_file_list:
-        _, seq_name, _ = fileparts(seq_file)
-        mot_tracker = AB3DMOT()
-        seq_dets = np.loadtxt(seq_file, delimiter=',')  # load detections
-        eval_file = os.path.join(eval_dir, seq_name + '.txt');
-        eval_file = open(eval_file, 'w')
-        save_trk_dir = os.path.join(save_dir, 'trk_withid', seq_name);
+    save_dir = os.path.join(save_root, result_sha_2)
+
+    # mkdir_if_missing(save_dir)
+    # eval_dir = os.path.join(save_dir, 'data');
+    # mkdir_if_missing(eval_dir)
+
+
+    # #################################
+    # # Take in bag value names
+    mainJson_loc = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/'
+
+    #Read the set1 radar points
+    pathJson = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/radar_obstacles/radar_obstacles.json'
+    with open(pathJson, "r") as json_file:
+        dataR = json.load(json_file)
+        dataR = dataR.get('radar')
+
+    #Read the ego pose
+    pathJson = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/fused_pose/fused_pose_new.json'
+    with open(pathJson, "r") as json_file:
+        pose = json.load(json_file)
+        dataPose = pose.get('ego_loc')
+        numPose = len(dataPose)
+    i = 0
+
+    mot_tracker_test = AB3DMOT()
+
+    # example of detection for radar : frame , range, range_rate, theta
+    seq_dets_radar = np.zeros([numPose*100, 4])   ##TODO amend this so that the array size is not too large
+    # example of detection for camera : frame , x, y, h, w
+    seq_dets_cam = np.zeros([numPose*100, 5])
+    # example of detection for lidar : frame ,, x, y, z, theta, h, w, l
+    seq_dets_lidar = np.zeros([numPose*100, 4])
+
+    for frame_name in range(numPose):
+        print("Processing %04d." % (frame_name))
+        save_trk_dir = os.path.join(save_dir, 'trk_withid', str(frame_name).zfill(4));
         mkdir_if_missing(save_trk_dir)
-        print("Processing %s." % (seq_name))
-        for frame in range(int(seq_dets[:, 0].min()), int(seq_dets[:, 0].max()) + 1):
-            save_trk_file = os.path.join(save_trk_dir, '%06d.txt' % frame);
-            save_trk_file = open(save_trk_file, 'w')
-            dets = seq_dets[seq_dets[:, 0] == frame, 7:14]
+        det_radar = dataR[frame_name].get('front_esr_tracklist')
+        for j in range(len(det_radar)):
+            seq_dets_radar[i][0] = frame_name
+            seq_dets_radar[i][1] = det_radar[j].get('range')
+            seq_dets_radar[i][2] = det_radar[j].get('range_rate')
+            seq_dets_radar[i][3] = det_radar[j].get('angle_centroid')
+            i += 1
 
-            ori_array = seq_dets[seq_dets[:, 0] == frame, -1].reshape((-1, 1))
-            other_array = seq_dets[seq_dets[:, 0] == frame, 1:7]
-            additional_info = np.concatenate((ori_array, other_array), axis=1)
-            dets_all = {'dets': dets, 'info': additional_info}
-            total_frames += 1
-            start_time = time.time()
+    # save_dir = os.path.join(save_root, result_sha)
 
-            #TODO Update tracker with lidar updates & not sure if to call it tracker still....
-            trackers = mot_tracker.update(dets_all)       #update tracker for PIXOR
-
-            #TODO Update tracker with radar updates & not sure if to call it tracker still....
-            trackers = mot_tracker.Radarupdate(dets_radar_all)   #input z , range , rangerate and theta
-
-            # TODO Update tracker with camera updates & not sure if to call it tracker still....
-            trackers = mot_tracker.Radarupdate(dets_cam_all)
-
-            cycle_time = time.time() - start_time
-            total_time += cycle_time
-
-            for d in trackers:
-                bbox3d_tmp = d[0:7]
-                id_tmp = d[7]
-                ori_tmp = d[8]
-                type_tmp = det_id2str[d[9]]
-                bbox2d_tmp_trk = d[10:14]
-                conf_tmp = d[14]
-
-                str_to_srite = '%s -1 -1 %f %f %f %f %f %f %f %f %f %f %f %f %f %d\n' % (type_tmp, ori_tmp,
-                                                                                         bbox2d_tmp_trk[0],
-                                                                                         bbox2d_tmp_trk[1],
-                                                                                         bbox2d_tmp_trk[2],
-                                                                                         bbox2d_tmp_trk[3],
-                                                                                         bbox3d_tmp[0], bbox3d_tmp[1],
-                                                                                         bbox3d_tmp[2], bbox3d_tmp[3],
-                                                                                         bbox3d_tmp[4], bbox3d_tmp[5],
-                                                                                         bbox3d_tmp[6],
-                                                                                         conf_tmp, id_tmp)
-                save_trk_file.write(str_to_srite)
-
-                str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame, id_tmp,
-                                                                                          type_tmp, ori_tmp,
-                                                                                          bbox2d_tmp_trk[0],
-                                                                                          bbox2d_tmp_trk[1],
-                                                                                          bbox2d_tmp_trk[2],
-                                                                                          bbox2d_tmp_trk[3],
-                                                                                          bbox3d_tmp[0], bbox3d_tmp[1],
-                                                                                          bbox3d_tmp[2], bbox3d_tmp[3],
-                                                                                          bbox3d_tmp[4], bbox3d_tmp[5],
-                                                                                          bbox3d_tmp[6],
-                                                                                          conf_tmp)
-                eval_file.write(str_to_srite)
-
-            save_trk_file.close()
-
-        eval_file.close()
-
-    print("Total Tracking took: %.3f for %d frames or %.1f FPS" % (total_time, total_frames, total_frames / total_time))
+    # for seq_file in seq_file_list:
+    #     _, seq_name, _ = fileparts(seq_file)
+    #     mot_tracker = AB3DMOT()
+    #     seq_dets = np.loadtxt(seq_file, delimiter=',')  # load detections
+    #     # eval_file = os.path.join(eval_dir, seq_name + '.txt');
+    #     # eval_file = open(eval_file, 'w')
+    #     save_trk_dir = os.path.join(save_dir, 'trk_withid', seq_name);
+    #     mkdir_if_missing(save_trk_dir)
+    #     print("Processing %s." % (seq_name))
+    #
+    #     for frame in range(int(seq_dets[:, 0].min()), int(seq_dets[:, 0].max()) + 1):
+    #         save_trk_file = os.path.join(save_trk_dir, '%06d.txt' % frame);
+    #         save_trk_file = open(save_trk_file, 'w')
+    #         dets = seq_dets[seq_dets[:, 0] == frame, 7:14]
+    #         ori_array = seq_dets[seq_dets[:, 0] == frame, -1].reshape((-1, 1))
+    #         other_array = seq_dets[seq_dets[:, 0] == frame, 1:7]
+    #         additional_info = np.concatenate((ori_array, other_array), axis=1)
+    #         dets_all = {'dets': dets, 'info': additional_info}
+    #         total_frames += 1
+    #         start_time = time.time()
+    #         trackers = mot_tracker.update(dets_all)
+    #         cycle_time = time.time() - start_time
+    #         total_time += cycle_time
+    #         for d in trackers:
+    #             bbox3d_tmp = d[0:7]
+    #             id_tmp = d[7]
+    #             ori_tmp = d[8]
+    #             type_tmp = det_id2str[d[9]]
+    #             bbox2d_tmp_trk = d[10:14]
+    #             conf_tmp = d[14]
+    #
+    #             str_to_srite = '%s -1 -1 %f %f %f %f %f %f %f %f %f %f %f %f %f %d\n' % (type_tmp, ori_tmp,
+    #                                                                                      bbox2d_tmp_trk[0],
+    #                                                                                      bbox2d_tmp_trk[1],
+    #                                                                                      bbox2d_tmp_trk[2],
+    #                                                                                      bbox2d_tmp_trk[3],
+    #                                                                                      bbox3d_tmp[0], bbox3d_tmp[1],
+    #                                                                                      bbox3d_tmp[2], bbox3d_tmp[3],
+    #                                                                                      bbox3d_tmp[4], bbox3d_tmp[5],
+    #                                                                                      bbox3d_tmp[6],
+    #                                                                                      conf_tmp, id_tmp)
+    #             save_trk_file.write(str_to_srite)
+    #
+    #             str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame, id_tmp,
+    #                                                                                       type_tmp, ori_tmp,
+    #                                                                                       bbox2d_tmp_trk[0],
+    #                                                                                       bbox2d_tmp_trk[1],
+    #                                                                                       bbox2d_tmp_trk[2],
+    #                                                                                       bbox2d_tmp_trk[3],
+    #                                                                                       bbox3d_tmp[0], bbox3d_tmp[1],
+    #                                                                                       bbox3d_tmp[2], bbox3d_tmp[3],
+    #                                                                                       bbox3d_tmp[4], bbox3d_tmp[5],
+    #                                                                                       bbox3d_tmp[6],
+    #                                                                                       conf_tmp)
+    #             eval_file.write(str_to_srite)
+    #
+    #         save_trk_file.close()
+    #
+    #     eval_file.close()
+    #
+    # print("Total Tracking took: %.3f for %d frames or %.1f FPS" % (total_time, total_frames, total_frames / total_time))
