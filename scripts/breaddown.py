@@ -282,7 +282,7 @@ class KalmanBoxTracker(object):
         return self.kf.x[:7].reshape((7,))
 
 
-def associate_detections_to_trackers(detections, trackers, iou_threshold=0.1):      #self.hungarian_thresh
+def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):      #self.hungarian_thresh
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.25):
     """
@@ -328,7 +328,7 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.1):  
 
 
 class AB3DMOT(object):
-   def __init__(self,max_age=3, min_hits=3, is_jic=False,
+   def __init__(self,max_age=3, min_hits=2, is_jic=False,
                R = np.identity(7), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
   # def __init__(self,max_age=3,min_hits=3):        # ablation study
   # def __init__(self,max_age=1,min_hits=3):
@@ -361,10 +361,9 @@ class AB3DMOT(object):
         NOTE: The number of objects returned may differ from the number of detections provided.
         """
         dets_lidar, info = dets_all['dets_lidar'], dets_all['info']  # dets: N x 7, float numpy array
-
         dets = dets_lidar[:, self.reorder]
-        self.frame_count += 1
 
+        self.frame_count += 1
         trks = np.zeros((len(self.trackers), 7))  # N x 7 , #get predicted locations from existing trackers.
         to_del = []
         ret = []
@@ -485,97 +484,84 @@ if __name__ == '__main__':
         i = 0
         k = 0
         h = 0
+
         mot_tracker = AB3DMOT()
 
-        if frame_name%10 == 0:
-            det_radar = dataR[frame_name].get('front_esr_tracklist')
-            det_lidar = dataL[frame_name/10].get('objects')
-            det_cam = dataC[frame_name].get('objects')
+        det_radar = dataR[frame_name].get('front_esr_tracklist')
+        det_lidar = dataL[frame_name/10].get('objects')
+        det_cam = dataC[frame_name].get('objects')
 
 
-            ##Load Detections!
+        ##Load Detections!
+        for j in range(len(det_radar)):
+            seq_dets_radar[i][0] = frame_name
+            seq_dets_radar[i][1] = det_radar[j].get('range')
+            seq_dets_radar[i][2] = det_radar[j].get('range_rate')
+            seq_dets_radar[i][3] = det_radar[j].get('angle_centroid')
+            seq_dets_radar[i][4] = 1  #sensor type: 1
+            i += 1
 
+        dets_lidar = np.zeros([len(det_lidar), 9])
 
-            for j in range(len(det_radar)):
-                seq_dets_radar[i][0] = frame_name
-                seq_dets_radar[i][1] = det_radar[j].get('range')
-                seq_dets_radar[i][2] = det_radar[j].get('range_rate')
-                seq_dets_radar[i][3] = det_radar[j].get('angle_centroid')
-                seq_dets_radar[i][4] = 1  #sensor type: 1
-                i += 1
+        for j in range(len(det_lidar)):
+            dets_lidar[k][0] = frame_name
+            dets_lidar[k][1] = (det_lidar[j].get('centroid'))[0]
+            dets_lidar[k][2] = (det_lidar[j].get('centroid'))[1]
+            dets_lidar[k][3] = 1
+            dets_lidar[k][4] = det_lidar[j].get('heading')
+            dets_lidar[k][5] = det_lidar[j].get('length')
+            dets_lidar[k][6] = det_lidar[j].get('width')
+            dets_lidar[k][7] = 1
+            dets_lidar[k][8] = 2  #sensor type: 2
+            k += 1
 
-            dets_lidar = np.zeros([len(det_lidar), 9])
-
-            for j in range(len(det_lidar)):
-                dets_lidar[k][0] = frame_name
-                dets_lidar[k][1] = (det_lidar[j].get('centroid'))[0]
-                dets_lidar[k][2] = (det_lidar[j].get('centroid'))[1]
-                dets_lidar[k][3] = 1
-                dets_lidar[k][4] = det_lidar[j].get('heading')
-                dets_lidar[k][5] = det_lidar[j].get('length')
-                dets_lidar[k][6] = det_lidar[j].get('width')
-                dets_lidar[k][7] = 1
-                dets_lidar[k][8] = 2  #sensor type: 2
-                k += 1
-
+        if frame_name ==0:
+            seq_dets_lidar= dets_lidar
+        else:
             seq_dets_lidar = np.concatenate((seq_dets_lidar, dets_lidar), axis=0)
 
-            ## TODO : Camera part when i'm done w Radar & Lidar part
-            for j in range(len(det_cam)):
-                seq_dets_cam[h][0] = frame_name
-                seq_dets_cam[h][1] = det_cam[j].get('relative_coordinates').get('center_x')
-                seq_dets_cam[h][2] = det_cam[j].get('relative_coordinates').get('center_y')
-                seq_dets_cam[h][3] = det_cam[j].get('relative_coordinates').get('height')
-                seq_dets_cam[h][4] = det_cam[j].get('relative_coordinates').get('width')
-                seq_dets_cam[h][5] = 3
-                h += 1
+        ## TODO : Camera part when i'm done w Radar & Lidar part
+        for j in range(len(det_cam)):
+            seq_dets_cam[h][0] = frame_name
+            seq_dets_cam[h][1] = det_cam[j].get('relative_coordinates').get('center_x')
+            seq_dets_cam[h][2] = det_cam[j].get('relative_coordinates').get('center_y')
+            seq_dets_cam[h][3] = det_cam[j].get('relative_coordinates').get('height')
+            seq_dets_cam[h][4] = det_cam[j].get('relative_coordinates').get('width')
+            seq_dets_cam[h][5] = 3
+            h += 1
 
-            print("Processing %04d." % frame_name)
+        print("Processing %04d." % frame_name)
+        total_frames += 1
 
-            other_array = seq_dets_lidar[seq_dets_lidar[:, 0] == frame_name, -1]
-            additional_info = np.zeros([i, 7])
-            additional_info[:,1] = 2
-            dets_all = {'dets_lidar': dets_lidar, 'info': additional_info}
+    additional_info = np.zeros([len(seq_dets_lidar), 7])
+    additional_info[:,1] = 2
+    dets_all = {'dets_lidar': seq_dets_lidar, 'info': additional_info}
+    start_time = time.time()
+    trackers = mot_tracker.update(dets_all)
 
-            total_frames += 1
-            start_time = time.time()
-            trackers = mot_tracker.update(dets_all)
+    cycle_time = time.time() - start_time
+    total_time += cycle_time
+#
+    for d in trackers:
+        bbox3d_tmp = d[0:7]
+        id_tmp = d[7]
+        ori_tmp = d[8]
+        type_tmp = det_id2str[d[9]]
+        bbox2d_tmp_trk = d[10:14]
+        conf_tmp = d[14]
 
-            cycle_time = time.time() - start_time
-            total_time += cycle_time
-    #
-            for d in trackers:
-                bbox3d_tmp = d[0:7]
-                id_tmp = d[7]
-                ori_tmp = d[8]
-                type_tmp = det_id2str[d[9]]
-                bbox2d_tmp_trk = d[10:14]
-                conf_tmp = d[14]
-
-                # str_to_srite = '%s -1 -1 %f %f %f %f %f %f %f %f %f %f %f %f %f %d\n' % (type_tmp, ori_tmp,
-                #                                                                          bbox2d_tmp_trk[0],
-                #                                                                          bbox2d_tmp_trk[1],
-                #                                                                          bbox2d_tmp_trk[2],
-                #                                                                          bbox2d_tmp_trk[3],
-                #                                                                          bbox3d_tmp[0], bbox3d_tmp[1],
-                #                                                                          bbox3d_tmp[2], bbox3d_tmp[3],
-                #                                                                          bbox3d_tmp[4], bbox3d_tmp[5],
-                #                                                                          bbox3d_tmp[6],
-                #                                                                          conf_tmp, id_tmp)
-                # save_trk_file.write(str_to_srite)
-
-                str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame_name, id_tmp,
-                                                                                          type_tmp, ori_tmp,
-                                                                                          bbox2d_tmp_trk[0],
-                                                                                          bbox2d_tmp_trk[1],
-                                                                                          bbox2d_tmp_trk[2],
-                                                                                          bbox2d_tmp_trk[3],
-                                                                                          bbox3d_tmp[0], bbox3d_tmp[1],
-                                                                                          bbox3d_tmp[2], bbox3d_tmp[3],
-                                                                                          bbox3d_tmp[4], bbox3d_tmp[5],
-                                                                                          bbox3d_tmp[6],
-                                                                                          conf_tmp)
-                eval_file.write(str_to_srite)
+        str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame_name, id_tmp,
+                                                                                  type_tmp, ori_tmp,
+                                                                                  bbox2d_tmp_trk[0],
+                                                                                  bbox2d_tmp_trk[1],
+                                                                                  bbox2d_tmp_trk[2],
+                                                                                  bbox2d_tmp_trk[3],
+                                                                                  bbox3d_tmp[0], bbox3d_tmp[1],
+                                                                                  bbox3d_tmp[2], bbox3d_tmp[3],
+                                                                                  bbox3d_tmp[4], bbox3d_tmp[5],
+                                                                                  bbox3d_tmp[6],
+                                                                                  conf_tmp)
+        eval_file.write(str_to_srite)
 
     # save_trk_file.close()
 
