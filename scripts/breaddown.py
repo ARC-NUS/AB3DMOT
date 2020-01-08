@@ -464,6 +464,7 @@ if __name__ == '__main__':
         save_trk_dir = os.path.join(save_dir, 'trk_withid', str(frame_name).zfill(4));
         mkdir_if_missing(save_trk_dir)
         det_radar = dataR[frame_name].get('front_esr_tracklist')
+
         for j in range(len(det_radar)):
             seq_dets_radar[i][0] = frame_name
             seq_dets_radar[i][1] = det_radar[j].get('range')
