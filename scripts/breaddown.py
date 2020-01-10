@@ -57,6 +57,7 @@ def polygon_clip(subjectPolygon, clipPolygon):
         n1 = cp1[0] * cp2[1] - cp1[1] * cp2[0]
         n2 = s[0] * e[1] - s[1] * e[0]
         n3 = 1.0 / (dc[0] * dp[1] - dc[1] * dp[0])
+        #print('%d' % n3)
         return [(n1 * dp[0] - n2 * dc[0]) * n3, (n1 * dp[1] - n2 * dc[1]) * n3]
 
     outputList = subjectPolygon
@@ -177,13 +178,13 @@ class KalmanBoxTracker(object):
         for i in range(min(MEAS_SIZE,STATE_SIZE)):
           self.kf.H[i,i]=1.
 
-        self.kf.R[0:,0:] *= 10.   # measurement uncertainty
-        self.kf.P[7:,7:] *= 1000.  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+        self.kf.R[0:,0:] *= 10   # measurement uncertainty
+        self.kf.P[7:,7:] *= 1000  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
         self.kf.P *= 10.
 
         #self.kf.Q[7:, 7:] = Q
-        self.kf.Q[-1,-1] *= 0.01    # process uncertainty
-        # self.kf.Q[7:, 7:] *= 0.01
+
+        self.kf.Q[7:, 7:] *= 0.01   # process uncertainty
         self.kf.x[:7] = bbox3D.reshape((7, 1))
 
         self.kfr.H = np.zeros((MEAS_SIZE_Radar, STATE_SIZE))
@@ -192,7 +193,7 @@ class KalmanBoxTracker(object):
 
         #self.kfr.x[:7] = bbox3D.reshape((7, 1))
 
-        self.kf.R[0:,0:] *= 10.  #R  # measurement uncertainty
+        self.kf.R[0:,0:] *= 100.  #R  # measurement uncertainty
         self.kf.P[7:,7:] *= 1000.  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
         self.kf.P *=10 # P_0  #10.
 
@@ -207,7 +208,7 @@ class KalmanBoxTracker(object):
         self.age = 0
         self.info = info  # other info
 
-    def update(self, bbox3D, info,z):
+    def update(self, bbox3D, info):
         """
         Updates the state vector with observed bbox.
         """
@@ -328,7 +329,7 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01): 
 
 
 class AB3DMOT(object):
-   def __init__(self,max_age=3, min_hits=2, is_jic=False,
+   def __init__(self,max_age=3, min_hits=5, is_jic=False,
                R = np.identity(7), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
   # def __init__(self,max_age=3,min_hits=3):        # ablation study
   # def __init__(self,max_age=1,min_hits=3):
@@ -346,7 +347,7 @@ class AB3DMOT(object):
     self.hungarian_thresh = 0.1 # hung_thresh
 
     self.R = R
-    self.Q = Q
+    self.Q = 0 #Q
     self.P_0 = P_0
     self.delta_t = delta_t #TODO Use for fusion
 
@@ -371,6 +372,7 @@ class AB3DMOT(object):
         for t, trk in enumerate(trks):
             pos = self.trackers[t].predict().reshape((-1, 1))
             trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]]
+
             if (np.any(np.isnan(pos))):
                 to_del.append(t)
         trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
@@ -418,20 +420,15 @@ class AB3DMOT(object):
 
 if __name__ == '__main__':
 
-    mot_tracker_test = AB3DMOT()
-
     print("Initialise the testing of AB3DMOT")
 
-    if len(sys.argv) != 2:
-        print("Usage: python main.py result_sha(e.g., car_3d_det_test)")
-        #sys.exit(1)
+    # if len(sys.argv) != 2:
+    #     print("Usage: python main.py result_sha(e.g., car_3d_det_test)")
+    #     #sys.exit(1)
 
     det_id2str = {1: 'Pedestrian', 2: 'Car', 3: 'Cyclist'}
-    #
-    result_sha = "car_3d_det_test" #sys.argv[1]
     result_sha_2 = "JI_Cetran_Set1"
     save_root = './results'
-    seq_file_list, num_seq = load_list_from_folder(os.path.join('/home/wen/AB3DMOT/data/KITTI', result_sha))
     total_time = 0.0
     total_frames = 0
     save_dir = os.path.join(save_root, result_sha_2)
@@ -455,6 +452,7 @@ if __name__ == '__main__':
     pathJson = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/pixor_outputs.json'
     with open(pathJson, "r") as json_file:
         dataL = json.load(json_file)
+
 
     #Read the set1 camera points
     pathJson = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/image_detect/result.json'
@@ -480,17 +478,26 @@ if __name__ == '__main__':
     eval_file = os.path.join(eval_dir, 'Set_1.txt');
     eval_file = open(eval_file, 'w')
 
+    mot_tracker = AB3DMOT()
+
     for frame_name in range(numPose):
         i = 0
         k = 0
         h = 0
+        frame_name = frame_name+1
+        det_radar = dataR[frame_name-1].get('front_esr_tracklist')
 
-        mot_tracker = AB3DMOT()
+        det_cam = dataC[frame_name-1].get('objects')
 
-        det_radar = dataR[frame_name].get('front_esr_tracklist')
-        det_lidar = dataL[frame_name/10].get('objects')
-        det_cam = dataC[frame_name].get('objects')
-
+        ## TODO : Camera part when i'm done w Radar & Lidar part
+        for j in range(len(det_cam)):
+            seq_dets_cam[h][0] = frame_name
+            seq_dets_cam[h][1] = det_cam[j].get('relative_coordinates').get('center_x')
+            seq_dets_cam[h][2] = det_cam[j].get('relative_coordinates').get('center_y')
+            seq_dets_cam[h][3] = det_cam[j].get('relative_coordinates').get('height')
+            seq_dets_cam[h][4] = det_cam[j].get('relative_coordinates').get('width')
+            seq_dets_cam[h][5] = 3
+            h += 1
 
         ##Load Detections!
         for j in range(len(det_radar)):
@@ -501,8 +508,12 @@ if __name__ == '__main__':
             seq_dets_radar[i][4] = 1  #sensor type: 1
             i += 1
 
+
+        det_lidar = dataL[ "%05d" % frame_name + '.pcd']
+
         dets_lidar = np.zeros([len(det_lidar), 9])
 
+        #Load Lidar Detections
         for j in range(len(det_lidar)):
             dets_lidar[k][0] = frame_name
             dets_lidar[k][1] = (det_lidar[j].get('centroid'))[0]
@@ -520,22 +531,12 @@ if __name__ == '__main__':
         else:
             seq_dets_lidar = np.concatenate((seq_dets_lidar, dets_lidar), axis=0)
 
-        ## TODO : Camera part when i'm done w Radar & Lidar part
-        for j in range(len(det_cam)):
-            seq_dets_cam[h][0] = frame_name
-            seq_dets_cam[h][1] = det_cam[j].get('relative_coordinates').get('center_x')
-            seq_dets_cam[h][2] = det_cam[j].get('relative_coordinates').get('center_y')
-            seq_dets_cam[h][3] = det_cam[j].get('relative_coordinates').get('height')
-            seq_dets_cam[h][4] = det_cam[j].get('relative_coordinates').get('width')
-            seq_dets_cam[h][5] = 3
-            h += 1
 
         print("Processing %04d." % frame_name)
         total_frames += 1
-
         additional_info = np.zeros([len(dets_lidar), 7])
         additional_info[:,1] = 2
-        dets_all = {'dets_lidar': dets_lidar, 'info': additional_info}
+        dets_all = {'dets_lidar': dets_lidar[:,1:8], 'info': additional_info}
         start_time = time.time()
         trackers = mot_tracker.update(dets_all)
         cycle_time = time.time() - start_time
@@ -560,9 +561,10 @@ if __name__ == '__main__':
                                                                                       bbox3d_tmp[4], bbox3d_tmp[5],
                                                                                       bbox3d_tmp[6],
                                                                                       conf_tmp)
+
+            print(str_to_srite)
             eval_file.write(str_to_srite)
 
-    # save_trk_file.close()
 
     eval_file.close()
 
