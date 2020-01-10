@@ -329,8 +329,8 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01): 
 
 
 class AB3DMOT(object):
-   def __init__(self,max_age=3, min_hits=5, is_jic=False,
-               R = np.identity(7), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
+   def __init__(self,max_age=2, min_hits=2, is_jic=False,
+               R = np.identity(14), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
   # def __init__(self,max_age=3,min_hits=3):        # ablation study
   # def __init__(self,max_age=1,min_hits=3):
   # def __init__(self,max_age=2,min_hits=1):
@@ -404,6 +404,8 @@ class AB3DMOT(object):
             d = trk.get_state()  # bbox location
             d = d[self.reorder_back]
 
+            print('trk.time_since_update = %d   max_age = %d' % (trk.time_since_update, self.max_age))
+            print('trk.hits = %d   self.min_hits = %d' % (trk.hits, self.min_hits))
             if ((trk.time_since_update < self.max_age) and (
                     trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
                 ret.append(
@@ -412,6 +414,7 @@ class AB3DMOT(object):
             # remove dead tracklet
             if (trk.time_since_update >= self.max_age):
                 self.trackers.pop(i)
+                print('pop')
 
         if (len(ret) > 0):
             return np.concatenate(ret)  # x, y, z, theta, l, w, h, ID, other info, confidence
@@ -475,10 +478,12 @@ if __name__ == '__main__':
     # example of detection for camera : frame , x, y, h, w
     seq_dets_cam = np.zeros([numPose*100, 6])
 
-    eval_file = os.path.join(eval_dir, 'Set_1.txt');
+    mot_tracker = AB3DMOT()
+
+    eval_file = os.path.join(eval_dir, 'Set_1_maxage %d minhits %d .txt' %(mot_tracker.max_age, mot_tracker.min_hits));
     eval_file = open(eval_file, 'w')
 
-    mot_tracker = AB3DMOT()
+
 
     for frame_name in range(numPose):
         i = 0
@@ -564,7 +569,7 @@ if __name__ == '__main__':
 
             print(str_to_srite)
             eval_file.write(str_to_srite)
-
+            print('Check')
 
     eval_file.close()
 
