@@ -10,6 +10,7 @@ from scipy.spatial import ConvexHull
 from pyquaternion import Quaternion
 from wen_utils import STATE_SIZE, MEAS_SIZE, MEAS_SIZE_Radar, MOTION_MODEL, get_CV_F
 import json
+from datetime import datetime
 
 @jit  # let Numba decide when and how to optimize:
 def poly_area(x, y):
@@ -188,8 +189,9 @@ class KalmanBoxTracker(object):
         self.kf.x[:7] = bbox3D.reshape((7, 1))
 
         self.kfr.H = np.zeros((MEAS_SIZE_Radar, STATE_SIZE))
-        # for i in range(min(MEAS_SIZE_Radar, STATE_SIZE)):
-        #   self.kfr.H[i, i] = 1.
+
+        for i in range(min(MEAS_SIZE_Radar, STATE_SIZE)):
+          self.kfr.H[i, i] = 1.
 
         #self.kfr.x[:7] = bbox3D.reshape((7, 1))
 
@@ -329,7 +331,7 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01): 
 
 
 class AB3DMOT(object):
-   def __init__(self,max_age=2, min_hits=2, is_jic=False,
+   def __init__(self,max_age=3, min_hits=2, is_jic=False,
                R = np.identity(14), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
   # def __init__(self,max_age=3,min_hits=3):        # ablation study
   # def __init__(self,max_age=1,min_hits=3):
@@ -404,8 +406,8 @@ class AB3DMOT(object):
             d = trk.get_state()  # bbox location
             d = d[self.reorder_back]
 
-            print('trk.time_since_update = %d   max_age = %d' % (trk.time_since_update, self.max_age))
-            print('trk.hits = %d   self.min_hits = %d' % (trk.hits, self.min_hits))
+            # print('trk.time_since_update = %d   max_age = %d' % (trk.time_since_update, self.max_age))
+            # print('trk.hits = %d   self.min_hits = %d' % (trk.hits, self.min_hits))
             if ((trk.time_since_update < self.max_age) and (
                     trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
                 ret.append(
@@ -414,7 +416,7 @@ class AB3DMOT(object):
             # remove dead tracklet
             if (trk.time_since_update >= self.max_age):
                 self.trackers.pop(i)
-                print('pop')
+                # print('pop')
 
         if (len(ret) > 0):
             return np.concatenate(ret)  # x, y, z, theta, l, w, h, ID, other info, confidence
@@ -443,78 +445,85 @@ if __name__ == '__main__':
 
     # #################################
     # # Take in bag value names
-    mainJson_loc = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/'
+    mainJson_loc = '../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/'
 
     #Read the set1 radar points
-    pathJson = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/radar_obstacles/radar_obstacles.json'
+    pathJson = mainJson_loc + 'radar_obstacles/radar_obstacles.json'
     with open(pathJson, "r") as json_file:
         dataR = json.load(json_file)
         dataR = dataR.get('radar')
 
     #Read the set1 lidar points
-    pathJson = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/pixor_outputs.json'
+    pathJson = mainJson_loc + '/pixor_outputs.json'
     with open(pathJson, "r") as json_file:
         dataL = json.load(json_file)
 
 
     #Read the set1 camera points
-    pathJson = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/image_detect/result.json'
+    pathJson = mainJson_loc + '/image_detect/result.json'
     with open(pathJson, "r") as json_file:
         dataC = json.load(json_file)
 
     #Read the ego pose
-    pathJson = '/home/wen/JI_ST-cloudy-day_2019-08-27-21-55-47/set_1/fused_pose/fused_pose_new.json'
+    pathJson = mainJson_loc + '/fused_pose/fused_pose_new.json'
     with open(pathJson, "r") as json_file:
         pose = json.load(json_file)
         dataPose = pose.get('ego_loc')
         numPose = len(dataPose)
 
-    # example of detection for radar : frame , range, range_rate, theta
-    seq_dets_radar = np.zeros([numPose*100, 5])   ##TODO amend this so that the array size is not too large
+    # example of detection for radar : frame , range, range_rate, theta , sensor_type =1
+    seq_dets_radar = np.zeros([1, 5])
 
-    # example of detection for lidar : frame ,, x, y, z, theta, l, w, h
+    # example of detection for lidar : frame ,, x, y, z, theta, l, w, h, sensor_type = 2
     seq_dets_lidar = np.zeros([1, 9])
 
+    #TODO : Camera detection
     # example of detection for camera : frame , x, y, h, w
     seq_dets_cam = np.zeros([numPose*100, 6])
+
+    seq_dets_pose =np.zeros([numPose, 5])
 
     mot_tracker = AB3DMOT()
 
     eval_file = os.path.join(eval_dir, 'Set_1_maxage %d minhits %d .txt' %(mot_tracker.max_age, mot_tracker.min_hits));
     eval_file = open(eval_file, 'w')
 
-
-
-    for frame_name in range(numPose):
+    for frame_name in range(1,numPose):
         i = 0
         k = 0
         h = 0
-        frame_name = frame_name+1
-        det_radar = dataR[frame_name-1].get('front_esr_tracklist')
-
+        #frame_name = frame_name+1
+        det_radar = dataR[frame_name].get('front_esr_tracklist')
         det_cam = dataC[frame_name-1].get('objects')
+        det_lidar = dataL[ "%05d" % frame_name + '.pcd']
 
-        ## TODO : Camera part when i'm done w Radar & Lidar part
-        for j in range(len(det_cam)):
-            seq_dets_cam[h][0] = frame_name
-            seq_dets_cam[h][1] = det_cam[j].get('relative_coordinates').get('center_x')
-            seq_dets_cam[h][2] = det_cam[j].get('relative_coordinates').get('center_y')
-            seq_dets_cam[h][3] = det_cam[j].get('relative_coordinates').get('height')
-            seq_dets_cam[h][4] = det_cam[j].get('relative_coordinates').get('width')
-            seq_dets_cam[h][5] = 3
-            h += 1
+        seq_dets_pose[frame_name][0] = frame_name
+        seq_dets_pose[frame_name][1] = dataPose[frame_name].get('header').get('stamp')
+        seq_dets_pose[frame_name][2] = dataPose[frame_name].get('pose').get('position').get('x')
+        seq_dets_pose[frame_name][3] = dataPose[frame_name].get('pose').get('position').get('y')
+        seq_dets_pose[frame_name][4] = dataPose[frame_name].get('pose').get('attitude').get('yaw')
 
+        # # TODO the yaw this??
+        # yaw2 = float(yaw)
+        # degy = np.rad2deg(yaw2)
+
+        dets_radar = np.zeros([len(det_radar), 5])
         ##Load Detections!
         for j in range(len(det_radar)):
-            seq_dets_radar[i][0] = frame_name
-            seq_dets_radar[i][1] = det_radar[j].get('range')
-            seq_dets_radar[i][2] = det_radar[j].get('range_rate')
-            seq_dets_radar[i][3] = det_radar[j].get('angle_centroid')
-            seq_dets_radar[i][4] = 1  #sensor type: 1
+            dets_radar[i][0] = frame_name
+            dets_radar[i][1] = det_radar[j].get('range')
+            dets_radar[i][2] = det_radar[j].get('range_rate')
+            dets_radar[i][3] = det_radar[j].get('angle_centroid')
+            dets_radar[i][4] = 1  #sensor type: 1
             i += 1
 
+        if frame_name == 1:
+            seq_dets_radar = dets_radar
+        else:
+            seq_dets_radar = np.concatenate((seq_dets_radar, dets_radar), axis=0)
 
-        det_lidar = dataL[ "%05d" % frame_name + '.pcd']
+        #TODO write the function to put this into the bus frame, but for now itd be here
+
 
         dets_lidar = np.zeros([len(det_lidar), 9])
 
@@ -531,13 +540,23 @@ if __name__ == '__main__':
             dets_lidar[k][8] = 2  #sensor type: 2
             k += 1
 
-        if frame_name ==0:
+        if frame_name ==1:
             seq_dets_lidar= dets_lidar
         else:
             seq_dets_lidar = np.concatenate((seq_dets_lidar, dets_lidar), axis=0)
 
+        # ## TODO : Camera part when i'm done w Radar & Lidar part
+        # for j in range(len(det_cam)):
+        #     seq_dets_cam[h][0] = frame_name
+        #     seq_dets_cam[h][1] = det_cam[j].get('relative_coordinates').get('center_x')
+        #     seq_dets_cam[h][2] = det_cam[j].get('relative_coordinates').get('center_y')
+        #     seq_dets_cam[h][3] = det_cam[j].get('relative_coordinates').get('height')
+        #     seq_dets_cam[h][4] = det_cam[j].get('relative_coordinates').get('width')
+        #     seq_dets_cam[h][5] = 3
+        #     h += 1
 
-        print("Processing %04d." % frame_name)
+        print("Processing %04d." % frame_name, datetime.utcfromtimestamp(seq_dets_pose[frame_name][1]).strftime('%Y-%m-%d %H:%M:%S'))
+
         total_frames += 1
         additional_info = np.zeros([len(dets_lidar), 7])
         additional_info[:,1] = 2
