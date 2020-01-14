@@ -318,7 +318,7 @@ class KalmanBoxTracker(object):
         #z = np.array([35.041, 0.1, 1]) # range, range rate, angle centroid THESE VALUES MUST BE UPDATED WITH THE READING ONES!!
 
         z = z.reshape(3, 1)
-        self.kfr.x = np.ones((14, 1))
+        self.kfr.x = self.kf.x
 
         HJ = HJacobian(self.kfr.x)
         #HJ = HJ.reshape(3,14)
