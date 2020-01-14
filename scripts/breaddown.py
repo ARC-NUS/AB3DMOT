@@ -12,6 +12,43 @@ from wen_utils import STATE_SIZE, MEAS_SIZE, MEAS_SIZE_Radar, MOTION_MODEL, get_
 import json
 from datetime import datetime
 
+
+def HJacobian(x):  # 3 by 14 matrix
+
+    dist = np.sqrt(x[0][0] ** 2 + x[1][0] ** 2)
+    d = np.zeros((3, 14), dtype=float)
+
+    d[0][0] = x[0][0] / dist
+    d[0][1] = x[1][0] / dist
+
+    dist2 = dist ** 3
+
+    d[1][0] = (- x[1][0] * (x[1][0] * x[8][0] - x[0][0] * x[9][0])) / dist2
+    d[1][1] = (- x[0][0] * (x[0][0] * x[9][0] - x[1][0] * x[8][0])) / dist2
+
+    d[1][8] = x[0][0] / dist
+    d[1][9] = x[1][0] / dist
+
+    d[2][0] = - x[0][0] / (dist ** 2)
+    d[2][1] = x[1][0] / (dist ** 2)
+
+    return d  # range rangerate theta
+
+
+def hx(x):  # 3 by 1 matrix
+    d = []
+    temp = 2
+    range = np.sqrt(x[0][0] ** 2 + x[1][0] ** 2)
+    rangerate = (x[0][0] * x[8][0] + x[1][0] * x[9][0]) / range
+
+    if x[0][0] > 0:
+        temp = x[1][0] / x[0][0]
+
+    theta = np.arctan(temp)
+    # d = np.arange(3).reshape((dim_z, 1))
+    d = np.array([range, rangerate, theta]).reshape((3, 1))
+    return d
+
 @jit  # let Numba decide when and how to optimize:
 def poly_area(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
@@ -210,6 +247,7 @@ class KalmanBoxTracker(object):
         self.age = 0
         self.info = info  # other info
 
+
     def update(self, bbox3D, info):
         """
         Updates the state vector with observed bbox.
@@ -253,15 +291,6 @@ class KalmanBoxTracker(object):
         self.info = info
 
 
-        ##########################
-        # z = np.array([35.041, 0.1, 1]) # range, range rate, angle centroid THESE VALUES MUST BE UPDATED WITH THE READING ONES!!
-        # z = z.reshape((3, 1))
-        # self.kfr.update(z, HJacobian_at, hx)
-        # self.kfr.xs.append(rk.x)
-        #
-
-
-
     def predict(self):
         """
         Advances the state vector and returns the predicted bounding box estimate.
@@ -284,6 +313,22 @@ class KalmanBoxTracker(object):
         """
         return self.kf.x[:7].reshape((7,))
 
+    def updateRadar(self, z):
+        #rk.update(z, HJacobian, hx)
+        #z = np.array([35.041, 0.1, 1]) # range, range rate, angle centroid THESE VALUES MUST BE UPDATED WITH THE READING ONES!!
+
+        z = z.reshape(3, 1)
+        self.kfr.x = np.ones((14, 1))
+
+        HJ = HJacobian(self.kfr.x)
+        #HJ = HJ.reshape(3,14)
+
+        hxr = hx(self.kfr.x)
+        hxr = hxr.reshape(3,1)
+
+        self.kfr.update(z, HJacobian, hx)
+
+        # self.kfr.xs.append(rk.x)
 
 def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):      #self.hungarian_thresh
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
@@ -363,7 +408,7 @@ class AB3DMOT(object):
         Returns the a similar array, where the last column is the object ID.
         NOTE: The number of objects returned may differ from the number of detections provided.
         """
-        dets_lidar, info = dets_all['dets_lidar'], dets_all['info']  # dets: N x 7, float numpy array
+        dets_lidar, dets_radar,  info = dets_all['dets_lidar'], dets_all ['dets_radar'], dets_all['info']  # dets: N x 7, float numpy array
         dets = dets_lidar[:, self.reorder]
 
         self.frame_count += 1
@@ -371,9 +416,17 @@ class AB3DMOT(object):
         to_del = []
         ret = []
 
+        #TODO to create and initialise new trackers for new radar detections
+
+        for i in range(len(self.trackers)):
+            dets_r = dets_radar[i]
+            self.trackers[0].updateRadar(dets_r)
+
         for t, trk in enumerate(trks):
+            #self.trackers
             pos = self.trackers[t].predict().reshape((-1, 1))
             trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]]
+
 
             if (np.any(np.isnan(pos))):
                 to_del.append(t)
@@ -394,7 +447,7 @@ class AB3DMOT(object):
         for t, trk in enumerate(self.trackers):
             if t not in unmatched_trks:
                 d = matched[np.where(matched[:, 1] == t)[0], 0]  # a list of index
-                trk.update(dets[d, :][0], info[d, :][0])
+                trk.update(dets[d, :][0], info[d, :][0])             #UPDATE Values for lidar!!
 
         # create and initialise new trackers for unmatched detections
         for i in unmatched_dets:  # a scalar of index
@@ -448,7 +501,7 @@ if __name__ == '__main__':
     mainJson_loc = '../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/'
 
     #Read the set1 radar points
-    pathJson = mainJson_loc + 'radar_obstacles/radar_obstacles.json'
+    pathJson = mainJson_loc + '/radar_obstacles/radar_obstacles.json'
     with open(pathJson, "r") as json_file:
         dataR = json.load(json_file)
         dataR = dataR.get('radar')
@@ -488,7 +541,7 @@ if __name__ == '__main__':
     eval_file = os.path.join(eval_dir, 'Set_1_maxage %d minhits %d .txt' %(mot_tracker.max_age, mot_tracker.min_hits));
     eval_file = open(eval_file, 'w')
 
-    for frame_name in range(1,numPose):
+    for frame_name in range(1,10): #numPose
         i = 0
         k = 0
         h = 0
@@ -512,8 +565,8 @@ if __name__ == '__main__':
         for j in range(len(det_radar)):
             dets_radar[i][0] = frame_name
             dets_radar[i][1] = det_radar[j].get('range')
-            dets_radar[i][2] = det_radar[j].get('range_rate')
-            dets_radar[i][3] = det_radar[j].get('angle_centroid')
+            dets_radar[i][2] = det_radar[j].get('range_rate')  #TODO how to convert this to required frame??
+            dets_radar[i][3] = float(det_radar[j].get('angle_centroid')) * (np.pi / 180)
             dets_radar[i][4] = 1  #sensor type: 1
             i += 1
 
@@ -560,7 +613,7 @@ if __name__ == '__main__':
         total_frames += 1
         additional_info = np.zeros([len(dets_lidar), 7])
         additional_info[:,1] = 2
-        dets_all = {'dets_lidar': dets_lidar[:,1:8], 'info': additional_info}
+        dets_all = {'dets_lidar': dets_lidar[:,1:8], 'dets_radar':dets_radar[:,1:4], 'info': additional_info}
         start_time = time.time()
         trackers = mot_tracker.update(dets_all)
         cycle_time = time.time() - start_time
