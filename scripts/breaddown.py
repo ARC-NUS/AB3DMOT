@@ -319,14 +319,14 @@ class KalmanBoxTracker(object):
 
         z = z.reshape(3, 1)
         self.kfr.x = self.kf.x
-
         HJ = HJacobian(self.kfr.x)
         #HJ = HJ.reshape(3,14)
 
         hxr = hx(self.kfr.x)
         hxr = hxr.reshape(3,1)
-
+        
         self.kfr.update(z, HJacobian, hx)
+        #print(self.kfr.x)
 
         # self.kfr.xs.append(rk.x)
 
@@ -376,7 +376,7 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01): 
 
 
 class AB3DMOT(object):
-   def __init__(self,max_age=3, min_hits=2, is_jic=False,
+   def __init__(self,max_age=2, min_hits=2, is_jic=False,
                R = np.identity(14), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
   # def __init__(self,max_age=3,min_hits=3):        # ablation study
   # def __init__(self,max_age=1,min_hits=3):
@@ -541,7 +541,7 @@ if __name__ == '__main__':
     eval_file = os.path.join(eval_dir, 'Set_1_maxage %d minhits %d .txt' %(mot_tracker.max_age, mot_tracker.min_hits));
     eval_file = open(eval_file, 'w')
 
-    for frame_name in range(1,10): #numPose
+    for frame_name in range(1, numPose): #numPose
         i = 0
         k = 0
         h = 0
@@ -556,6 +556,11 @@ if __name__ == '__main__':
         seq_dets_pose[frame_name][3] = dataPose[frame_name].get('pose').get('position').get('y')
         seq_dets_pose[frame_name][4] = dataPose[frame_name].get('pose').get('attitude').get('yaw')
 
+        q1 = Quaternion(axis=[0, 0, 1], angle=seq_dets_pose[frame_name][4])
+        T1 = q1.transformation_matrix
+        T1[0][3] = seq_dets_pose[frame_name][2]
+        T1[1][3] = seq_dets_pose[frame_name][3]
+
         # # TODO the yaw this??
         # yaw2 = float(yaw)
         # degy = np.rad2deg(yaw2)
@@ -568,6 +573,16 @@ if __name__ == '__main__':
             dets_radar[i][2] = det_radar[j].get('range_rate')  #TODO how to convert this to required frame??
             dets_radar[i][3] = float(det_radar[j].get('angle_centroid')) * (np.pi / 180)
             dets_radar[i][4] = 1  #sensor type: 1
+
+            #FRONT ESR Radar
+            Bus_radar = np.array([[8.69], [0], [1.171]])
+
+            q1 = Quaternion(axis=[1, 0, 0], angle=0.00349066)
+            q2 = Quaternion(axis=[0, 1, 0], angle=-0.00872665)
+            q3 = Quaternion(axis=[0, 0, 1], angle=0)
+
+            q_radar = q1* q2* q3
+
             i += 1
 
         if frame_name == 1:
@@ -583,14 +598,26 @@ if __name__ == '__main__':
         #Load Lidar Detections
         for j in range(len(det_lidar)):
             dets_lidar[k][0] = frame_name
-            dets_lidar[k][1] = (det_lidar[j].get('centroid'))[0]
-            dets_lidar[k][2] = (det_lidar[j].get('centroid'))[1]
+            dets_lidar[k][1] = (det_lidar[j].get('centroid'))[0]  # x values   #TODO use lidar quarternion to transform it :o
+            dets_lidar[k][2] = (det_lidar[j].get('centroid'))[1]  # y values
             dets_lidar[k][3] = 1
             dets_lidar[k][4] = det_lidar[j].get('heading')
             dets_lidar[k][5] = det_lidar[j].get('length')
             dets_lidar[k][6] = det_lidar[j].get('width')
             dets_lidar[k][7] = 1
             dets_lidar[k][8] = 2  #sensor type: 2
+
+            q_lidar = Quaternion(axis=[0, 0, 1], angle=dets_lidar[k][4])
+            T_lidar = q_lidar.transformation_matrix
+            T_lidar[0][3] = dets_lidar[k][1]
+            T_lidar[1][3] = dets_lidar[k][2]
+
+            T2 = np.matmul(T1, T_lidar)
+            q8d = Quaternion(matrix=T2)
+
+            dets_lidar[k][1] = T2[0][3]
+            dets_lidar[k][2] = T2[1][3]
+            dets_lidar[k][4] = q8d.radians
             k += 1
 
         if frame_name ==1:
