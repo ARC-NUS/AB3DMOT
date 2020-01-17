@@ -326,9 +326,12 @@ class KalmanBoxTracker(object):
         hxr = hxr.reshape(3,1)
         
         self.kfr.update(z, HJacobian, hx)
-        #print(self.kfr.x)
+        self.kfr.predict
+        print(self.kfr.x)
 
         # self.kfr.xs.append(rk.x)
+
+        #return self.kfr.x
 
 def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):      #self.hungarian_thresh
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
@@ -413,14 +416,19 @@ class AB3DMOT(object):
 
         self.frame_count += 1
         trks = np.zeros((len(self.trackers), 7))  # N x 7 , #get predicted locations from existing trackers.
+
+        trkR = np.zeros((len(dets_radar), 7))  # N x 7 , #get predicted locations from existing trackers.
+
         to_del = []
         ret = []
 
         #TODO to create and initialise new trackers for new radar detections
 
         for i in range(len(self.trackers)):
-            dets_r = dets_radar[i]
-            self.trackers[0].updateRadar(dets_r)
+            for j in range(len(dets_radar)):
+                dets_r = dets_radar[j]
+                self.trackers[i].updateRadar(dets_r)
+                #trkR[:] = [pos2[0], pos2[1], pos2[2], pos2[3], pos2[4], pos2[5], pos2[6]]
 
         for t, trk in enumerate(trks):
             #self.trackers
@@ -507,7 +515,7 @@ if __name__ == '__main__':
         dataR = dataR.get('radar')
 
     #Read the set1 lidar points
-    pathJson = mainJson_loc + '/pixor_outputs.json'
+    pathJson = mainJson_loc + '/pixor_outputs_tf_epoch_49_valloss_0.0117.json' #/pixor_outputs.json'
     with open(pathJson, "r") as json_file:
         dataL = json.load(json_file)
 
@@ -524,6 +532,18 @@ if __name__ == '__main__':
         dataPose = pose.get('ego_loc')
         numPose = len(dataPose)
 
+    #READ GROUND TRUTH LABELS
+    pathJson = mainJson_loc + '/labels/set1_annotations.json'
+    with open(pathJson, "r") as json_file:
+        dataLabels = json.load(json_file)
+        GT = 0
+        GT_indiv = np.zeros(len(dataLabels))
+
+    for i in range(len(dataLabels)):
+        det = dataLabels[i].get('annotations')
+        GT_indiv[i] = len(det)
+        GT += len(det)
+
     # example of detection for radar : frame , range, range_rate, theta , sensor_type =1
     seq_dets_radar = np.zeros([1, 5])
 
@@ -531,9 +551,8 @@ if __name__ == '__main__':
     seq_dets_lidar = np.zeros([1, 9])
 
     #TODO : Camera detection
-    # example of detection for camera : frame , x, y, h, w
-    seq_dets_cam = np.zeros([numPose*100, 6])
-
+    # example of detection for camera : frame , x, y
+    seq_dets_cam = np.zeros([1, 4])
     seq_dets_pose =np.zeros([numPose, 5])
 
     mot_tracker = AB3DMOT()
@@ -547,9 +566,9 @@ if __name__ == '__main__':
         h = 0
         #frame_name = frame_name+1
         det_radar = dataR[frame_name].get('front_esr_tracklist')
-        det_cam = dataC[frame_name-1].get('objects')
-        det_lidar = dataL[ "%05d" % frame_name + '.pcd']
-
+        det_cam = dataC[frame_name].get('objects')
+        #det_lidar = dataL[ "%05d" % frame_name + '.pcd']
+        det_lidar =dataL[frame_name].get('objects')
         seq_dets_pose[frame_name][0] = frame_name
         seq_dets_pose[frame_name][1] = dataPose[frame_name].get('header').get('stamp')
         seq_dets_pose[frame_name][2] = dataPose[frame_name].get('pose').get('position').get('x')
@@ -561,11 +580,8 @@ if __name__ == '__main__':
         T1[0][3] = seq_dets_pose[frame_name][2]
         T1[1][3] = seq_dets_pose[frame_name][3]
 
-        # # TODO the yaw this??
-        # yaw2 = float(yaw)
-        # degy = np.rad2deg(yaw2)
-
         dets_radar = np.zeros([len(det_radar), 5])
+
         ##Load Detections!
         for j in range(len(det_radar)):
             dets_radar[i][0] = frame_name
@@ -583,14 +599,13 @@ if __name__ == '__main__':
 
             q_radar = q1* q2* q3
 
+            #todo to transform the points into x and y
             i += 1
 
         if frame_name == 1:
             seq_dets_radar = dets_radar
         else:
             seq_dets_radar = np.concatenate((seq_dets_radar, dets_radar), axis=0)
-
-        #TODO write the function to put this into the bus frame, but for now itd be here
 
 
         dets_lidar = np.zeros([len(det_lidar), 9])
@@ -621,19 +636,34 @@ if __name__ == '__main__':
             k += 1
 
         if frame_name ==1:
-            seq_dets_lidar= dets_lidar
+            seq_dets_lidar = dets_lidar
         else:
             seq_dets_lidar = np.concatenate((seq_dets_lidar, dets_lidar), axis=0)
 
+        dets_cam = np.zeros([len(det_cam), 4])
+
         # ## TODO : Camera part when i'm done w Radar & Lidar part
-        # for j in range(len(det_cam)):
-        #     seq_dets_cam[h][0] = frame_name
-        #     seq_dets_cam[h][1] = det_cam[j].get('relative_coordinates').get('center_x')
-        #     seq_dets_cam[h][2] = det_cam[j].get('relative_coordinates').get('center_y')
-        #     seq_dets_cam[h][3] = det_cam[j].get('relative_coordinates').get('height')
-        #     seq_dets_cam[h][4] = det_cam[j].get('relative_coordinates').get('width')
-        #     seq_dets_cam[h][5] = 3
-        #     h += 1
+        for j in range(len(det_cam)):
+            dets_cam[h][0] = frame_name
+            dets_cam[h][1] = det_cam[j].get('relative_coordinates').get('center_x')
+            dets_cam[h][2] = det_cam[j].get('relative_coordinates').get('center_y')
+            dets_cam[h][3] = 3
+
+
+            #Camera a_0 transform , the tf_urdf one!!
+            Bus_camera = np.array([[8.660], [-0.030], [0.1356]])
+
+            q1 = Quaternion(axis=[1, 0, 0], angle=0.003490659)
+            q2 = Quaternion(axis=[0, 1, 0], angle=0)
+            q3 = Quaternion(axis=[0, 0, 1], angle=0)
+            q_camera = q1* q2* q3
+
+            h += 1
+
+        if frame_name == 1:
+            seq_dets_cam = dets_cam
+        else:
+            seq_dets_cam = np.concatenate((seq_dets_cam, dets_cam), axis=0)
 
         print("Processing %04d." % frame_name, datetime.utcfromtimestamp(seq_dets_pose[frame_name][1]).strftime('%Y-%m-%d %H:%M:%S'))
 
@@ -654,7 +684,19 @@ if __name__ == '__main__':
             bbox2d_tmp_trk = d[10:14]
             conf_tmp = d[14]
 
-            str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame_name, id_tmp,
+            # str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame_name, id_tmp,
+            #                                                                           type_tmp, ori_tmp,
+            #                                                                           bbox2d_tmp_trk[0],
+            #                                                                           bbox2d_tmp_trk[1],
+            #                                                                           bbox2d_tmp_trk[2],
+            #                                                                           bbox2d_tmp_trk[3],
+            #                                                                           bbox3d_tmp[0], bbox3d_tmp[1],
+            #                                                                           bbox3d_tmp[2], bbox3d_tmp[3],
+            #                                                                           bbox3d_tmp[4], bbox3d_tmp[5],
+            #                                                                           bbox3d_tmp[6],
+            #                                                                           conf_tmp)
+
+            str_to_srite = '%d, %d, %s, 0, 0, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n' % (frame_name, id_tmp,
                                                                                       type_tmp, ori_tmp,
                                                                                       bbox2d_tmp_trk[0],
                                                                                       bbox2d_tmp_trk[1],
@@ -673,3 +715,5 @@ if __name__ == '__main__':
     eval_file.close()
 
     print("Total Tracking took: %.3f for %d frames or %.1f FPS" % (total_time, total_frames, total_frames / total_time))
+
+
