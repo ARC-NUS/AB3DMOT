@@ -327,11 +327,11 @@ class KalmanBoxTracker(object):
         
         self.kfr.update(z, HJacobian, hx)
         self.kfr.predict
-        print(self.kfr.x)
+        #print(self.kfr.x)
 
         # self.kfr.xs.append(rk.x)
 
-        #return self.kfr.x
+        return self.kfr.x
 
 def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):      #self.hungarian_thresh
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
@@ -411,24 +411,47 @@ class AB3DMOT(object):
         Returns the a similar array, where the last column is the object ID.
         NOTE: The number of objects returned may differ from the number of detections provided.
         """
-        dets_lidar, dets_radar,  info = dets_all['dets_lidar'], dets_all ['dets_radar'], dets_all['info']  # dets: N x 7, float numpy array
+        dets_lidar, dets_radar,  info, seq_dets_pose, dets_cam = dets_all['dets_lidar'], dets_all ['dets_radar'], dets_all['info'], dets_all ['seq_dets_pose'], dets_all['dets_cam']  # dets: N x 7, float numpy array
         dets = dets_lidar[:, self.reorder]
 
         self.frame_count += 1
         trks = np.zeros((len(self.trackers), 7))  # N x 7 , #get predicted locations from existing trackers.
-
         trkR = np.zeros((len(dets_radar), 7))  # N x 7 , #get predicted locations from existing trackers.
-
+        bestTrack= np.zeros((1,7))
         to_del = []
         ret = []
 
-        #TODO to create and initialise new trackers for new radar detections
+        # for i in range(len(dets_cam)):
+        #     test_x = dets_cam[i][1]
+        #     min = 0.1
+        #     for j in range(len(dets_radar)):
+        #         test_radar = dets_radar[j][2]
+        #         diff = test_radar-test_x
+        #         if(abs(diff)< min):
+        #             min = diff
+        #             bestTrack_Radar = j
+        #     print ('radar similar point: %s' %(j))
 
-        for i in range(len(self.trackers)):
-            for j in range(len(dets_radar)):
-                dets_r = dets_radar[j]
-                self.trackers[i].updateRadar(dets_r)
-                #trkR[:] = [pos2[0], pos2[1], pos2[2], pos2[3], pos2[4], pos2[5], pos2[6]]
+
+        # #TODO to create and initialise new trackers for new radar detections
+        #
+        # for i in range(len(self.trackers)):
+        #     #diffx = self.trackers[i].kf.x[5] - seq_dets_pose[self.frame_count][2]
+        #     #diffy = self.trackers[i].kf.x[6] - seq_dets_pose[self.frame_count][3]
+        #     track_theta = self.trackers[i].kf.x[0]
+        #     min = 0.1
+        #     for j in range(len(dets_radar)):
+        #         dets_r = dets_radar[j]
+        #         theta_ref = dets_radar[j][2]
+        #         diff_theta = abs(theta_ref-track_theta)
+        #         if (diff_theta < min and diff_theta > 0  ):
+        #             min = diff_theta
+        #             pos2 =self.trackers[i].updateRadar(dets_r)
+        #             #print(pos2[0][0])
+        #             bestTrack[0] = np.array([pos2[0][0], pos2[1][0], pos2[2][0], pos2[3][0], pos2[4][0], pos2[5][0], pos2[6][0]])
+
+            #dets = np.concatenate(dets,bestTrack)
+
 
         for t, trk in enumerate(trks):
             #self.trackers
@@ -438,6 +461,7 @@ class AB3DMOT(object):
 
             if (np.any(np.isnan(pos))):
                 to_del.append(t)
+
         trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
         for t in reversed(to_del):
             self.trackers.pop(t)
@@ -459,6 +483,7 @@ class AB3DMOT(object):
 
         # create and initialise new trackers for unmatched detections
         for i in unmatched_dets:  # a scalar of index
+            #trk = KalmanBoxTracker(dets[i, :], info[i, :])
             trk = KalmanBoxTracker(dets[i, :], info[i, :])
             self.trackers.append(trk)
 
@@ -560,6 +585,9 @@ if __name__ == '__main__':
     eval_file = os.path.join(eval_dir, 'Set_1_maxage %d minhits %d .txt' %(mot_tracker.max_age, mot_tracker.min_hits));
     eval_file = open(eval_file, 'w')
 
+    Camera_Matrix_GMSL_120 = np.array([[958.5928517660333, 0.0, 963.2848327985546], [0.0, 961.1122866843237, 644.5199995337151], [0.0, 0.0, 1.0]])  #
+    fx = Camera_Matrix_GMSL_120[0][0] / 1000 #focal length fx #TODO set the units!!
+
     for frame_name in range(1, numPose): #numPose
         i = 0
         k = 0
@@ -580,6 +608,7 @@ if __name__ == '__main__':
         T1[0][3] = seq_dets_pose[frame_name][2]
         T1[1][3] = seq_dets_pose[frame_name][3]
 
+        print("Processing %04d." % frame_name, datetime.utcfromtimestamp(seq_dets_pose[frame_name][1]).strftime('%Y-%m-%d %H:%M:%S'))
         dets_radar = np.zeros([len(det_radar), 5])
 
         ##Load Detections!
@@ -622,7 +651,7 @@ if __name__ == '__main__':
             dets_lidar[k][7] = 1
             dets_lidar[k][8] = 2  #sensor type: 2
 
-            q_lidar = Quaternion(axis=[0, 0, 1], angle=dets_lidar[k][4])
+            q_lidar = Quaternion(axis=[0, 0, -1], angle=dets_lidar[k][4])
             T_lidar = q_lidar.transformation_matrix
             T_lidar[0][3] = dets_lidar[k][1]
             T_lidar[1][3] = dets_lidar[k][2]
@@ -633,6 +662,7 @@ if __name__ == '__main__':
             dets_lidar[k][1] = T2[0][3]
             dets_lidar[k][2] = T2[1][3]
             dets_lidar[k][4] = q8d.radians
+
             k += 1
 
         if frame_name ==1:
@@ -645,19 +675,23 @@ if __name__ == '__main__':
         # ## TODO : Camera part when i'm done w Radar & Lidar part
         for j in range(len(det_cam)):
             dets_cam[h][0] = frame_name
-            dets_cam[h][1] = det_cam[j].get('relative_coordinates').get('center_x')
-            dets_cam[h][2] = det_cam[j].get('relative_coordinates').get('center_y')
-            dets_cam[h][3] = 3
+            cam_x = det_cam[j].get('relative_coordinates').get('center_x') -0.5
+            theta = np.arctan(cam_x /fx)
 
+            if cam_x < 0.5:
+                theta = - theta
 
+            dets_cam[h][3] = 3  #SENSOR TYPE = 3
             #Camera a_0 transform , the tf_urdf one!!
             Bus_camera = np.array([[8.660], [-0.030], [0.1356]])
-
             q1 = Quaternion(axis=[1, 0, 0], angle=0.003490659)
-            q2 = Quaternion(axis=[0, 1, 0], angle=0)
-            q3 = Quaternion(axis=[0, 0, 1], angle=0)
-            q_camera = q1* q2* q3
-
+            q4 = Quaternion(axis=[1, 0, 0], angle=theta)
+            q_camera = q1 * q4
+            dets_cam[h][1] = q_camera.radians
+            type = det_cam[j].get('class_id')  #class_id = 2 is a car
+            dets_cam[h][2] = type
+            #TODO what's the class ids??
+            print('Camera detected: %s' %(type))
             h += 1
 
         if frame_name == 1:
@@ -665,12 +699,11 @@ if __name__ == '__main__':
         else:
             seq_dets_cam = np.concatenate((seq_dets_cam, dets_cam), axis=0)
 
-        print("Processing %04d." % frame_name, datetime.utcfromtimestamp(seq_dets_pose[frame_name][1]).strftime('%Y-%m-%d %H:%M:%S'))
 
         total_frames += 1
         additional_info = np.zeros([len(dets_lidar), 7])
         additional_info[:,1] = 2
-        dets_all = {'dets_lidar': dets_lidar[:,1:8], 'dets_radar':dets_radar[:,1:4], 'info': additional_info}
+        dets_all = {'dets_lidar': dets_lidar[:,1:8], 'dets_radar':dets_radar[:,1:4], 'info': additional_info, 'seq_dets_pose': seq_dets_pose, 'dets_cam': dets_cam}
         start_time = time.time()
         trackers = mot_tracker.update(dets_all)
         cycle_time = time.time() - start_time
