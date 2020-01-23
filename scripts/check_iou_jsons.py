@@ -156,6 +156,9 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
   MOTA = None
   total_ct_check = 0
   l_index = 0 # offset of label and tracker in json
+  t_index=0
+#   missed_frames=0 # counting missed objects when tracker misses a frame. by right should never non-zero
+#   fp_frames=0
           
   for index, labels in enumerate(labels_data): # for each pcd/timestep labelled
       # init params for each timestep
@@ -169,17 +172,30 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
       pcd_name = labels['name']
       time_step = pcd_name.split('.')[0]
 #               print "checking time step: ", time_step
-      tracks = tracker_data[(index+1)*10-1-l_index] # FIXME this will only work if the files are 10 hz apart
-       
+      tracks = tracker_data[(index+1-l_index)*10-1] # FIXME this will only work if the files are 10 hz apart
+
+      print('Track name %s' %( tracks['name']))
       if tracks['name'] != pcd_name:
           print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
-                                "label n tracker data must be 10 hz apart" 
+                                 "label n tracker data must be 10 hz apart" 
           #raise ValueError # FIXME choose a more suitable error
-          while tracks['name'] != pcd_name:
-            l_index +=1
-            tracks = tracker_data[(index+1)*10-1-l_index]
-          continue
-      
+          if pcd_name.split('.')[0] < tracks['name'].split('.')[0]: # the tracker missed the label frame??
+              while tracks['name'] != pcd_name:
+                  l_index +=1
+                  tracks = tracker_data[(index+1-l_index)*10-1]
+                  total_missed += len(labels['annotations'])
+              continue
+          else:
+              # FIXME create empty 'label' to do mota with
+              while tracks['name'] != pcd_name:
+                  l_index -=1
+                  total_fpt += len(tracks["objects"])
+                  #if((index+1-l_index)*10-1) < 1000:
+                  print('Value to be checked %f ' %((index+1-l_index)*10-1))
+                  if (index+1-l_index)*10-1 < 1000:
+                    tracks = tracker_data[(index+1-l_index)*10-1]
+              
+          
       is_labelled = False
       corresp_label = None
       corresp_track = None
@@ -284,7 +300,6 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
               total_dist += get_MOT_dist(opts, tpts, distance_metric)
               total_ct_check +=1
                   
-      
       total_ct += len(new_mappings) # count number of matches 
       
       mappings = copy.deepcopy(new_mappings)
@@ -305,7 +320,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
           if label['classId'] not in mappings:
               # missed detection
               m_t += 1
-      
+
 #             total_gt += len(labels['annotations'])
       
       total_missed += m_t
@@ -324,7 +339,8 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
     # calculate MOTA 
     MOTA = 1. - (total_missed*1.) / total_gt    
   except:      
-    pass
+    MOTA=-float('inf')
+    MOTP=0.
 #             print "error calculating MOTA"
 # #           print "MOTP: ", MOTP, "MOTA: ", MOTA
 #             print "total dist: ", total_dist, "\ntotal num of objects per frame:", total_gt
@@ -335,48 +351,13 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
           
           
 if __name__ == '__main__':
-  
-  # clear_mot_results = "/home/yl/bus_ws/src/AB3DMOT/json_results/clear_mot.json"
-  
-  # 20 hz pixor outputs:
-  # pixor_json_path = "/home/yl/bus_ws/src/AB3DMOT/data/JIC/linn_jicetran_2019-08-27-22-47-10_set1/high_hz_pixor_outputs.json"
-  # ibeo_json_path="/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1/ecu_obj_list/ecu_obj_list.json"
-  
-  # # 20 hz tracker outputs:
-  # tracker_json_path = "/home/yl/bus_ws/src/AB3DMOT/data/JIC/test_cases/mock_ab_results.json"
-  
-  # # 2 hz labels:
-  # labels_json_path = "/home/yl/bus_ws/src/AB3DMOT/data/JIC/test_cases/mock_labels.json"
-  
+  #labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json"
+  labels_json_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/labels/set1_annotations.json"
 
-  # 20 hz pixor outputs:
-  # pixor_json_path = "/home/yl/bus_ws/src/AB3DMOT/data/JIC/linn_jicetran_2019-08-27-22-47-10_set1/high_hz_pixor_outputs.json"
-  # ibeo_json_path="/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1/ecu_obj_list/ecu_obj_list.json"
-
-  # 20 hz tracker outputs:
-#   tracker_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_2/tracker_age3_hits2_thresh_05.json"
-  # 2 hz labels:
-#   labels_json_path = "/media/yl/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_low/set_2/set2_annotations.json"
-  labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json"
-
-  
   distance_metric = "IOU" # using IOU as distance metric
   thres_d = 100. # threshold distance to count as a correspondance, beyond it will be considered as missed detection
-  
-  # distance_metric = "area_overlapped" # using area of overlap as distance metric
-  # distance_metric = "l2" # using euclidean distance between centroids?
-  
-  # thres_d = 0 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
-  # thres_d = 0.5 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
-  # thres_d = 0.75 # threshold distance to count as a correspondance, beyond it will be considered as missed detection
-
-
-
-  for i in range(0,1):
-    tracker_params = "age3_hits2_thresh_0.1"
-#     tracker_json_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/tracker_px_stats_" + tracker_params + str(10*i)+ ".json"
-    tracker_json_path = "/media/yl/downloads/tracker_results/set_8/CA_state_10max_age=3,min_hits=6,hung_thresh=0.25_Qqv_1e-05.json"
-
-    MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
-#     print i, MOTA, MOTP, total_mmet
-    print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt
+  #tracker_json_path = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_statemax_age=8,min_hits=6,hung_thresh=0.25_Qqv_0.01953125.json"
+  #tracker_json_path = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
+  tracker_json_path = "./results/person.json"
+  MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
+  print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt
