@@ -352,12 +352,12 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
           
 if __name__ == '__main__':
   #labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json"
-  labels_json_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/labels/set1_annotations.json"
+  labels_json_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/labels/set1_annotations.json"
 
   distance_metric = "IOU" # using IOU as distance metric
-  thres_d = 100. # threshold distance to count as a correspondance, beyond it will be considered as missed detection
+  thres_d = 100. # 100 threshold distance to count as a correspondance, beyond it will be considered as missed detection
   #tracker_json_path = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_statemax_age=8,min_hits=6,hung_thresh=0.25_Qqv_0.01953125.json"
   #tracker_json_path = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
-  tracker_json_path = "./results/person.json"
+  tracker_json_path = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_29_01_2020.json"
   MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
   print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt

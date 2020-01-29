@@ -126,9 +126,15 @@ if __name__ == '__main__':
 #     pixor_json = "/home/yl/master_arc/src/AB3DMOT/data/pixor_outputs.json"
 #     labels_json = "/home/yl/master_arc/src/AB3DMOT/data/Set_7_annotations.json"
 
-    pixor_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/pixor_outputs_tf_epoch_36_valloss_0.0037.json"
-    labels_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json'
-    pixor_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/pixor_outputs_tf_epoch_3_valloss_0.0093.json"
+    # pixor_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/pixor_outputs_tf_epoch_36_valloss_0.0037.json"
+    # labels_json = '/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json'
+    # pixor_json = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_8/pixor_outputs_tf_epoch_3_valloss_0.0093.json"
+
+
+    mainJson_loc = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/'
+    pixor_json = mainJson_loc + '/pixor_outputs_pixorpp_kitti_nuscene.json'
+    #pixor_json = mainJson_loc + 'pixor_outputs_tf_epoch_49_valloss_0.0091.json'
+    labels_json = mainJson_loc + '/labels/set1_annotations.json'
     is_write = True
     pixor_stats_json =  pixor_json[0:len(pixor_json)-5]+"_stats.json"
     

@@ -172,14 +172,19 @@ def p_grid_search():
                     
                     q_params = "_xy" + str(q_xy) + "_ori" + str(q_heading) + "_wx" + str(q_wx) + "_ly" + str(q_ly) + "_v" +  str(q_v)
                     
-                    tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/tracker_px_stats_" + tracker_params +"_Q"+ q_params + ".json"
+                    #tracker_json_outfile = "/media/yl/downloads/tracker_results/set_7/tracker_results_agexx_hitsxx_thresh_xx/tracker_px_stats_" + tracker_params +"_Q"+ q_params + ".json"
+                    tracker_json_outfile = "./results/yltracker.json"
                     print tracker_params, q_params, tracker_json_outfile
                     get_tracker_json(pixor_json_name=pixor_json_name, tracker_json_outfile=tracker_json_outfile, fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=ha_thresh, Q=Q)
   return True
 
 if __name__ == '__main__':  
   pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
+
+  #pixor_json_name = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/pixor_outputs_tf_epoch_23_valloss_0.0087.json"
   pixor_stats_json =  pixor_json_name[0:len(pixor_json_name)-5]+"_stats.json"
+  #fused_pose_json = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/fused_pose/fused_pose.json"
+
   fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
   
   is_tuning = False
@@ -224,8 +229,9 @@ if __name__ == '__main__':
       print ("unknown motion model")
       raise ValueError
     
-    tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/cyra_state_10" + tracker_params +"_Q"+ q_params + ".json"
-    get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile, 
+    #tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/cyra_state_10" + tracker_params +"_Q"+ q_params + ".json"
+    tracker_json_outfile = "./results/yltracker.json"
+    get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json, tracker_json_outfile=tracker_json_outfile,
       fused_pose_json=fused_pose_json, max_age=max_age,min_hits=min_hits,hung_thresh=hung_thresh, Q=Q)
     print "Done"
       

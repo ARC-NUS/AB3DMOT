@@ -5,6 +5,7 @@ from sklearn.utils.linear_assignment_ import linear_assignment
 from filterpy.kalman import KalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
+from yl_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F, get_CYRA_F
 
 
 @jit
@@ -120,11 +121,9 @@ def roty(t):
 
 
 def convert_3dbox_to_8corner(bbox3d_input):
-    ''' Takes an object and a projection matrix (P) and projects the 3d
-        bounding box into the image plane.
+    ''' Returns the 8 corners in 3D space for x y z R l w h
         Returns:
-            corners_2d: (8,2) array in left image coord.
-            corners_3d: (8,3) array in in rect camera coord.
+            corners_3d: (8,3) array in space CRS as the input.
     '''
     # compute rotational matrix around yaw axis
     bbox3d = copy.copy(bbox3d_input)
@@ -150,66 +149,45 @@ def convert_3dbox_to_8corner(bbox3d_input):
     return np.transpose(corners_3d)
 
 
-class KalmanBoxTracker(object):
+class KalmanBoxTracker(object):  # CYRA TODO: change states
     """
     This class represents the internel state of individual tracked objects observed as bbox.
     """
     count = 0
 
-    def __init__(self, bbox3D, info):
+    def __init__(self, bbox3D, info, R, Q, P_0, delta_t):
         """
         Initialises a tracker using initial bounding box.
         """
         # define constant velocity model
-        self.kf = KalmanFilter(dim_x=10, dim_z=7)
-        self.kf.F = np.array([[1, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # state transition matrix
-                              [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
-                              [0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-                              [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                              [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                              [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-                              [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                              [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-                              [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                              [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]])
+        self.kf = KalmanFilter(dim_x=STATE_SIZE, dim_z=MEAS_SIZE)
+        if MOTION_MODEL == "CV":
+            self.kf.F = get_CV_F(delta_t)
+        elif MOTION_MODEL == "CA":
+            self.kf.F = get_CA_F(delta_t)
+        elif MOTION_MODEL == "CYRA":
+            self.kf.F = get_CYRA_F(delta_t)
+        else:
+            print("unknown motion model", MOTION_MODEL)
+            raise ValueError
 
-        self.kf.H = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # measurement function,
-                              [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                              [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-                              [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                              [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                              [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-                              [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]])
+        # x y z theta l w h
+        self.kf.H = np.zeros((MEAS_SIZE, STATE_SIZE))
+        for i in range(min(MEAS_SIZE, STATE_SIZE)):
+            self.kf.H[i, i] = 1.
 
-        # with angular velocity
-        # self.kf = KalmanFilter(dim_x=11, dim_z=7)
-        # self.kf.F = np.array([[1,0,0,0,0,0,0,1,0,0,0],      # state transition matrix
-        #                       [0,1,0,0,0,0,0,0,1,0,0],
-        #                       [0,0,1,0,0,0,0,0,0,1,0],
-        #                       [0,0,0,1,0,0,0,0,0,0,1],
-        #                       [0,0,0,0,1,0,0,0,0,0,0],
-        #                       [0,0,0,0,0,1,0,0,0,0,0],
-        #                       [0,0,0,0,0,0,1,0,0,0,0],
-        #                       [0,0,0,0,0,0,0,1,0,0,0],
-        #                       [0,0,0,0,0,0,0,0,1,0,0],
-        #                       [0,0,0,0,0,0,0,0,0,1,0],
-        #                       [0,0,0,0,0,0,0,0,0,0,1]])
+        self.kf.R[0:, 0:] = R  # measurement uncertainty
 
-        # self.kf.H = np.array([[1,0,0,0,0,0,0,0,0,0,0],      # measurement function,
-        #                       [0,1,0,0,0,0,0,0,0,0,0],
-        #                       [0,0,1,0,0,0,0,0,0,0,0],
-        #                       [0,0,0,1,0,0,0,0,0,0,0],
-        #                       [0,0,0,0,1,0,0,0,0,0,0],
-        #                       [0,0,0,0,0,1,0,0,0,0,0],
-        #                       [0,0,0,0,0,0,1,0,0,0,0]])
+        # initialisation cov
+        #     self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+        #     self.kf.P *= 10.
 
-        # self.kf.R[0:,0:] *= 10.   # measurement uncertainty
-        self.kf.P[7:,
-        7:] *= 1000.  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-        self.kf.P *= 10.
+        # innov cov from pixor stats
+        self.kf.P = P_0
 
-        # self.kf.Q[-1,-1] *= 0.01    # process uncertainty
-        self.kf.Q[7:, 7:] *= 0.01
+        # self.kf.Q[-1,-1] *= 0.01
+        #     self.kf.Q[7:,7:] *= 0.01 # process uncertainty
+        self.kf.Q = Q
         self.kf.x[:7] = bbox3D.reshape((7, 1))
 
         self.time_since_update = 0
@@ -227,6 +205,7 @@ class KalmanBoxTracker(object):
         """
         Updates the state vector with observed bbox.
         """
+
         self.time_since_update = 0
         self.history = []
         self.hits += 1
@@ -269,6 +248,7 @@ class KalmanBoxTracker(object):
         """
         Advances the state vector and returns the predicted bounding box estimate.
         """
+
         self.kf.predict()
         if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2
         if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
@@ -288,6 +268,53 @@ class KalmanBoxTracker(object):
         return self.kf.x[:7].reshape((7,))
 
 
+# FIXME change from 3d to 2d IOU checker, check if correct or not
+def iou2d(corners1, corners2):
+    ''' Compute 3D bounding box IoU.
+
+    Input:
+        corners1: numpy array (4,2), assume up direction is negative Y
+        corners2: numpy array (4,2), assume up direction is negative Y
+    Output:
+        iou_2d: bird's eye view 2D bounding box IoU
+    '''
+    # corner points are in counter clockwise order
+    rect1 = [(corners1[i, 0], corners1[i, 2]) for i in range(3, -1, -1)]
+    rect2 = [(corners2[i, 0], corners2[i, 2]) for i in range(3, -1, -1)]
+    area1 = poly_area(np.array(rect1)[:, 0], np.array(rect1)[:, 1])
+    area2 = poly_area(np.array(rect2)[:, 0], np.array(rect2)[:, 1])
+    inter, inter_area = convex_hull_intersection(rect1, rect2)
+    iou_2d = inter_area / (area1 + area2 - inter_area)
+    # ymax = min(corners1[0,1], corners2[0,1])
+    # ymin = max(corners1[4,1], corners2[4,1])
+    # inter_vol = inter_area * max(0.0, ymax-ymin)
+    # vol1 = box3d_vol(corners1)
+    # vol2 = box3d_vol(corners2)
+    # iou = inter_vol / (vol1 + vol2 - inter_vol)
+    return iou_2d
+
+
+# tracking in BEV
+def associate_detections_to_trackers_BEV(detections, trackers, iou_threshold=0.1):
+    """
+    Assigns detections to tracked object (both represented as bounding boxes)
+
+    detections:  N x 4 x 2
+    trackers:    M x 4 x 2
+
+    Returns 3 lists of matches, unmatched_detections and unmatched_trackers
+    """
+
+    if (len(trackers) == 0):
+        return np.empty((0, 2), dtype=int), np.arange(len(detections)), np.empty((0, 4, 2), dtype=int)
+    iou_matrix = np.zeros((len(detections), len(trackers)), dtype=np.float32)
+
+    for d, det in enumerate(detections):
+        for t, trk in enumerate(trackers):
+            iou_matrix[d, t] = iou2d(det, trk)[0]  # TODO det: 4 x 2, trk: 4 x 2
+    matched_indices = linear_assignment(-iou_matrix)  # hungarian algorithm
+
+
 def associate_detections_to_trackers(detections, trackers, iou_threshold=0.1):
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.25):
@@ -305,8 +332,9 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.1):
 
     for d, det in enumerate(detections):
         for t, trk in enumerate(trackers):
-            iou_matrix[d, t] = iou3d(det, trk)[0]  # det: 8 x 3, trk: 8 x 3
-    matched_indices = linear_assignment(-iou_matrix)  # hougarian algorithm
+            #       iou_matrix[d,t] = iou3d(det,trk)[0]             # det: 8 x 3, trk: 8 x 3
+            iou_matrix[d, t] = iou2d(det, trk)  # det: 8 x 3, trk: 8 x 3
+    matched_indices = linear_assignment(-iou_matrix)  # hugarian algorithm
 
     unmatched_detections = []
     for d, det in enumerate(detections):
@@ -334,8 +362,9 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.1):
 
 
 class AB3DMOT(object):
-    def __init__(self, max_age=2,
-                 min_hits=3):  # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
+    def __init__(self, max_age=2, min_hits=3, hung_thresh=0.1, is_jic=False,
+                 R=np.identity(7), Q=np.identity(10), P_0=np.identity(10),
+                 delta_t=0.05):  # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
         # def __init__(self,max_age=3,min_hits=3):        # ablation study
         # def __init__(self,max_age=1,min_hits=3):
         # def __init__(self,max_age=2,min_hits=1):
@@ -348,6 +377,13 @@ class AB3DMOT(object):
         self.frame_count = 0
         self.reorder = [3, 4, 5, 6, 2, 1, 0]
         self.reorder_back = [6, 5, 4, 0, 1, 2, 3]
+        self.is_jic = is_jic
+        self.hungarian_thresh = hung_thresh
+
+        self.R = R
+        self.Q = Q
+        self.P_0 = P_0
+        self.delta_t = delta_t  # FIXME make it variable for fusion/ live usage
 
     def update(self, dets_all):
         """
@@ -361,21 +397,26 @@ class AB3DMOT(object):
         NOTE: The number of objects returned may differ from the number of detections provided.
         """
         dets, info = dets_all['dets'], dets_all['info']  # dets: N x 7, float numpy array
-        dets = dets[:, self.reorder]
+
+        if not self.is_jic:
+            dets = dets[:,
+                   self.reorder]  # in the /data files the order is: h w l x y z R (which needs to be reordered to be x y z theta l w h
         self.frame_count += 1
 
-        trks = np.zeros((len(self.trackers), 7))  # N x 7 , #get predicted locations from existing trackers.
+        # get predicted locations from existing trackers.
+        trks = np.zeros((len(self.trackers), 7))  # N x 7 ,
         to_del = []
         ret = []
-        for t, trk in enumerate(trks):
-            pos = self.trackers[t].predict().reshape((-1, 1))
-            trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]]
+        for t, trk in enumerate(trks):  # t=index trk=0
+            pos = self.trackers[t].predict().reshape((-1, 1))  # predicted state of t-th tracked item
+            trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]]  # predicted state of t-th tracked item
             if (np.any(np.isnan(pos))):
                 to_del.append(t)
-        trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
-        for t in reversed(to_del):
+        trks = np.ma.compress_rows(np.ma.masked_invalid(trks))  # ????
+        for t in reversed(to_del):  # delete tracked item if cannot predict state?! #FIXME
             self.trackers.pop(t)
 
+        # does NOT project anything, just gives corners in 3D space
         dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets]
         if len(dets_8corner) > 0:
             dets_8corner = np.stack(dets_8corner, axis=0)
@@ -383,7 +424,11 @@ class AB3DMOT(object):
             dets_8corner = []
         trks_8corner = [convert_3dbox_to_8corner(trk_tmp) for trk_tmp in trks]
         if len(trks_8corner) > 0: trks_8corner = np.stack(trks_8corner, axis=0)
-        matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner)
+
+        # data association(?)
+        #     matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers_BEV(dets, trks)
+        matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner,
+                                                                                   self.hungarian_thresh)
 
         # update matched trackers with assigned detections
         for t, trk in enumerate(self.trackers):
@@ -393,13 +438,14 @@ class AB3DMOT(object):
 
         # create and initialise new trackers for unmatched detections
         for i in unmatched_dets:  # a scalar of index
-            trk = KalmanBoxTracker(dets[i, :], info[i, :])
+            trk = KalmanBoxTracker(dets[i, :], info[i, :], self.R, self.Q, self.P_0, self.delta_t)
             self.trackers.append(trk)
         i = len(self.trackers)
         for trk in reversed(self.trackers):
             d = trk.get_state()  # bbox location
             d = d[self.reorder_back]
 
+            # choose which tracks to return
             if ((trk.time_since_update < self.max_age) and (
                     trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
                 ret.append(
@@ -415,14 +461,14 @@ class AB3DMOT(object):
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print("Usage: python main.py result_sha(e.g., car_3d_det_test)")
+        print("Usage: python main.py result_sha(e.g., 3d_det_test)")
         sys.exit(1)
 
     result_sha = sys.argv[1]
     save_root = './results'
 
     det_id2str = {1: 'Pedestrian', 2: 'Car', 3: 'Cyclist'}
-    seq_file_list, num_seq = load_list_from_folder(os.path.join('/home/wen/AB3DMOT/data/KITTI', result_sha))
+    seq_file_list, num_seq = load_list_from_folder(os.path.join('data/KITTI', result_sha))
     total_time = 0.0
     total_frames = 0
     save_dir = os.path.join(save_root, result_sha);

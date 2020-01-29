@@ -8,50 +8,16 @@ from filterpy.kalman import ExtendedKalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
 from pyquaternion import Quaternion
-from wen_utils import STATE_SIZE, MEAS_SIZE, MEAS_SIZE_Radar, MOTION_MODEL, get_CV_F
+from wen_utils import STATE_SIZE, MEAS_SIZE, MEAS_SIZE_Radar, MOTION_MODEL, get_CV_F, get_CA_F
 import json
 from datetime import datetime
+from main import AB3DMOT
 
 def unique_rows(a):
     a = np.ascontiguousarray(a)
     unique_a = np.unique(a.view([('', a.dtype)]*a.shape[1]))
     return unique_a.view(a.dtype).reshape((unique_a.shape[0], a.shape[1]))
 
-def HJacobian(x):  # 3 by 14 matrix
-
-    dist = np.sqrt(x[0][0] ** 2 + x[1][0] ** 2)
-    d = np.zeros((3, 14), dtype=float)
-
-    d[0][0] = x[0][0] / dist
-    d[0][1] = x[1][0] / dist
-
-    dist2 = dist ** 3
-
-    d[1][0] = (- x[1][0] * (x[1][0] * x[8][0] - x[0][0] * x[9][0])) / dist2
-    d[1][1] = (- x[0][0] * (x[0][0] * x[9][0] - x[1][0] * x[8][0])) / dist2
-
-    d[1][8] = x[0][0] / dist
-    d[1][9] = x[1][0] / dist
-
-    d[2][0] = - x[0][0] / (dist ** 2)
-    d[2][1] = x[1][0] / (dist ** 2)
-
-    return d  # range rangerate theta
-
-
-def hx(x):  # 3 by 1 matrix
-    d = []
-    temp = 2
-    range = np.sqrt(x[0][0] ** 2 + x[1][0] ** 2)
-    rangerate = (x[0][0] * x[8][0] + x[1][0] * x[9][0]) / range
-
-    if x[0][0] > 0:
-        temp = x[1][0] / x[0][0]
-
-    theta = np.arctan(temp)
-    # d = np.arange(3).reshape((dim_z, 1))
-    d = np.array([range, rangerate, theta]).reshape((3, 1))
-    return d
 
 @jit  # let Numba decide when and how to optimize:
 def poly_area(x, y):
@@ -73,6 +39,7 @@ def convex_hull_intersection(p1, p2):
         return a list of (x,y) for the intersection and its volume
     """
     inter_p = polygon_clip(p1, p2)
+
     if inter_p is not None:
         hull_inter = ConvexHull(inter_p)
         return inter_p, hull_inter.volume
@@ -98,8 +65,10 @@ def polygon_clip(subjectPolygon, clipPolygon):
         dp = [s[0] - e[0], s[1] - e[1]]
         n1 = cp1[0] * cp2[1] - cp1[1] * cp2[0]
         n2 = s[0] * e[1] - s[1] * e[0]
+        # if dc[0] * dp[1] - dc[1] * dp[0] == 0:
+        #     return 0
         n3 = 1.0 / (dc[0] * dp[1] - dc[1] * dp[0])
-        #print('%d' % n3)
+        #print('n3 values is : %d' % n3)
         return [(n1 * dp[0] - n2 * dc[0]) * n3, (n1 * dp[1] - n2 * dc[1]) * n3]
 
     outputList = subjectPolygon
@@ -141,6 +110,9 @@ def iou3d(corners1, corners2):
     rect2 = [(corners2[i, 0], corners2[i, 2]) for i in range(3, -1, -1)]
     area1 = poly_area(np.array(rect1)[:, 0], np.array(rect1)[:, 1])
     area2 = poly_area(np.array(rect2)[:, 0], np.array(rect2)[:, 1])
+    #
+    if (area1 == area2 and rect1 == rect2):
+        print('ooo')
     inter, inter_area = convex_hull_intersection(rect1, rect2)
     iou_2d = inter_area / (area1 + area2 - inter_area)
     ymax = min(corners1[0, 1], corners2[0, 1])
@@ -204,13 +176,15 @@ class KalmanBoxTracker(object):
         """
         # define constant velocity model
         self.kf = KalmanFilter(dim_x=STATE_SIZE, dim_z=MEAS_SIZE)
-        self.kfr = ExtendedKalmanFilter(dim_x=STATE_SIZE, dim_z=MEAS_SIZE_Radar)
+        #self.kfr = ExtendedKalmanFilter(dim_x=STATE_SIZE, dim_z=MEAS_SIZE_Radar)
 
         if MOTION_MODEL == "CV":
             #self.kf.F = get_CV_F(delta_t)
             self.kf.F = get_CV_F(0.05)
-        else:
-            print("unknown motion model", MOTION_MODEL)
+        # if MOTION_MODEL == "CA":
+        #     self.kf.F = get_CA_F(0.05)
+        # else:
+        #     print("unknown motion model", MOTION_MODEL)
 
         """
         Initilise for diff sensors 
@@ -229,10 +203,10 @@ class KalmanBoxTracker(object):
         self.kf.Q[7:, 7:] *= 0.01   # process uncertainty
         self.kf.x[:7] = bbox3D.reshape((7, 1))
 
-        self.kfr.H = np.zeros((MEAS_SIZE_Radar, STATE_SIZE))
-
-        for i in range(min(MEAS_SIZE_Radar, STATE_SIZE)):
-          self.kfr.H[i, i] = 1.
+        # self.kfr.H = np.zeros((MEAS_SIZE_Radar, STATE_SIZE))
+        #
+        # for i in range(min(MEAS_SIZE_Radar, STATE_SIZE)):
+        #   self.kfr.H[i, i] = 1.
 
         #self.kfr.x[:7] = bbox3D.reshape((7, 1))
 
@@ -317,25 +291,25 @@ class KalmanBoxTracker(object):
         """
         return self.kf.x[:7].reshape((7,))
 
-    def updateRadar(self, z):
-        #rk.update(z, HJacobian, hx)
-        #z = np.array([35.041, 0.1, 1]) # range, range rate, angle centroid THESE VALUES MUST BE UPDATED WITH THE READING ONES!!
-
-        z = z.reshape(3, 1)
-        self.kfr.x = self.kf.x
-        HJ = HJacobian(self.kfr.x)
-        #HJ = HJ.reshape(3,14)
-
-        hxr = hx(self.kfr.x)
-        hxr = hxr.reshape(3,1)
-        
-        self.kfr.update(z, HJacobian, hx)
-        self.kfr.predict
-        #print(self.kfr.x)
-
-        # self.kfr.xs.append(rk.x)
-
-        return self.kfr.x
+    # def updateRadar(self, z):
+    #     #rk.update(z, HJacobian, hx)
+    #     #z = np.array([35.041, 0.1, 1]) # range, range rate, angle centroid THESE VALUES MUST BE UPDATED WITH THE READING ONES!!
+    #
+    #     z = z.reshape(3, 1)
+    #     self.kfr.x = self.kf.x
+    #     HJ = HJacobian(self.kfr.x)
+    #     #HJ = HJ.reshape(3,14)
+    #
+    #     hxr = hx(self.kfr.x)
+    #     hxr = hxr.reshape(3,1)
+    #
+    #     self.kfr.update(z, HJacobian, hx)
+    #     self.kfr.predict
+    #     #print(self.kfr.x)
+    #
+    #     # self.kfr.xs.append(rk.x)
+    #
+    #     return self.kfr.x
 
 def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):      #self.hungarian_thresh
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
@@ -346,7 +320,6 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01): 
     trackers:    M x 8 x 3
     Returns 3 lists of matches, unmatched_detections and unmatched_trackers
     """
-
     if (len(trackers) == 0):
         return np.empty((0, 2), dtype=int), np.arange(len(detections)), np.empty((0, 8, 3), dtype=int)
     iou_matrix = np.zeros((len(detections), len(trackers)), dtype=np.float32)
@@ -378,139 +351,139 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01): 
     else:
         matches = np.concatenate(matches, axis=0)
 
-
     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
 
-class AB3DMOT(object):
-   def __init__(self,max_age=2, min_hits=2, is_jic=False,
-               R = np.identity(14), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
-  # def __init__(self,max_age=3,min_hits=3):        # ablation study
-  # def __init__(self,max_age=1,min_hits=3):
-  # def __init__(self,max_age=2,min_hits=1):
-  # def __init__(self,max_age=2,min_hits=5):
-    """
-    """
-    self.max_age = max_age
-    self.min_hits = min_hits
-    self.trackers = []
-    self.frame_count = 0
-    self.reorder = [3, 4, 5, 6, 2, 1, 0]
-    self.reorder_back = [6, 5, 4, 0, 1, 2, 3]
-    self.is_jic = is_jic
-    self.hungarian_thresh = 0.1 # hung_thresh
-
-    self.R = R
-    self.Q = 0 #Q
-    self.P_0 = P_0
-    self.delta_t = delta_t #TODO Use for fusion
-
-   def update(self, dets_all):
-        """
-        Params:
-          dets_all: dict
-            dets - a numpy array of detections in the format [[x,y,z,theta,l,w,h],[x,y,z,theta,l,w,h],...]
-            info: a array of other info for each det
-        Requires: this method must be called once for each frame even with empty detections.
-        Returns the a similar array, where the last column is the object ID.
-        NOTE: The number of objects returned may differ from the number of detections provided.
-        """
-        dets_lidar, dets_radar,  info, seq_dets_pose, dets_cam = dets_all['dets_lidar'], dets_all ['dets_radar'], dets_all['info'], dets_all ['seq_dets_pose'], dets_all['dets_cam']  # dets: N x 7, float numpy array
-        dets = dets_lidar[:, self.reorder]
-
-        self.frame_count += 1
-        trks = np.zeros((len(self.trackers), 7))  # N x 7 , #get predicted locations from existing trackers.
-        trkR = np.zeros((len(dets_radar), 7))  # N x 7 , #get predicted locations from existing trackers.
-        bestTrack= np.zeros((1,7))
-        to_del = []
-        ret = []
-
-        # for i in range(len(dets_cam)):
-        #     test_x = dets_cam[i][1]
-        #     min = 0.1
-        #     for j in range(len(dets_radar)):
-        #         test_radar = dets_radar[j][2]
-        #         diff = test_radar-test_x
-        #         if(abs(diff)< min):
-        #             min = diff
-        #             bestTrack_Radar = j
-        #     print ('radar similar point: %s' %(j))
-
-
-        # #TODO to create and initialise new trackers for new radar detections
-        #
-        # for i in range(len(self.trackers)):
-        #     #diffx = self.trackers[i].kf.x[5] - seq_dets_pose[self.frame_count][2]
-        #     #diffy = self.trackers[i].kf.x[6] - seq_dets_pose[self.frame_count][3]
-        #     track_theta = self.trackers[i].kf.x[0]
-        #     min = 0.1
-        #     for j in range(len(dets_radar)):
-        #         dets_r = dets_radar[j]
-        #         theta_ref = dets_radar[j][2]
-        #         diff_theta = abs(theta_ref-track_theta)
-        #         if (diff_theta < min and diff_theta > 0  ):
-        #             min = diff_theta
-        #             pos2 =self.trackers[i].updateRadar(dets_r)
-        #             #print(pos2[0][0])
-        #             bestTrack[0] = np.array([pos2[0][0], pos2[1][0], pos2[2][0], pos2[3][0], pos2[4][0], pos2[5][0], pos2[6][0]])
-
-            #dets = np.concatenate(dets,bestTrack)
-
-
-        for t, trk in enumerate(trks):
-            #self.trackers
-            pos = self.trackers[t].predict().reshape((-1, 1))
-            trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]]
-
-
-            if (np.any(np.isnan(pos))):
-                to_del.append(t)
-
-        trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
-        for t in reversed(to_del):
-            self.trackers.pop(t)
-
-        dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets]
-        if len(dets_8corner) > 0:
-            dets_8corner = np.stack(dets_8corner, axis=0)
-        else:
-            dets_8corner = []
-        trks_8corner = [convert_3dbox_to_8corner(trk_tmp) for trk_tmp in trks]
-        if len(trks_8corner) > 0: trks_8corner = np.stack(trks_8corner, axis=0)
-        matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner)
-
-        # update matched trackers with assigned detections
-        for t, trk in enumerate(self.trackers):
-            if t not in unmatched_trks:
-                d = matched[np.where(matched[:, 1] == t)[0], 0]  # a list of index
-                trk.update(dets[d, :][0], info[d, :][0])             #UPDATE Values for lidar!!
-
-        # create and initialise new trackers for unmatched detections
-        for i in unmatched_dets:  # a scalar of index
-            #trk = KalmanBoxTracker(dets[i, :], info[i, :])
-            trk = KalmanBoxTracker(dets[i, :], info[i, :])
-            self.trackers.append(trk)
-
-        i = len(self.trackers)
-        for trk in reversed(self.trackers):
-            d = trk.get_state()  # bbox location
-            d = d[self.reorder_back]
-
-            # print('trk.time_since_update = %d   max_age = %d' % (trk.time_since_update, self.max_age))
-            # print('trk.hits = %d   self.min_hits = %d' % (trk.hits, self.min_hits))
-            if ((trk.time_since_update < self.max_age) and (
-                    trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
-                ret.append(
-                    np.concatenate((d, [trk.id + 1], trk.info)).reshape(1, -1))  # +1 as MOT benchmark requires positive
-            i -= 1
-            # remove dead tracklet
-            if (trk.time_since_update >= self.max_age):
-                self.trackers.pop(i)
-                # print('pop')
-
-        if (len(ret) > 0):
-            return np.concatenate(ret)  # x, y, z, theta, l, w, h, ID, other info, confidence
-        return np.empty((0, 15))
+# class AB3DMOT(object):
+#    def __init__(self,max_age=2, min_hits=5, is_jic=True, hung_thresh=0.05,
+#                R = np.identity(14), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
+#   # def __init__(self,max_age=3,min_hits=3):        # ablation study
+#   # def __init__(self,max_age=1,min_hits=3):
+#   # def __init__(self,max_age=2,min_hits=1):
+#   # def __init__(self,max_age=2,min_hits=5):
+#     """
+#     """
+#     self.max_age = max_age
+#     self.min_hits = min_hits
+#     self.trackers = []
+#     self.frame_count = 0
+#     self.reorder = [3, 4, 5, 6, 2, 1, 0]
+#     self.reorder_back = [6, 5, 4, 0, 1, 2, 3]
+#     self.is_jic = is_jic
+#     self.hungarian_thresh = 0.1 # 0.25 # hung_thresh
+#
+#     self.R = R
+#     self.Q = 0 #Q
+#     self.P_0 = P_0
+#     self.delta_t = delta_t #TODO Use for fusion
+#
+#    def update(self, dets_all):
+#         """
+#         Params:
+#           dets_all: dict
+#             dets - a numpy array of detections in the format [[x,y,z,theta,l,w,h],[x,y,z,theta,l,w,h],...]
+#             info: a array of other info for each det
+#         Requires: this method must be called once for each frame even with empty detections.
+#         Returns the a similar array, where the last column is the object ID.
+#         NOTE: The number of objects returned may differ from the number of detections provided.
+#         """
+#         #dets_lidar, dets_radar,  info, seq_dets_pose, dets_cam = dets_all['dets_lidar'], dets_all ['dets_radar'], dets_all['info'], dets_all ['seq_dets_pose'], dets_all['dets_cam']  # dets: N x 7, float numpy array
+#         dets_lidar, info,  = dets_all['dets_lidar'], dets_all['info']  # dets: N x 7, float numpy array
+#
+#
+#         dets = dets_lidar[:, self.reorder]
+#
+#         self.frame_count += 1
+#         trks = np.zeros((len(self.trackers), 7))  # N x 7 , #get predicted locations from existing trackers.
+#         #trkR = np.zeros((len(dets_radar), 7))  # N x 7 , #get predicted locations from existing trackers.
+#         #bestTrack= np.zeros((1,7))
+#         to_del = []
+#         ret = []
+#
+#         # for i in range(len(dets_cam)):
+#         #     test_x = dets_cam[i][1]
+#         #     min = 0.1
+#         #     for j in range(len(dets_radar)):
+#         #         test_radar = dets_radar[j][2]
+#         #         diff = test_radar-test_x
+#         #         if(abs(diff)< min):
+#         #             min = diff
+#         #             bestTrack_Radar = j
+#         #     print ('radar similar point: %s' %(j))
+#
+#
+#         # #TODO to create and initialise new trackers for new radar detections
+#         #
+#         # for i in range(len(self.trackers)):
+#         #     #diffx = self.trackers[i].kf.x[5] - seq_dets_pose[self.frame_count][2]
+#         #     #diffy = self.trackers[i].kf.x[6] - seq_dets_pose[self.frame_count][3]
+#         #     track_theta = self.trackers[i].kf.x[0]
+#         #     min = 0.1
+#         #     for j in range(len(dets_radar)):
+#         #         dets_r = dets_radar[j]
+#         #         theta_ref = dets_radar[j][2]
+#         #         diff_theta = abs(theta_ref-track_theta)
+#         #         if (diff_theta < min and diff_theta > 0  ):
+#         #             min = diff_theta
+#         #             pos2 =self.trackers[i].updateRadar(dets_r)
+#         #             #print(pos2[0][0])
+#         #             bestTrack[0] = np.array([pos2[0][0], pos2[1][0], pos2[2][0], pos2[3][0], pos2[4][0], pos2[5][0], pos2[6][0]])
+#
+#             #dets = np.concatenate(dets,bestTrack)
+#
+#
+#         for t, trk in enumerate(trks):
+#             #self.trackers
+#             pos = self.trackers[t].predict().reshape((-1, 1))
+#             trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]]
+#
+#             if (np.any(np.isnan(pos))):
+#                 to_del.append(t)
+#
+#         trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
+#         for t in reversed(to_del):
+#             self.trackers.pop(t)
+#
+#         dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets]
+#         if len(dets_8corner) > 0:
+#             dets_8corner = np.stack(dets_8corner, axis=0)
+#         else:
+#             dets_8corner = []
+#         trks_8corner = [convert_3dbox_to_8corner(trk_tmp) for trk_tmp in trks]
+#         if len(trks_8corner) > 0: trks_8corner = np.stack(trks_8corner, axis=0)
+#         matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner)
+#
+#         # update matched trackers with assigned detections
+#         for t, trk in enumerate(self.trackers):
+#             if t not in unmatched_trks:
+#                 d = matched[np.where(matched[:, 1] == t)[0], 0]  # a list of index
+#                 trk.update(dets[d, :][0], info[d, :][0])             #UPDATE Values for lidar!!
+#
+#         # create and initialise new trackers for unmatched detections
+#         for i in unmatched_dets:  # a scalar of index
+#             trk = KalmanBoxTracker(dets[i, :], info[i, :])
+#             self.trackers.append(trk)
+#
+#         i = len(self.trackers)
+#         for trk in reversed(self.trackers):
+#             d = trk.get_state()  # bbox location
+#             d = d[self.reorder_back]
+#
+#             # print('trk.time_since_update = %d   max_age = %d' % (trk.time_since_update, self.max_age))
+#             # print('trk.hits = %d   self.min_hits = %d' % (trk.hits, self.min_hits))
+#             if ((trk.time_since_update < self.max_age) and (
+#                     trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
+#                 ret.append(
+#                     np.concatenate((d, [trk.id + 1], trk.info)).reshape(1, -1))  # +1 as MOT benchmark requires positive
+#             i -= 1
+#             # remove dead tracklet
+#             if (trk.time_since_update >= self.max_age):
+#                 self.trackers.pop(i)
+#                 # print('pop')
+#
+#         if (len(ret) > 0):
+#             return np.concatenate(ret)  # x, y, z, theta, l, w, h, ID, other info, confidence
+#         return np.empty((0, 15))
 
 
 if __name__ == '__main__':
@@ -521,7 +494,7 @@ if __name__ == '__main__':
     #     print("Usage: python main.py result_sha(e.g., car_3d_det_test)")
     #     #sys.exit(1)
 
-    det_id2str = {1: 'Pedestrian', 2: 'Car', 3: 'Cyclist'}
+    det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle' , 5: 'Truck'}
     result_sha_2 = "JI_Cetran_Set1"
     save_root = './results'
     total_time = 0.0
@@ -535,7 +508,7 @@ if __name__ == '__main__':
 
     # #################################
     # # Take in bag value names
-    mainJson_loc = '../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/'
+    mainJson_loc = '../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/'
 
     #Read the set1 radar points
     pathJson = mainJson_loc + '/radar_obstacles/radar_obstacles.json'
@@ -544,7 +517,8 @@ if __name__ == '__main__':
         dataR = dataR.get('radar')
 
     #Read the set1 lidar points
-    pathJson = mainJson_loc + '/pixor_outputs_tf_epoch_12_valloss_0.0152.json' #/pixor_outputs.json'
+    #pathJson = mainJson_loc + '/pixor_outputs_tf_epoch_42_valloss_0.0112.json' #/pixor_outputs.json'
+    pathJson = mainJson_loc + '/pixor_outputs_pixorpp_kitti_nuscene.json'
     with open(pathJson, "r") as json_file:
         dataL = json.load(json_file)
 
@@ -556,22 +530,11 @@ if __name__ == '__main__':
 
     #Read the ego pose
     pathJson = mainJson_loc + '/fused_pose/fused_pose_new.json'
+    #pathJson = mainJson_loc + '/fused_pose/fused_pose.json'
     with open(pathJson, "r") as json_file:
         pose = json.load(json_file)
         dataPose = pose.get('ego_loc')
         numPose = len(dataPose)
-
-    #READ GROUND TRUTH LABELS
-    pathJson = mainJson_loc + '/labels/set1_annotations.json'
-    with open(pathJson, "r") as json_file:
-        dataLabels = json.load(json_file)
-        GT = 0
-        GT_indiv = np.zeros(len(dataLabels))
-
-    for i in range(len(dataLabels)):
-        det = dataLabels[i].get('annotations')
-        GT_indiv[i] = len(det)
-        GT += len(det)
 
     # example of detection for radar : frame , range, range_rate, theta , sensor_type =1
     seq_dets_radar = np.zeros([1, 5])
@@ -584,28 +547,41 @@ if __name__ == '__main__':
     seq_dets_cam = np.zeros([1, 4])
     seq_dets_pose =np.zeros([numPose, 5])
 
-    mot_tracker = AB3DMOT()
+    max_age=3
+    min_hits=2
+    hung_thresh=0.05
+    R = np.identity(7)
+    Q = np.identity(14)
+    P_0 = np.identity(14)
+
+    mot_tracker = AB3DMOT(is_jic=True, max_age=max_age, min_hits=min_hits, hung_thresh=hung_thresh, R=R, Q=Q, P_0=P_0)
 
     eval_file = os.path.join(eval_dir, 'Set_1_maxage %d minhits %d LRC.txt' %(mot_tracker.max_age, mot_tracker.min_hits));
     eval_file = open(eval_file, 'w')
 
+    #CAMERA INTRINSICS
     Camera_Matrix_GMSL_120 = np.array([[958.5928517660333, 0.0, 963.2848327985546], [0.0, 961.1122866843237, 644.5199995337151], [0.0, 0.0, 1.0]])  #
-    fx = Camera_Matrix_GMSL_120[0][0] / 1000 #focal length fx #TODO set the units!!
 
+    #TODO!!! What's the constnat
+    f = Camera_Matrix_GMSL_120[1][1] / 1000 #focal length fx #TODO set the units!!
 
 
     #PARSE INTO JSON
 
     total_list = []
-    tracker_json_outfile = "./results/person.json"
+
+    today = datetime.today()
+    d1 = today.strftime("%d_%m_%Y")
+
+    tracker_json_outfile = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_" + d1 + ".json"
+    seq_dets_total = []
+
     for frame_name in range(0, numPose): #numPose
         i = 0
         k = 0
         h = 0
-        #frame_name = frame_name+1
         det_radar = dataR[frame_name].get('front_esr_tracklist')
         det_cam = dataC[frame_name].get('objects')
-        #det_lidar = dataL[ "%05d" % frame_name + '.pcd']
         det_lidar =dataL[frame_name].get('objects')
         seq_dets_pose[frame_name][0] = frame_name
         seq_dets_pose[frame_name][1] = dataPose[frame_name].get('header').get('stamp')
@@ -618,7 +594,7 @@ if __name__ == '__main__':
         T1[0][3] = seq_dets_pose[frame_name][2]
         T1[1][3] = seq_dets_pose[frame_name][3]
 
-        print("Processing %04d." % frame_name, datetime.utcfromtimestamp(seq_dets_pose[frame_name][1]).strftime('%Y-%m-%d %H:%M:%S'))
+        print("Processing ", dataL[frame_name]['name'], datetime.utcfromtimestamp(seq_dets_pose[frame_name][1]).strftime('%Y-%m-%d %H:%M:%S'))
         dets_radar = np.zeros([len(det_radar), 5])
 
 
@@ -627,16 +603,14 @@ if __name__ == '__main__':
             dets_radar[i][0] = frame_name
             dets_radar[i][1] = det_radar[j].get('range')
             dets_radar[i][2] = det_radar[j].get('range_rate')  #TODO how to convert this to required frame??
-            dets_radar[i][3] = float(det_radar[j].get('angle_centroid')) * (np.pi / 180)
+            dets_radar[i][3] = np.deg2rad(float(det_radar[j].get('angle_centroid')))
             dets_radar[i][4] = 1  #sensor type: 1
 
             #FRONT ESR Radar
             Bus_radar = np.array([[8.69], [0], [1.171]])
-
             q4 = Quaternion(axis=[1, 0, 0], angle=0.00349066)
             q2 = Quaternion(axis=[0, 1, 0], angle=-0.00872665)
             q3 = Quaternion(axis=[0, 0, 1], angle=0)
-
             q_radar = q4* q2* q3
 
             #todo to transform the points into x and y
@@ -651,30 +625,40 @@ if __name__ == '__main__':
         dets_lidar = np.zeros([len(det_lidar), 9])
 
         #Load Lidar Detections
+
+        # ## coordinate system conventions
+        # width is in y - direction(x is forward of the bus)
+        # 35.2 m  front back, - / +20m sideways from baselink
+        #
+        # The heading is with respect to the baselink's x ' in rad.
+        #
+
+        pos_lidar = np.zeros([4,1])
         for j in range(len(det_lidar)):
             dets_lidar[k][0] = frame_name
-            dets_lidar[k][1] = (det_lidar[j].get('centroid'))[0]  # x values   #TODO use lidar quarternion to transform it :o
-            dets_lidar[k][2] = (det_lidar[j].get('centroid'))[1]  # y values
+            dets_lidar[k][1] = (det_lidar[j].get('centroid'))[0]  # x values in pixor , but y in world frame!!   #TODO use lidar quarternion to transform it :o
+            dets_lidar[k][2] = (det_lidar[j].get('centroid'))[1]  # y values in pixor , but x in world frame
             dets_lidar[k][3] = 1
             dets_lidar[k][4] = det_lidar[j].get('heading')
-            dets_lidar[k][5] = det_lidar[j].get('length')
-            dets_lidar[k][6] = det_lidar[j].get('width')
+            dets_lidar[k][5] = det_lidar[j].get('width') # width is in the y direction for Louis
+            dets_lidar[k][6] = det_lidar[j].get('length')
             dets_lidar[k][7] = 1
             dets_lidar[k][8] = 2  #sensor type: 2
 
-            q_lidar = Quaternion(axis=[0, 0, -1], angle=dets_lidar[k][4])
+            q_lidar = Quaternion(axis=[0, 0, 1], angle = 0 )
             T_lidar = q_lidar.transformation_matrix
             T_lidar[0][3] = dets_lidar[k][1]
             T_lidar[1][3] = dets_lidar[k][2]
-
-            T2 = np.matmul(T1, T_lidar)
-            q8d = Quaternion(matrix=T2)
-
-            dets_lidar[k][1] = T2[0][3]
-            dets_lidar[k][2] = T2[1][3]
-            dets_lidar[k][4] = q8d.radians
+            pos_lidar[0][0] = dets_lidar[k][1]
+            pos_lidar[1][0] = dets_lidar[k][2]
+            pos_lidar[2][0] = 0
+            pos_lidar[3][0] = 1
+            T2 = np.matmul(T1,pos_lidar)
+            dets_lidar[k][1] = T2[0][0]
+            dets_lidar[k][2] = T2[1][0]
 
             k += 1
+            pos_lidar = np.zeros([4,1])
 
         if frame_name ==1:
             seq_dets_lidar = dets_lidar
@@ -686,8 +670,8 @@ if __name__ == '__main__':
         # ## TODO : Camera part when i'm done w Radar & Lidar part
         for j in range(len(det_cam)):
             dets_cam[h][0] = frame_name
-            cam_x = det_cam[j].get('relative_coordinates').get('center_x') -0.5
-            theta = np.arctan(cam_x /fx)
+            cam_x = det_cam[j].get('relative_coordinates').get('center_x') - 0.5
+            theta = np.arctan(cam_x /f)
 
             if cam_x < 0.5:
                 theta = - theta
@@ -702,7 +686,6 @@ if __name__ == '__main__':
             type = det_cam[j].get('class_id')  #class_id = 2 is a car
             dets_cam[h][2] = type
             #TODO what's the class ids??
-            print('Camera detected: %s' %(type))
             h += 1
 
         if frame_name == 1:
@@ -710,36 +693,42 @@ if __name__ == '__main__':
         else:
             seq_dets_cam = np.concatenate((seq_dets_cam, dets_cam), axis=0)
 
-        seq_dets_camDar= []
+        seq_dets_camDar = []
         dets_camDar = np.zeros([1, 9])
+        additional_info_2 = np.zeros([1, 7])
         numCamDar = 0
 
         for w in range(len(dets_cam)):
             test_x = dets_cam[w][1]
-            min_err = 0.1
+            min_err = 0.2
             bestTrack_Radar = -1
             for q in range(len(dets_radar)):
-                test_radar = dets_radar[q][2]
+                test_radar = dets_radar[q][3]
                 diff = test_radar-test_x
-                if(abs(diff)< min_err):
+                if(abs(diff)< min_err and abs(diff) > 0.01):
                     min_err = diff
                     bestTrack_Radar = q
             if (dets_cam[w][2] == 2 ):
                 length = 4
                 width = 2
 
+            if (dets_cam[w][2] == 5 ):
+                length = 6
+                width = 3
+
             else:
-                length = 0.5
-                width = 0.5
+                length = 2
+                width = 1
+
             if (bestTrack_Radar < 0):
-                print ('radar similar point: %s' %(q))
+                #print ('radar similar point: %s' %(q))
                 k = numCamDar
-                print(k)
                 dets_camDar[k][0] = frame_name
-                dets_camDar[k][1] = dets_radar[q][0] * np.cos(dets_radar[q][2])  # x values   #TODO use lidar quarternion to transform it :o
-                dets_camDar[k][2] = dets_radar[q][0] * np.sin(dets_radar[q][2])  # y values
+                dets_camDar[k][1] = dets_radar[q][1]* np.cos(dets_radar[q][3])  #x values   #TODO use lidar quarternion to transform it :o
+                dets_camDar[k][2] = dets_radar[q][1]* np.sin(dets_radar[q][3]) # y values
+
                 dets_camDar[k][3] = 1
-                dets_camDar[k][4] = test_radar #heading
+                dets_camDar[k][4] = dets_radar[q][3]
                 dets_camDar[k][5] = length
                 dets_camDar[k][6] = width
                 dets_camDar[k][7] = 1   #HEIGHT
@@ -748,117 +737,87 @@ if __name__ == '__main__':
                 Bus_radar = np.array([[8.69], [0], [1.171]])
 
                 q6 = Quaternion(axis=[1, 0, 0], angle=0.00349066)
-                q2 = Quaternion(axis=[0, 1, 0], angle=-0.00872665)
+                q2 = Quaternion(axis=[0, 1, 0], angle=0.00872665)
                 q3 = Quaternion(axis=[0, 0, 1], angle=0)
-                qR = q6 * q2 * q3
-                T_R = qR.transformation_matrix
 
-                q_camDar = Quaternion(axis=[0, 0, -1], angle=dets_camDar[k][4])
+                q_camDar = Quaternion(axis=[0, 0, 1], angle=0)
                 T_camDar = q_camDar.transformation_matrix
-                T_camDar[0][3] = dets_camDar[k][1]
-                T_camDar[1][3] = dets_camDar[k][2]
+                T_camDar[0][3] = dets_camDar[k][1] + 8.69
+                T_camDar[1][3] = dets_camDar[k][2] -0.030
 
-                T2 = np.matmul(T1, T_R, T_camDar)
-                q8d = Quaternion(matrix=T2)
+                T_cr = np.matmul(T1, T_camDar)
+                qcr = Quaternion(matrix=T_cr)
 
-                dets_camDar[k][1] = T2[0][3]
-                dets_camDar[k][2] = T2[1][3]
-                dets_camDar[k][4] = q8d.radians
-                print('yay!')
+                dets_camDar[k][1] = T_cr[0][3]
+                dets_camDar[k][2] = T_cr[1][3]
+                dets_camDar[k][4] = qcr.radians
+
+                additional_info_2[k, 1] = dets_cam[w][2]
 
         if(np.count_nonzero(dets_camDar) != 0):
             seq_dets_total = np.concatenate((dets_lidar, dets_camDar), axis=0)
+            additional_info = np.zeros([len(dets_lidar), 7])
+            additional_info[:, 1] = 2
+            additional_info = np.concatenate((additional_info, additional_info_2), axis=0)
+        else:
+            seq_dets_total=dets_lidar
+            additional_info = np.zeros([len(dets_lidar), 7])
+            additional_info[:, 1] = 2
+
+        if(frame_name > 2 and  np.array_equal(seq_dets_total, seq_dets_total_prev)):
+            seq_dets_total=dets_lidar
+            additional_info = np.zeros([len(dets_lidar), 7])
+            additional_info[:, 1] = 2
 
         total_frames += 1
 
-        #seq_dets_total = dets_lidar
-        #additional_info = np.zeros([len(dets_lidar), 7])
-        additional_info = np.zeros([len(seq_dets_total), 7])
-        additional_info[:,1] = 2
-        #dets_all = {'dets_lidar': dets_lidar[:,1:8], 'dets_radar':dets_radar[:,1:4], 'info': additional_info, 'seq_dets_pose': seq_dets_pose, 'dets_cam': dets_cam}
-        dets_all = {'dets_lidar': seq_dets_total[:, 1:8], 'dets_radar': dets_radar[:, 1:4], 'info': additional_info,
-                    'seq_dets_pose': seq_dets_pose, 'dets_cam': dets_cam}
+        dets_all = {'dets': seq_dets_total[:, 1:8], 'info': additional_info}
+
+        seq_dets_total_prev = seq_dets_total
         start_time = time.time()
         trackers = mot_tracker.update(dets_all)
         cycle_time = time.time() - start_time
         total_time += cycle_time
 # #
-
-        # if (len(trackers) == 0):
-        #     result_trks = []
-        #     print('None')
-        #     #obj_dict = {}
-        #     #result_trks.append(obj_dict)
-        #     total_list.append({"name": '%05d.pcd' %(frame_name+1), "objects": result_trks})
-
         result_trks = []  # np.zeros([1,9])
-        q_inv = Quaternion(matrix=T1).inverse
-        T_inv = q_inv.transformation_matrix
 
+        T_inv = np.linalg.inv(T1)
+        T_tracked = np.zeros([4,1])
         for d in trackers:
             final_track=[]
             bbox3d_tmp = d[0:7]
             id_tmp = d[7]
             ori_tmp = d[8]
-            type_tmp = det_id2str[d[9]]
+            type_tmp = det_id2str[int(d[9])]
             bbox2d_tmp_trk = d[10:14]
             conf_tmp = d[14]
 
             # obj_dict = {"width": d[1], "height": d[0], "length": d[2], "x": d[3], "y": d[4], "z": d[5], "yaw": d[6],
             #             "id": d[7]}
-            q_tracked = Quaternion(axis=[0, 0, 1], angle=bbox3d_tmp[3])
-            T_tracked = q_tracked.transformation_matrix
-            T_tracked[0][3] = bbox3d_tmp[0]
-            T_tracked[1][3] = bbox3d_tmp[1]
 
+            #why are the values of bbox3d_tmp different from the standard??
+            T_tracked[0] = d[3]
+            T_tracked[1] = d[4]
+            T_tracked[3]= 1
             T_track = np.matmul(T_inv, T_tracked)
-            q_track = Quaternion(matrix=T_track)
 
-            const = 1
-            print('yay!')
-
-            # obj_dict = {"width": bbox3d_tmp[4], "height": bbox3d_tmp[6], "length": bbox3d_tmp[5], "x": bbox3d_tmp[0], "y": bbox3d_tmp[1], "z": bbox3d_tmp[2], "yaw": bbox3d_tmp[3],
-            #             "id": d[7]}
-            obj_dict = {"width": bbox3d_tmp[4], "height": const, "length": bbox3d_tmp[5], "x": T_track[0][3], "y": T_track[1][3], "z": const, "yaw": q_track.radians,
-                         "id": d[7]}
+            obj_dict = {"width": d[1], "height": d[0], "length": d[2], "x": T_track[0][0], "y": T_track[1][0], "z": d[5], "yaw": d[6],
+                        "id": d[7]}
 
             result_trks.append(obj_dict)
             frame_name_current = ("%05d.pcd" %(frame_name+1))
 
-            # str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame_name, id_tmp,
-            #                                                                           type_tmp, ori_tmp,
-            #                                                                           bbox2d_tmp_trk[0],
-            #                                                                           bbox2d_tmp_trk[1],
-            #                                                                           bbox2d_tmp_trk[2],
-            #                                                                           bbox2d_tmp_trk[3],
-            #                                                                           bbox3d_tmp[0], bbox3d_tmp[1],
-            #                                                                           bbox3d_tmp[2], bbox3d_tmp[3],
-            #                                                                           bbox3d_tmp[4], bbox3d_tmp[5],
-            #                                                                           bbox3d_tmp[6],
-            #                                                                           conf_tmp)
 
-            str_to_srite = '%d, %d, %s, 0, 0, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n' % (frame_name, id_tmp,
-                                                                                      type_tmp, ori_tmp,
-                                                                                      bbox2d_tmp_trk[0],
-                                                                                      bbox2d_tmp_trk[1],
-                                                                                      bbox2d_tmp_trk[2],
-                                                                                      bbox2d_tmp_trk[3],
-                                                                                      bbox3d_tmp[0], bbox3d_tmp[1],
-                                                                                      bbox3d_tmp[2], bbox3d_tmp[3],
-                                                                                      bbox3d_tmp[4], bbox3d_tmp[5],
-                                                                                      bbox3d_tmp[6],
-                                                                                      conf_tmp)
-
-            #total_list.append({"name": pcd["name"], "objects": result_trks})
-            #print('frame_name %d' %(frame_name))
-            print(str_to_srite)
-            eval_file.write(str_to_srite)
-            print('Check')
-        total_list.append({"name": '%05d.pcd' %(frame_name+1), "objects": result_trks})
+            #print(str_to_srite)
+            # eval_file.write(str_to_srite)
+            #print('Check')
+        total_list.append({"name": dataL[frame_name]['name'], "objects": result_trks})
+        print(result_trks)
 
     eval_file.close()
 
     print("Total Tracking took: %.3f for %d frames or %.1f FPS" % (total_time, total_frames, total_frames / total_time))
     with open(tracker_json_outfile, "w+") as outfile:
         json.dump(total_list, outfile, indent=1)
+
 
