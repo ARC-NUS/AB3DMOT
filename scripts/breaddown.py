@@ -673,8 +673,9 @@ if __name__ == '__main__':
             cam_x = det_cam[j].get('relative_coordinates').get('center_x') - 0.5
             theta = np.arctan(cam_x /f)
 
-            if cam_x < 0.5:
+            if cam_x > 0:
                 theta = - theta
+                print(theta)
 
             dets_cam[h][3] = 3  #SENSOR TYPE = 3
             #Camera a_0 transform , the tf_urdf one!!
@@ -812,7 +813,7 @@ if __name__ == '__main__':
             # eval_file.write(str_to_srite)
             #print('Check')
         total_list.append({"name": dataL[frame_name]['name'], "objects": result_trks})
-        print(result_trks)
+        #print(result_trks)
 
     eval_file.close()
 
