@@ -181,8 +181,8 @@ class KalmanBoxTracker(object):
         if MOTION_MODEL == "CV":
             #self.kf.F = get_CV_F(delta_t)
             self.kf.F = get_CV_F(0.05)
-        # if MOTION_MODEL == "CA":
-        #     self.kf.F = get_CA_F(0.05)
+        if MOTION_MODEL == "CA":
+            self.kf.F = get_CA_F(0.05)
         # else:
         #     print("unknown motion model", MOTION_MODEL)
 
@@ -353,146 +353,9 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01): 
 
     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
-
-# class AB3DMOT(object):
-#    def __init__(self,max_age=2, min_hits=5, is_jic=True, hung_thresh=0.05,
-#                R = np.identity(14), Q = np.identity(14), P_0=np.identity(14), delta_t=0.05):      # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
-#   # def __init__(self,max_age=3,min_hits=3):        # ablation study
-#   # def __init__(self,max_age=1,min_hits=3):
-#   # def __init__(self,max_age=2,min_hits=1):
-#   # def __init__(self,max_age=2,min_hits=5):
-#     """
-#     """
-#     self.max_age = max_age
-#     self.min_hits = min_hits
-#     self.trackers = []
-#     self.frame_count = 0
-#     self.reorder = [3, 4, 5, 6, 2, 1, 0]
-#     self.reorder_back = [6, 5, 4, 0, 1, 2, 3]
-#     self.is_jic = is_jic
-#     self.hungarian_thresh = 0.1 # 0.25 # hung_thresh
-#
-#     self.R = R
-#     self.Q = 0 #Q
-#     self.P_0 = P_0
-#     self.delta_t = delta_t #TODO Use for fusion
-#
-#    def update(self, dets_all):
-#         """
-#         Params:
-#           dets_all: dict
-#             dets - a numpy array of detections in the format [[x,y,z,theta,l,w,h],[x,y,z,theta,l,w,h],...]
-#             info: a array of other info for each det
-#         Requires: this method must be called once for each frame even with empty detections.
-#         Returns the a similar array, where the last column is the object ID.
-#         NOTE: The number of objects returned may differ from the number of detections provided.
-#         """
-#         #dets_lidar, dets_radar,  info, seq_dets_pose, dets_cam = dets_all['dets_lidar'], dets_all ['dets_radar'], dets_all['info'], dets_all ['seq_dets_pose'], dets_all['dets_cam']  # dets: N x 7, float numpy array
-#         dets_lidar, info,  = dets_all['dets_lidar'], dets_all['info']  # dets: N x 7, float numpy array
-#
-#
-#         dets = dets_lidar[:, self.reorder]
-#
-#         self.frame_count += 1
-#         trks = np.zeros((len(self.trackers), 7))  # N x 7 , #get predicted locations from existing trackers.
-#         #trkR = np.zeros((len(dets_radar), 7))  # N x 7 , #get predicted locations from existing trackers.
-#         #bestTrack= np.zeros((1,7))
-#         to_del = []
-#         ret = []
-#
-#         # for i in range(len(dets_cam)):
-#         #     test_x = dets_cam[i][1]
-#         #     min = 0.1
-#         #     for j in range(len(dets_radar)):
-#         #         test_radar = dets_radar[j][2]
-#         #         diff = test_radar-test_x
-#         #         if(abs(diff)< min):
-#         #             min = diff
-#         #             bestTrack_Radar = j
-#         #     print ('radar similar point: %s' %(j))
-#
-#
-#         # #TODO to create and initialise new trackers for new radar detections
-#         #
-#         # for i in range(len(self.trackers)):
-#         #     #diffx = self.trackers[i].kf.x[5] - seq_dets_pose[self.frame_count][2]
-#         #     #diffy = self.trackers[i].kf.x[6] - seq_dets_pose[self.frame_count][3]
-#         #     track_theta = self.trackers[i].kf.x[0]
-#         #     min = 0.1
-#         #     for j in range(len(dets_radar)):
-#         #         dets_r = dets_radar[j]
-#         #         theta_ref = dets_radar[j][2]
-#         #         diff_theta = abs(theta_ref-track_theta)
-#         #         if (diff_theta < min and diff_theta > 0  ):
-#         #             min = diff_theta
-#         #             pos2 =self.trackers[i].updateRadar(dets_r)
-#         #             #print(pos2[0][0])
-#         #             bestTrack[0] = np.array([pos2[0][0], pos2[1][0], pos2[2][0], pos2[3][0], pos2[4][0], pos2[5][0], pos2[6][0]])
-#
-#             #dets = np.concatenate(dets,bestTrack)
-#
-#
-#         for t, trk in enumerate(trks):
-#             #self.trackers
-#             pos = self.trackers[t].predict().reshape((-1, 1))
-#             trk[:] = [pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6]]
-#
-#             if (np.any(np.isnan(pos))):
-#                 to_del.append(t)
-#
-#         trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
-#         for t in reversed(to_del):
-#             self.trackers.pop(t)
-#
-#         dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets]
-#         if len(dets_8corner) > 0:
-#             dets_8corner = np.stack(dets_8corner, axis=0)
-#         else:
-#             dets_8corner = []
-#         trks_8corner = [convert_3dbox_to_8corner(trk_tmp) for trk_tmp in trks]
-#         if len(trks_8corner) > 0: trks_8corner = np.stack(trks_8corner, axis=0)
-#         matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner)
-#
-#         # update matched trackers with assigned detections
-#         for t, trk in enumerate(self.trackers):
-#             if t not in unmatched_trks:
-#                 d = matched[np.where(matched[:, 1] == t)[0], 0]  # a list of index
-#                 trk.update(dets[d, :][0], info[d, :][0])             #UPDATE Values for lidar!!
-#
-#         # create and initialise new trackers for unmatched detections
-#         for i in unmatched_dets:  # a scalar of index
-#             trk = KalmanBoxTracker(dets[i, :], info[i, :])
-#             self.trackers.append(trk)
-#
-#         i = len(self.trackers)
-#         for trk in reversed(self.trackers):
-#             d = trk.get_state()  # bbox location
-#             d = d[self.reorder_back]
-#
-#             # print('trk.time_since_update = %d   max_age = %d' % (trk.time_since_update, self.max_age))
-#             # print('trk.hits = %d   self.min_hits = %d' % (trk.hits, self.min_hits))
-#             if ((trk.time_since_update < self.max_age) and (
-#                     trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
-#                 ret.append(
-#                     np.concatenate((d, [trk.id + 1], trk.info)).reshape(1, -1))  # +1 as MOT benchmark requires positive
-#             i -= 1
-#             # remove dead tracklet
-#             if (trk.time_since_update >= self.max_age):
-#                 self.trackers.pop(i)
-#                 # print('pop')
-#
-#         if (len(ret) > 0):
-#             return np.concatenate(ret)  # x, y, z, theta, l, w, h, ID, other info, confidence
-#         return np.empty((0, 15))
-
-
 if __name__ == '__main__':
 
     print("Initialise the testing of AB3DMOT")
-
-    # if len(sys.argv) != 2:
-    #     print("Usage: python main.py result_sha(e.g., car_3d_det_test)")
-    #     #sys.exit(1)
 
     det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle' , 5: 'Truck'}
     result_sha_2 = "JI_Cetran_Set1"
@@ -523,10 +386,15 @@ if __name__ == '__main__':
         dataL = json.load(json_file)
 
 
-    #Read the set1 camera points
-    pathJson = mainJson_loc + '/image_detect/result.json'
+    #Read the set1 a0 camera points
+    pathJson = mainJson_loc + '/image_detect/result_a0.json'
     with open(pathJson, "r") as json_file:
         dataC = json.load(json_file)
+
+    #Read the set1 camera points
+    pathJson = mainJson_loc + '/image_detect/result_a3.json'
+    with open(pathJson, "r") as json_file:
+        dataC_a3 = json.load(json_file)
 
     #Read the ego pose
     pathJson = mainJson_loc + '/fused_pose/fused_pose_new.json'
@@ -565,9 +433,6 @@ if __name__ == '__main__':
     #TODO!!! What's the constnat
     f = Camera_Matrix_GMSL_120[1][1] / 1000 #focal length fx #TODO set the units!!
 
-
-    #PARSE INTO JSON
-
     total_list = []
 
     today = datetime.today()
@@ -581,7 +446,10 @@ if __name__ == '__main__':
         k = 0
         h = 0
         det_radar = dataR[frame_name].get('front_esr_tracklist')
+        det_radar_back = dataR[frame_name].get('rear_sbmp_tracklist')
         det_cam = dataC[frame_name].get('objects')
+        det_cam_back = dataC_a3[frame_name].get('objects')
+
         det_lidar =dataL[frame_name].get('objects')
         seq_dets_pose[frame_name][0] = frame_name
         seq_dets_pose[frame_name][1] = dataPose[frame_name].get('header').get('stamp')
@@ -601,26 +469,18 @@ if __name__ == '__main__':
         ##Load Detections!
         for j in range(len(det_radar)):
             dets_radar[i][0] = frame_name
-            dets_radar[i][1] = det_radar[j].get('range')
-            dets_radar[i][2] = det_radar[j].get('range_rate')  #TODO how to convert this to required frame??
-            dets_radar[i][3] = np.deg2rad(float(det_radar[j].get('angle_centroid')))
+            dets_radar[i][1] = det_radar[j].get('obj_vcs_posex')
+            dets_radar[i][2] = det_radar[j].get('obj_vcs_posey')
+            #dets_radar[i][2] = det_radar[j].get('range_rate')  #TODO how to convert this to required frame??
+            #dets_radar[i][3] = np.deg2rad(float(det_radar[j].get('angle_centroid')))
+            dets_radar[i][3] = np.arctan(dets_radar[i][2]/dets_radar[i][1])
             dets_radar[i][4] = 1  #sensor type: 1
-
-            #FRONT ESR Radar
-            Bus_radar = np.array([[8.69], [0], [1.171]])
-            q4 = Quaternion(axis=[1, 0, 0], angle=0.00349066)
-            q2 = Quaternion(axis=[0, 1, 0], angle=-0.00872665)
-            q3 = Quaternion(axis=[0, 0, 1], angle=0)
-            q_radar = q4* q2* q3
-
-            #todo to transform the points into x and y
             i += 1
 
         if frame_name == 1:
             seq_dets_radar = dets_radar
         else:
             seq_dets_radar = np.concatenate((seq_dets_radar, dets_radar), axis=0)
-
 
         dets_lidar = np.zeros([len(det_lidar), 9])
 
@@ -629,9 +489,7 @@ if __name__ == '__main__':
         # ## coordinate system conventions
         # width is in y - direction(x is forward of the bus)
         # 35.2 m  front back, - / +20m sideways from baselink
-        #
         # The heading is with respect to the baselink's x ' in rad.
-        #
 
         pos_lidar = np.zeros([4,1])
         for j in range(len(det_lidar)):
@@ -645,10 +503,6 @@ if __name__ == '__main__':
             dets_lidar[k][7] = 1
             dets_lidar[k][8] = 2  #sensor type: 2
 
-            q_lidar = Quaternion(axis=[0, 0, 1], angle = 0 )
-            T_lidar = q_lidar.transformation_matrix
-            T_lidar[0][3] = dets_lidar[k][1]
-            T_lidar[1][3] = dets_lidar[k][2]
             pos_lidar[0][0] = dets_lidar[k][1]
             pos_lidar[1][0] = dets_lidar[k][2]
             pos_lidar[2][0] = 0
@@ -667,26 +521,18 @@ if __name__ == '__main__':
 
         dets_cam = np.zeros([len(det_cam), 4])
 
-        # ## TODO : Camera part when i'm done w Radar & Lidar part
         for j in range(len(det_cam)):
             dets_cam[h][0] = frame_name
-            cam_x = det_cam[j].get('relative_coordinates').get('center_x') - 0.5
+            cam_x = -det_cam[j].get('relative_coordinates').get('center_x') + 0.5
             theta = np.arctan(cam_x /f)
-
-            if cam_x > 0:
-                theta = - theta
-                print(theta)
+            theta = theta *1.35* np.cos(abs(theta))
+            # if cam_x < 0:
+            #     theta_R = -theta
 
             dets_cam[h][3] = 3  #SENSOR TYPE = 3
-            #Camera a_0 transform , the tf_urdf one!!
-            Bus_camera = np.array([[8.660], [-0.030], [0.1356]])
-            q5 = Quaternion(axis=[1, 0, 0], angle=0.003490659)
-            q4 = Quaternion(axis=[1, 0, 0], angle=theta)
-            q_camera = q5 * q4
-            dets_cam[h][1] = q_camera.radians
+            dets_cam[h][1] = theta
             type = det_cam[j].get('class_id')  #class_id = 2 is a car
             dets_cam[h][2] = type
-            #TODO what's the class ids??
             h += 1
 
         if frame_name == 1:
@@ -701,59 +547,49 @@ if __name__ == '__main__':
 
         for w in range(len(dets_cam)):
             test_x = dets_cam[w][1]
-            min_err = 0.2
+            min_err = 0.05
             bestTrack_Radar = -1
             for q in range(len(dets_radar)):
                 test_radar = dets_radar[q][3]
                 diff = test_radar-test_x
-                if(abs(diff)< min_err and abs(diff) > 0.01):
+                if(abs(diff)< min_err) :
                     min_err = diff
                     bestTrack_Radar = q
             if (dets_cam[w][2] == 2 ):
-                length = 4
-                width = 2
-
-            if (dets_cam[w][2] == 5 ):
-                length = 6
-                width = 3
-
+                length = 8
+                width = 8
             else:
-                length = 2
-                width = 1
+                length = 8
+                width = 8
 
-            if (bestTrack_Radar < 0):
-                #print ('radar similar point: %s' %(q))
+            if (bestTrack_Radar != -1 and abs(dets_radar[bestTrack_Radar][1]) < 35.2 and abs(dets_radar[bestTrack_Radar][2] < 20)):
+                pos_cr = np.zeros([4, 1])
+                print ('radar similar point: %s' %(q))
                 k = numCamDar
+                Bus_radar = np.array([[8.69], [0], [1.171]])
+                Bus_right_radar = np.array([[8.382], [-1.3], [0.176]])
                 dets_camDar[k][0] = frame_name
-                dets_camDar[k][1] = dets_radar[q][1]* np.cos(dets_radar[q][3])  #x values   #TODO use lidar quarternion to transform it :o
-                dets_camDar[k][2] = dets_radar[q][1]* np.sin(dets_radar[q][3]) # y values
-
+                dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
+                dets_camDar[k][2] = dets_radar[bestTrack_Radar][2]
                 dets_camDar[k][3] = 1
-                dets_camDar[k][4] = dets_radar[q][3]
-                dets_camDar[k][5] = length
-                dets_camDar[k][6] = width
+                dets_camDar[k][4] = 0 #dets_radar[q][3]
+                dets_camDar[k][5] = width
+                dets_camDar[k][6] = length
                 dets_camDar[k][7] = 1   #HEIGHT
                 dets_camDar[k][8] = 2  # sensor type: 2
 
-                Bus_radar = np.array([[8.69], [0], [1.171]])
+                pos_cr[0][0] = dets_camDar[k][1]
+                pos_cr[1][0] = dets_camDar[k][2]
+                pos_cr[2][0] = 0
+                pos_cr[3][0] = 1
 
-                q6 = Quaternion(axis=[1, 0, 0], angle=0.00349066)
-                q2 = Quaternion(axis=[0, 1, 0], angle=0.00872665)
-                q3 = Quaternion(axis=[0, 0, 1], angle=0)
+                T_cr = np.matmul(T1,pos_cr)
 
-                q_camDar = Quaternion(axis=[0, 0, 1], angle=0)
-                T_camDar = q_camDar.transformation_matrix
-                T_camDar[0][3] = dets_camDar[k][1] + 8.69
-                T_camDar[1][3] = dets_camDar[k][2] -0.030
-
-                T_cr = np.matmul(T1, T_camDar)
-                qcr = Quaternion(matrix=T_cr)
-
-                dets_camDar[k][1] = T_cr[0][3]
-                dets_camDar[k][2] = T_cr[1][3]
-                dets_camDar[k][4] = qcr.radians
+                dets_camDar[k][1] = T_cr[0][0]
+                dets_camDar[k][2] = T_cr[1][0]
 
                 additional_info_2[k, 1] = dets_cam[w][2]
+
 
         if(np.count_nonzero(dets_camDar) != 0):
             seq_dets_total = np.concatenate((dets_lidar, dets_camDar), axis=0)

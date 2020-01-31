@@ -203,8 +203,8 @@ if __name__ == '__main__':
         # q_wx = -5.
         # q_ly = -5.
         # q_v = -1.
-        max_age = 4
-        min_hits = 4
+        max_age = 3
+        min_hits = 2
         hung_thresh = 0.05
         tracker_params = "max_age=" + str(max_age) + ",min_hits=" + str(min_hits) + ",hung_thresh=" + str(hung_thresh)
 
@@ -235,7 +235,7 @@ if __name__ == '__main__':
             raise ValueError
 
         # tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/cyra_state_10" + tracker_params +"_Q"+ q_params + ".json"
-        tracker_json_outfile = "./results/yltracker.json"
+        tracker_json_outfile = "./results/yltracker2.json"
         get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json,
                          tracker_json_outfile=tracker_json_outfile,
                          fused_pose_json=fused_pose_json, max_age=max_age, min_hits=min_hits, hung_thresh=hung_thresh,

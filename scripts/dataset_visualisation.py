@@ -42,7 +42,11 @@ radar_obstacles_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_j
 
 # 20hz tracker
 #tracker_json_path = "/media/yl/downloads/tracker_results/set_7/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
-tracker_json_path = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_29_01_2020.json"
+tracker_json_path = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_31_01_2020.json"
+
+# 20hz tracker
+#tracker_json_path = "/media/yl/downloads/tracker_results/set_7/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
+tracker_json_path2 = "./results/JI_Cetran_Set1/yltracker2.json"
 
 # output image folder. WARNING: IMAGE FOLDER MUST ALREADY EXIST
 #img_path = "/home/yl/bus_ws/src/auto_bus/perception/ros_to_rawdata/files/test/"
@@ -121,110 +125,132 @@ with open(radar_obstacles_path) as radar_obstacles_file:
     with open(pixor_json_path) as pixor_json_file:
         with open(labels_json_path) as labels_json_file:
             with open(tracker_json_path) as tracker_json_file:
-                pixor_data = json.load(pixor_json_file, encoding="utf-8")
-                labels_data = json.load(labels_json_file, encoding="utf-8")
-                tracker_data = json.load(tracker_json_file, encoding="utf-8")
-                radar_data = json.load(radar_obstacles_file, encoding="utf-8")
-                px_i = 0 # for accounting for empty labels
+                with open(tracker_json_path2) as tracker_json_file2:
+                    pixor_data = json.load(pixor_json_file, encoding="utf-8")
+                    labels_data = json.load(labels_json_file, encoding="utf-8")
+                    tracker_data = json.load(tracker_json_file, encoding="utf-8")
+                    tracker_data2 = json.load(tracker_json_file2, encoding="utf-8")
+                    radar_data = json.load(radar_obstacles_file, encoding="utf-8")
+                    px_i = 0 # for accounting for empty labels
 
-                for i in range(0, STOP_COUNT):
-                    img = np.zeros((img_h,img_w,3), np.uint8)
+                    for i in range(0, STOP_COUNT):
+                        img = np.zeros((img_h,img_w,3), np.uint8)
 
-                    # plot bus ego
-                    cv2.rectangle(img,
-                                  (int(round(img_w/2.0-(3.5*100./scale))),
-                                   int(round(img_h/2.0+1.5*100./scale))),
-                                  (int(round(img_w/2.0+8.5*100./scale)),
-                                   int(round(img_h/2.0-1.5*100./scale))),
-                                  (255,0,0), -1)
+                        # plot bus ego
+                        cv2.rectangle(img,
+                                      (int(round(img_w/2.0-(3.5*100./scale))),
+                                       int(round(img_h/2.0+1.5*100./scale))),
+                                      (int(round(img_w/2.0+8.5*100./scale)),
+                                       int(round(img_h/2.0-1.5*100./scale))),
+                                      (255,0,0), -1)
 
-                    # plot pixor fov
-                    cv2.rectangle(img,
-                                  (int(round(img_w/2.0-(35.2*100./scale))),
-                                   int(round(img_h/2.0+20*100./scale))),
-                                  (int(round(img_w/2.0+35.2*100./scale)),
-                                   int(round(img_h/2.0-20*100./scale))),
-                                  (255,255,255), 1)
+                        # plot pixor fov
+                        cv2.rectangle(img,
+                                      (int(round(img_w/2.0-(35.2*100./scale))),
+                                       int(round(img_h/2.0+20*100./scale))),
+                                      (int(round(img_w/2.0+35.2*100./scale)),
+                                       int(round(img_h/2.0-20*100./scale))),
+                                      (255,255,255), 1)
 
 
-                    # TODO: use names and count to check the corresponding data
+                        # TODO: use names and count to check the corresponding data
 
-                    # PIXOR json --> yellow
-                    #pxr_det = pixor_data[i]
-                    pxr_det = pixor_data[i*10+9]
-                    pxr_clr = (255,255,0)
-                    for det in pxr_det['objects']:
-                        w = float(det['length'])
-                        b = float(det['width']) # width is in the y direction for Louis
-                        x_c = float(det['centroid'][0])
-                        y_c = float(det['centroid'][1])
-                        theta = float(det['heading'])
-                        pts = get_vertices(w,b,x_c,y_c,theta,img_h,img_w,scale/100.)
-                        img = draw_border(img, pts, pxr_clr,thiccness=5)
-
-                    labels = labels_data[i]
-                    l_clr = (255,20,147)
-                    if labels['name'] != pxr_det['name']:
-                        print "error mismatched label and pixor output pcd!"
-                        print "pixor pcd: ", pxr_det['name']
-                        print "label pcd: ", labels['name']
-                        px_i +=1
-                        continue
-
-                    for label in labels['annotations']:
-                        w = float(label['geometry']['dimensions']['x'])
-                        b = float(label['geometry']['dimensions']['y'])
-                        x_c = float(label['geometry']['position']['x'])
-                        y_c = float(label['geometry']['position']['y'])
-                        theta = float(label['geometry']['rotation']['z'])
-                        pts = get_vertices(w,b,x_c,y_c,theta,img_h,img_w,scale/100.)
-                        if label['className'].find("truck") >= 0                         or label['className'].find("bus") >= 0                         or label['className'].find("car")>= 0                         or label['className'].find("van")>= 0:
-                            img = draw_border(img, pts, l_clr)
-                            cv2.putText(img,str(label['classId']), (int(round(img_w/2.0+(x_c*100./scale))), img_h-int(round(img_h/2.0+y_c*100./scale)) + 30 ), cv2.FONT_HERSHEY_SIMPLEX, 1, l_clr, 3, cv2.LINE_AA)
-                        else:
-    #                                 print "label class:" ,label['className']
-                            img = draw_border(img, pts, (100,100,100))
-                            cv2.putText(img,str(label['classId']),    (int(round(img_w/2.0+(x_c*100./scale))), img_h-int(round(img_h/2.0+y_c*100./scale)) + 30 ), cv2.FONT_HERSHEY_SIMPLEX, 1, (100,100,100), 3, cv2.LINE_AA)
-
-                    # tracker json --> blue
-                    frame = tracker_data[i*10]
-                    for obj in frame['objects']:
-                        track_clr = (0,191,255)
-                        if (len(obj) != 0):
-                            w = float(obj['width'])
-                            b = float(obj['length'])
-                            x_c = float(obj['x'])
-                            y_c = float(obj['y'])
-                            theta = float(obj['yaw'])
+                        # PIXOR json --> yellow
+                        #pxr_det = pixor_data[i]
+                        pxr_det = pixor_data[i*10+9]
+                        pxr_clr = (255,255,0)
+                        for det in pxr_det['objects']:
+                            w = float(det['length'])
+                            b = float(det['width']) # width is in the y direction for Louis
+                            x_c = float(det['centroid'][0])
+                            y_c = float(det['centroid'][1])
+                            theta = float(det['heading'])
                             pts = get_vertices(w,b,x_c,y_c,theta,img_h,img_w,scale/100.)
-                            img = draw_border(img, pts, track_clr)
-                            cv2.putText(img,str(obj['id']),(int(round(img_w/2.0+(x_c*100./scale))), img_h-int(round(img_h/2.0+y_c*100./scale)) -10), cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr ,3, cv2.LINE_AA)
+                            img = draw_border(img, pts, pxr_clr,thiccness=5)
 
-                    #TODO must add to the bus pose
+                        labels = labels_data[i]
+                        l_clr = (255,20,147)
+                        if labels['name'] != pxr_det['name']:
+                            print "error mismatched label and pixor output pcd!"
+                            print "pixor pcd: ", pxr_det['name']
+                            print "label pcd: ", labels['name']
+                            px_i +=1
+                            continue
 
-                    # radar_Data = radar_data['radar'][i*10]
-                    # for obj in radar_Data['front_esr_tracklist']:
-                    #     track_clr = (100, 191, 255)
-                    #     radius = 1
-                    #     thickness = 1
-                    #     if (len(obj) != 0):
-                    #         range = float(obj['range'])
-                    #         theta_r = float(obj['angle_centroid'])
-                    #         theta_r = np.deg2rad(theta)
-                    #         x_cr = int(round(range * np.cos(theta)))
-                    #         y_cr = int(round(range * np.sin(theta)))
-                    #         cv2.circle(img, (x_cr,y_cr), radius, track_clr, thickness)
+                        for label in labels['annotations']:
+                            w = float(label['geometry']['dimensions']['x'])
+                            b = float(label['geometry']['dimensions']['y'])
+                            x_c = float(label['geometry']['position']['x'])
+                            y_c = float(label['geometry']['position']['y'])
+                            theta = float(label['geometry']['rotation']['z'])
+                            pts = get_vertices(w,b,x_c,y_c,theta,img_h,img_w,scale/100.)
+                            if label['className'].find("truck") >= 0                         or label['className'].find("bus") >= 0                         or label['className'].find("car")>= 0                         or label['className'].find("van")>= 0:
+                                img = draw_border(img, pts, l_clr)
+                                cv2.putText(img,str(label['classId']), (int(round(img_w/2.0+(x_c*100./scale))), img_h-int(round(img_h/2.0+y_c*100./scale)) + 30 ), cv2.FONT_HERSHEY_SIMPLEX, 1, l_clr, 3, cv2.LINE_AA)
+                            else:
+        #                                 print "label class:" ,label['className']
+                                img = draw_border(img, pts, (100,100,100))
+                                cv2.putText(img,str(label['classId']),    (int(round(img_w/2.0+(x_c*100./scale))), img_h-int(round(img_h/2.0+y_c*100./scale)) + 30 ), cv2.FONT_HERSHEY_SIMPLEX, 1, (100,100,100), 3, cv2.LINE_AA)
 
-                    font = cv2.FONT_HERSHEY_SIMPLEX
-                    fontScale =0.8
-                    thickness = 1
+                        # tracker 2 json --> green
+                        frame = tracker_data2[i*10]
+                        for obj in frame['objects']:
+                            track_clr = (50, 205, 50)
+                            if (len(obj) != 0):
+                                w = float(obj['width'])
+                                b = float(obj['length'])
+                                x_c = float(obj['x'])
+                                y_c = float(obj['y'])
+                                theta = float(obj['yaw'])
+                                pts = get_vertices(w,b,x_c,y_c,theta,img_h,img_w,scale/100.)
+                                img = draw_border(img, pts, track_clr)
+                                cv2.putText(img,str(obj['id']),(int(round(img_w/2.0+(x_c*100./scale))), img_h-int(round(img_h/2.0+y_c*100./scale)) -10), cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr ,3, cv2.LINE_AA)
 
-                    cv2.putText(img, "PIXOR++", (50, 50), font, fontScale, (255,255,0), thickness)
-                    cv2.putText(img, "Tracker", (50, 70), font, fontScale, (0,191,255), thickness)
-                    cv2.putText(img, "Labels", (50, 90), font, fontScale, (255, 20, 147), thickness)
-                    im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                    #cv2.imwrite(img_path+"/img_"+str(i)+".jpg", im_rgb)
-                    cv2.imwrite(img_path + "/img_" + labels['name'][1:5] + ".jpg", im_rgb)
+                        # tracker json --> blue
+                        frame = tracker_data[i * 10]
+                        for obj in frame['objects']:
+                            track_clr = (0,191,255)
+                            if (len(obj) != 0):
+                                w = float(obj['width'])
+                                b = float(obj['length'])
+                                x_c = float(obj['x'])
+                                y_c = float(obj['y'])
+                                theta = float(obj['yaw'])
+                                pts = get_vertices(w, b, x_c, y_c, theta, img_h, img_w, scale / 100.)
+                                img = draw_border(img, pts, track_clr)
+                                cv2.putText(img, str(obj['id']), (int(round(img_w / 2.0 + (x_c * 100. / scale))),
+                                                                  img_h - int(
+                                                                      round(img_h / 2.0 + y_c * 100. / scale)) - 10),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr, 3, cv2.LINE_AA)
+                        #TODO must add to the bus pose
+
+                        # radar_Data = radar_data['radar'][i*10]
+                        # for obj in radar_Data['front_esr_tracklist']:
+                        #     track_clr = (100, 191, 255)
+                        #     radius = 1
+                        #     thickness = 1
+                        #     if (len(obj) != 0):
+                        #         range = float(obj['range'])
+                        #         theta_r = float(obj['angle_centroid'])
+                        #         theta_r = np.deg2rad(theta)
+                        #         x_cr = int(round(range * np.cos(theta)))
+                        #         y_cr = int(round(range * np.sin(theta)))
+                        #         cv2.circle(img, (x_cr,y_cr), radius, track_clr, thickness)
+
+                        font = cv2.FONT_HERSHEY_SIMPLEX
+                        fontScale =0.7
+                        thickness = 1
+
+
+                        cv2.putText(img, "Tracker_YL(MH = 2 , MA = 3)", (50, 50), font, fontScale,
+                                    (50, 205, 50), thickness)
+                        cv2.putText(img, "Tracker_Breaddown(MH = 2 , MA =3)", (50, 70), font, fontScale, (0,191,255), thickness)
+                        cv2.putText(img, "PIXOR++", (50, 90), font, fontScale, (255, 255, 0), thickness)
+                        cv2.putText(img, "Labels", (50, 110), font, fontScale, (255, 20, 147), thickness)
+
+                        im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                        #cv2.imwrite(img_path+"/img_"+str(i)+".jpg", im_rgb)
+                        cv2.imwrite(img_path + "/img_" + labels['name'][1:5] + ".jpg", im_rgb)
 
 print "Done"
 
