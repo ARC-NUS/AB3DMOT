@@ -33,7 +33,7 @@ labels_json_path = data_path + "/log_high/set_1/labels/set1_annotations.json"
 # 20hz pixor
 #pixor_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
 #pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/pixor_outputs_tf_epoch_42_valloss_0.0112.json"
-pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs_pixorpp_kitti_nuscene.json"
+pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs_tf_epoch_23_valloss_0.0087.json"
 
 #pixor_json_path = data_path + "/log_low/set_1/labels/set1_annotations.json"
 
@@ -193,7 +193,7 @@ with open(radar_obstacles_path) as radar_obstacles_file:
                                 cv2.putText(img,str(label['classId']),    (int(round(img_w/2.0+(x_c*100./scale))), img_h-int(round(img_h/2.0+y_c*100./scale)) + 30 ), cv2.FONT_HERSHEY_SIMPLEX, 1, (100,100,100), 3, cv2.LINE_AA)
 
                         # tracker 2 json --> green
-                        frame = tracker_data2[i*10]
+                        frame = tracker_data2[i*10+9]
                         for obj in frame['objects']:
                             track_clr = (50, 205, 50)
                             if (len(obj) != 0):
@@ -206,8 +206,8 @@ with open(radar_obstacles_path) as radar_obstacles_file:
                                 img = draw_border(img, pts, track_clr)
                                 cv2.putText(img,str(obj['id']),(int(round(img_w/2.0+(x_c*100./scale))), img_h-int(round(img_h/2.0+y_c*100./scale)) -10), cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr ,3, cv2.LINE_AA)
 
-                        # tracker json --> blue
-                        frame = tracker_data[i * 10]
+                        #tracker json --> blue
+                        frame = tracker_data[i*10+9]
                         for obj in frame['objects']:
                             track_clr = (0,191,255)
                             if (len(obj) != 0):
@@ -242,9 +242,9 @@ with open(radar_obstacles_path) as radar_obstacles_file:
                         thickness = 1
 
 
-                        cv2.putText(img, "Tracker_YL(MH = 2 , MA = 3)", (50, 50), font, fontScale,
+                        cv2.putText(img, "Tracker_(Lidar Only)", (50, 50), font, fontScale,
                                     (50, 205, 50), thickness)
-                        cv2.putText(img, "Tracker_Breaddown(MH = 2 , MA =3)", (50, 70), font, fontScale, (0,191,255), thickness)
+                        cv2.putText(img, "Tracker_(Sensor Fusion)", (50, 70), font, fontScale, (0,191,255), thickness)
                         cv2.putText(img, "PIXOR++", (50, 90), font, fontScale, (255, 255, 0), thickness)
                         cv2.putText(img, "Labels", (50, 110), font, fontScale, (255, 20, 147), thickness)
 

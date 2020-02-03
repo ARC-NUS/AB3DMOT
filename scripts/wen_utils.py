@@ -12,8 +12,8 @@ STATE_SIZE = 14
 MEAS_SIZE = 7   #measurement model for pixor, 7
 MEAS_SIZE_Radar = 3  #measurement model for radar, 3
 #MOTION_MODEL = "CYRA"
-#MOTION_MODEL="CA"
-MOTION_MODEL="CV"
+MOTION_MODEL="CA"
+#MOTION_MODEL="CV"
 
 # set R based on pixor stats in json
 def px_stats_get_R(pixor_stats_json):
