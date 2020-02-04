@@ -33,7 +33,8 @@ labels_json_path = data_path + "/log_high/set_1/labels/set1_annotations.json"
 # 20hz pixor
 #pixor_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
 #pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/pixor_outputs_tf_epoch_42_valloss_0.0112.json"
-pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs_tf_epoch_23_valloss_0.0087.json"
+#pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs2_pixorpp_kitti_nuscene.json"
+pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs_pixorpp_kitti_nuscene.json"
 
 #pixor_json_path = data_path + "/log_low/set_1/labels/set1_annotations.json"
 
@@ -42,7 +43,7 @@ radar_obstacles_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_j
 
 # 20hz tracker
 #tracker_json_path = "/media/yl/downloads/tracker_results/set_7/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
-tracker_json_path = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_31_01_2020.json"
+tracker_json_path = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_04_02_2020.json"
 
 # 20hz tracker
 #tracker_json_path = "/media/yl/downloads/tracker_results/set_7/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
@@ -52,7 +53,7 @@ tracker_json_path2 = "./results/JI_Cetran_Set1/yltracker2.json"
 #img_path = "/home/yl/bus_ws/src/auto_bus/perception/ros_to_rawdata/files/test/"
 
 today = date.today()
-d1 = today.strftime("%d_%m_%Y")
+d1 = today.strftime("%Y_%m_%d")
 
 # output image folder. WARNING: IMAGE FOLDER MUST ALREADY EXIST
 img_path = "/home/wen/AB3DMOT/scripts/results/JI_Cetran_Set1/data/tracker_images/" + d1 + "/"

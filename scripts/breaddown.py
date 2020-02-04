@@ -36,8 +36,11 @@ def camRadarFuse(dets_cam, dets_radar):
             length = 8
             width = 3
 
-        if (bestTrack_Radar != -1 and abs(dets_radar[bestTrack_Radar][1]) < 35.2 and abs(
-                dets_radar[bestTrack_Radar][2] < 20)):
+        sidebounds = 20 #25 #20
+        frontbackbounds = 35.2 #40 #35.2
+
+        if (bestTrack_Radar != -1 and abs(dets_radar[bestTrack_Radar][1]) < frontbackbounds and abs(
+                dets_radar[bestTrack_Radar][2] < sidebounds)):
             pos_cr = np.zeros([4, 1])
             print('radar similar point: %s' % (q))
             k = numCamDar
@@ -67,18 +70,20 @@ def camRadarFuse(dets_cam, dets_radar):
 
 def readCamera(frame_name, det_cam):
     h = 0
-    dets_cam = np.zeros([len(det_cam), 4])
+    dets_cam = np.zeros([len(det_cam), 5])
     for j in range(len(det_cam)):
         dets_cam[h][0] = frame_name
-        cam_x = -det_cam[j].get('relative_coordinates').get('center_x') + 0.5
+        cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
         theta = np.arctan(cam_x / f)
 
-        #TODO change the distortion??
+        #DONE : Change the distortion??
         theta = theta + 0.005 * np.sin(abs(theta))
-        dets_cam[h][3] = 3  # SENSOR TYPE = 3
+
         dets_cam[h][1] = theta
-        type = det_cam[j].get('class_id')  # class_id = 2 is a car
+        type = det_cam[j]['class_id']  # class_id = 2 is a car
         dets_cam[h][2] = type
+        dets_cam[h][3] = det_cam[j]['confidence']
+        dets_cam[h][4] = 3  # SENSOR TYPE = 3
         h += 1
     return dets_cam
 
@@ -87,10 +92,14 @@ def readRadar(frame_name, det_radar):
     dets_radar = np.zeros([len(det_radar), 6])
     for j in range(len(det_radar)):
         dets_radar[i][0] = frame_name
-        dets_radar[i][1] = det_radar[j].get('obj_vcs_posex')
-        dets_radar[i][2] = det_radar[j].get('obj_vcs_posey')
-        rangerate = det_radar[j].get('rangerate')
+        dets_radar[i][1] = det_radar[j]['obj_vcs_posex']
+        dets_radar[i][2] = det_radar[j]['obj_vcs_posey']
+        rangerate = float(det_radar[j]['range_rate'])
+        #print(rangerate)
+        # dets_radar[i][1] = dets_radar[i][1] + 0.1*rangerate
+        # dets_radar[i][2] = dets_radar[i][2] + 0.1*rangerate
 
+        ## To compensate of the fact that the radar value doesn't give the centroid information....
         if rangerate < 0:
             dets_radar[i][1] = dets_radar[i][1] - 0.7
             dets_radar[i][2] = dets_radar[i][2] - 0.7
@@ -99,7 +108,7 @@ def readRadar(frame_name, det_radar):
             dets_radar[i][2] = dets_radar[i][2] + 0.7
 
         dets_radar[i][3] = np.arctan(dets_radar[i][2] / dets_radar[i][1])
-        angle = float(det_radar[j].get('angle_centroid'))
+        angle = float(det_radar[j]['angle_centroid'])
         dets_radar[i][4] = np.deg2rad(angle)
         dets_radar[i][5] = 1  # sensor type: 1
         i += 1
@@ -476,20 +485,23 @@ if __name__ == '__main__':
         dataPose = pose.get('ego_loc')
         numPose = len(dataPose)
 
+    pathJson = mainJson_loc + '/labels/set1_annotations.json'
+    # pathJson = mainJson_loc + '/fused_pose/fused_pose.json'
+    with open(pathJson, "r") as json_file:
+        labels = json.load(json_file)
+
+
     # example of detection for radar : frame , range, range_rate, theta , sensor_type =1
     seq_dets_radar = np.zeros([1, 6])
 
     # example of detection for lidar : frame ,, x, y, z, theta, l, w, h, sensor_type = 2
     seq_dets_lidar = np.zeros([1, 9])
-
-    #TODO : Camera detection
-    # example of detection for camera : frame , x, y
     seq_dets_cam = np.zeros([1, 4])
     seq_dets_pose =np.zeros([numPose, 5])
 
     max_age=3
     min_hits=2
-    hung_thresh=0.05
+    hung_thresh=0.05 #.2
     R = np.identity(7)
     Q = np.identity(14)
     P_0 = np.identity(14)
@@ -517,19 +529,20 @@ if __name__ == '__main__':
         i = 0
         k = 0
         h = 0
-        det_radar = dataR[frame_name].get('front_esr_tracklist')
-        det_radar_right = dataR[frame_name].get('front_right_esr_tracklist')
-        det_radar_left = dataR[frame_name].get('front_left_esr_tracklist')
-        det_radar_back = dataR[frame_name].get('rear_sbmp_tracklist')
-        det_cam = dataC[frame_name].get('objects')
-        det_cam_back = dataC_a3[frame_name].get('objects')
+        kr = 0
+        det_radar = dataR[frame_name]['front_esr_tracklist']
+        det_radar_right = dataR[frame_name]['front_right_esr_tracklist']
+        det_radar_left = dataR[frame_name]['front_left_esr_tracklist']
+        det_radar_back = dataR[frame_name]['rear_sbmp_tracklist']
+        det_cam = dataC[frame_name]['objects']
+        det_cam_back = dataC_a3[frame_name]['objects']
 
-        det_lidar =dataL[frame_name].get('objects')
+        det_lidar =dataL[frame_name]['objects']
         seq_dets_pose[frame_name][0] = frame_name
-        seq_dets_pose[frame_name][1] = dataPose[frame_name].get('header').get('stamp')
-        seq_dets_pose[frame_name][2] = dataPose[frame_name].get('pose').get('position').get('x')
-        seq_dets_pose[frame_name][3] = dataPose[frame_name].get('pose').get('position').get('y')
-        seq_dets_pose[frame_name][4] = dataPose[frame_name].get('pose').get('attitude').get('yaw')
+        seq_dets_pose[frame_name][1] = dataPose[frame_name]['header']['stamp']
+        seq_dets_pose[frame_name][2] = dataPose[frame_name]['pose']['position']['x']
+        seq_dets_pose[frame_name][3] = dataPose[frame_name]['pose']['position']['y']
+        seq_dets_pose[frame_name][4] = dataPose[frame_name]['pose']['attitude']['yaw']
 
         q1 = Quaternion(axis=[0, 0, 1], angle=seq_dets_pose[frame_name][4])
         T1 = q1.transformation_matrix
@@ -555,15 +568,34 @@ if __name__ == '__main__':
         # 35.2 m  front back, - / +20m sideways from baselink
         # The heading is with respect to the baselink's x ' in rad.
 
+        # if (frame_name % 10 ==0 ):
+        #     frame = frame_name /10
+        #     gt_lidar = np.zeros([len(labels[frame]['annotations']), 9])
+        #
+        #     for j in range(len(labels[frame]['annotations'])):
+        #         annotations = labels[frame]['annotations']
+        #         gt_lidar[kr][0] = frame_name
+        #         gt_lidar[kr][1] = annotations[j]['geometry']['position']['x']  # x values in pixor , but y in world frame!!   #TODO use lidar quarternion to transform it :o
+        #         gt_lidar[kr][2] = annotations[j]['geometry']['position']['y']  # y values in pixor , but x in world frame
+        #         gt_lidar[kr][3] = 1
+        #         gt_lidar[kr][4] = annotations[j]['geometry']['rotation']['z']
+        #         gt_lidar[kr][5] = annotations[j]['geometry']['dimensions']['x'] # width is in the y direction for Louis
+        #         gt_lidar[kr][6] = annotations[j]['geometry']['dimensions']['y']
+        #         gt_lidar[kr][7] = 1
+        #         gt_lidar[kr][8] = 2  #sensor type: 2
+        #
+        #         kr += 1
+
+
         pos_lidar = np.zeros([4,1])
         for j in range(len(det_lidar)):
             dets_lidar[k][0] = frame_name
-            dets_lidar[k][1] = (det_lidar[j].get('centroid'))[0]  # x values in pixor , but y in world frame!!   #TODO use lidar quarternion to transform it :o
-            dets_lidar[k][2] = (det_lidar[j].get('centroid'))[1]  # y values in pixor , but x in world frame
+            dets_lidar[k][1] = (det_lidar[j]['centroid'])[0]  # x values in pixor , but y in world frame!!
+            dets_lidar[k][2] = (det_lidar[j]['centroid'])[1]  # y values in pixor , but x in world frame
             dets_lidar[k][3] = 1
-            dets_lidar[k][4] = det_lidar[j].get('heading')
-            dets_lidar[k][5] = det_lidar[j].get('width') # width is in the y direction for Louis
-            dets_lidar[k][6] = det_lidar[j].get('length')
+            dets_lidar[k][4] = det_lidar[j]['heading']
+            dets_lidar[k][5] = det_lidar[j]['width']# width is in the y direction for Louis
+            dets_lidar[k][6] = det_lidar[j]['length']
             dets_lidar[k][7] = 1
             dets_lidar[k][8] = 2  #sensor type: 2
 
@@ -580,7 +612,7 @@ if __name__ == '__main__':
 
 
         seq_dets_total=dets_lidar
-        additional_info = np.zeros([len(dets_lidar), 7])
+        additional_info = np.zeros([len(seq_dets_total), 7])
         additional_info[:, 1] = 2
 
         dets_cam = readCamera(frame_name, det_cam)
@@ -589,24 +621,34 @@ if __name__ == '__main__':
         dets_camDar, additional_info_2 = camRadarFuse (dets_cam, dets_radar)
         dets_camDar_back, additional_info_3 = camRadarFuse(dets_cam_back, dets_radar_back)
 
-        if(np.count_nonzero(dets_camDar) != 0):
-            seq_dets_total = np.concatenate((seq_dets_total, dets_camDar), axis=0)
-            additional_info = np.concatenate((additional_info, additional_info_2), axis=0)
+        # if(np.count_nonzero(dets_camDar) != 0):
+        #     seq_dets_total = np.concatenate((seq_dets_total, dets_camDar), axis=0)
+        #     additional_info = np.concatenate((additional_info, additional_info_2), axis=0)
+        #
+        # if(np.count_nonzero(dets_camDar_back) != 0):
+        #     seq_dets_total = np.concatenate((seq_dets_total, dets_camDar_back), axis=0)
+        #     additional_info = np.concatenate((additional_info, additional_info_3), axis=0)
+        #seq_dets_total2 = np.zeros([len(det_lidar), 9])
 
-        if(np.count_nonzero(dets_camDar_back) != 0):
-            seq_dets_total = np.concatenate((seq_dets_total, dets_camDar_back), axis=0)
-            additional_info = np.concatenate((additional_info, additional_info_3), axis=0)
+
+        # if(np.count_nonzero(dets_camDar_back) != 0):
+        #     seq_dets_total2 = np.concatenate((seq_dets_total2, dets_camDar_back), axis=0)
+        #     additional_info = np.concatenate((additional_info, additional_info_3), axis=0)
 
         total_frames += 1
 
         dets_all = {'dets': seq_dets_total[:, 1:8], 'info': additional_info}
-
-        seq_dets_total_prev = seq_dets_total
         start_time = time.time()
         trackers = mot_tracker.update(dets_all)
+
+        if(np.count_nonzero(dets_camDar) != 0):
+            seq_dets_total2 = dets_camDar
+            additional_info2 = additional_info_2
+            dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
+            trackers2 = mot_tracker.update(dets_all2)
+
         cycle_time = time.time() - start_time
         total_time += cycle_time
-# #
         result_trks = []  # np.zeros([1,9])
 
         T_inv = np.linalg.inv(T1)
