@@ -187,3 +187,170 @@ def hxRadar(x):
     theta = np.arctan(temp)
 
     return array ([[range, rangerate, theta]]).reshape((dim_z, 1))
+
+
+def camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold):
+    dets_camDar = np.zeros([1, 9])
+    additional_info_2 = np.zeros([1, 7])
+    numCamDar = 0
+
+    for w in range(len(dets_cam)):
+        test_x = dets_cam[w][1]
+        #radarCam_threshold = 0.05
+        bestTrack_Radar = -1
+        for q in range(len(dets_radar)):
+            test_radar = dets_radar[q][3]
+            diff = test_radar - test_x
+            if (abs(diff) < radarCam_threshold):
+                radarCam_threshold = diff
+                bestTrack_Radar = q
+
+        if (dets_cam[w][2] == 2):
+            length = 5  # 5
+            width = 2.5  # 2.5
+        else:
+            length = 8
+            width = 3
+
+        sidebounds = 20 #25 #20
+        frontbackbounds = 35.2 #40 #35.2
+
+        if (bestTrack_Radar != -1 and abs(dets_radar[bestTrack_Radar][1]) < frontbackbounds and abs(
+                dets_radar[bestTrack_Radar][2] < sidebounds)):
+            pos_cr = np.zeros([4, 1])
+            print('radar similar point: %s' % (q))
+            k = numCamDar
+            dets_camDar[k][0] = frame_name
+            dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
+            dets_camDar[k][2] = dets_radar[bestTrack_Radar][2]
+            dets_camDar[k][3] = 1
+            dets_camDar[k][4] = -dets_radar[bestTrack_Radar][4] #dets_radar[q][3]
+            dets_camDar[k][5] = width
+            dets_camDar[k][6] = length
+            dets_camDar[k][7] = 1  # HEIGHT
+            dets_camDar[k][8] = 2  # sensor type: 2
+
+            pos_cr[0][0] = dets_camDar[k][1]
+            pos_cr[1][0] = dets_camDar[k][2]
+            pos_cr[2][0] = 0
+            pos_cr[3][0] = 1
+
+            T_cr = np.matmul(T1, pos_cr)
+
+            dets_camDar[k][1] = T_cr[0][0]
+            dets_camDar[k][2] = T_cr[1][0]
+
+            additional_info_2[k, 1] = dets_cam[w][2]
+
+    return dets_camDar, additional_info_2
+
+def readCamera(frame_name, det_cam):
+    h = 0
+
+    #CAMERA INTRINSICS
+    Camera_Matrix_GMSL_120 = np.array([[958.5928517660333, 0.0, 963.2848327985546], [0.0, 961.1122866843237, 644.5199995337151], [0.0, 0.0, 1.0]])  #
+    ftest = 0.5 *( Camera_Matrix_GMSL_120[0][0] + Camera_Matrix_GMSL_120[1][1])
+    f = ftest / 1000  # focal length fx
+
+    dets_cam = np.zeros([len(det_cam), 5])
+    for j in range(len(det_cam)):
+        dets_cam[h][0] = frame_name
+        cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
+        theta = np.arctan(cam_x / f)
+
+        #DONE : Change the distortion??
+        # theta = theta + 0.005 * np.sin(abs(theta))
+
+        dets_cam[h][1] = theta
+        type = det_cam[j]['class_id']  # class_id = 2 is a car
+        dets_cam[h][2] = type
+        dets_cam[h][3] = det_cam[j]['confidence']
+        dets_cam[h][4] = 3  # SENSOR TYPE = 3
+        h += 1
+    return dets_cam
+
+def readRadar(frame_name, det_radar, radar_offset):
+    i = 0
+    dets_radar = np.zeros([len(det_radar), 6])
+    for j in range(len(det_radar)):
+        dets_radar[i][0] = frame_name
+        dets_radar[i][1] = det_radar[j]['obj_vcs_posex']
+        dets_radar[i][2] = det_radar[j]['obj_vcs_posey']
+        rangerate = float(det_radar[j]['range_rate'])
+        #print(rangerate)
+        # dets_radar[i][1] = dets_radar[i][1] + 0.1*rangerate
+        # dets_radar[i][2] = dets_radar[i][2] + 0.1*rangerate
+
+        ## To compensate of the fact that the radar value doesn't give the centroid information....
+        if rangerate < 0:
+            dets_radar[i][1] = dets_radar[i][1] - radar_offset
+            dets_radar[i][2] = dets_radar[i][2] - radar_offset
+        else:
+            dets_radar[i][1] = dets_radar[i][1] + radar_offset
+            dets_radar[i][2] = dets_radar[i][2] + radar_offset
+
+        dets_radar[i][3] = np.arctan(dets_radar[i][2] / dets_radar[i][1])
+        angle = float(det_radar[j]['angle_centroid'])
+        dets_radar[i][4] = np.deg2rad(angle)
+        dets_radar[i][5] = 1  # sensor type: 1
+        i += 1
+
+    return dets_radar
+
+def unique_rows(a):
+    a = np.ascontiguousarray(a)
+    unique_a = np.unique(a.view([('', a.dtype)]*a.shape[1]))
+    return unique_a.view(a.dtype).reshape((unique_a.shape[0], a.shape[1]))
+
+def readJson (pathRadar , pathLidar , pathCamera_a0 , pathCamera_a3 , pathPose):
+
+    # # Read the set1 radar points
+    with open(pathRadar, "r") as json_file:
+        dataR = json.load(json_file).get('radar')
+
+    # # Read the set1 lidar points
+    with open(pathLidar, "r") as json_file:
+        dataL = json.load(json_file)
+
+    # Read the set1 a0 camera points
+    with open(pathCamera_a0, "r") as json_file:
+        dataC = json.load(json_file)
+
+    # Read the set1 camera points
+    with open(pathCamera_a3, "r") as json_file:
+        dataC_a3 = json.load(json_file)
+
+    # Read the ego pose
+    with open(pathPose, "r") as json_file:
+        pose = json.load(json_file)
+        dataPose = pose.get('ego_loc')
+
+    return dataR , dataL , dataC , dataC_a3 , dataPose
+
+def readLidar (det_lidar, frame_name):
+    pos_lidar = np.zeros([4, 1])
+    k = 0
+    dets_lidar = np.zeros([1, 9])
+    for j in range(len(det_lidar)):
+        dets_lidar[k][0] = frame_name
+        dets_lidar[k][1] = (det_lidar[j]['centroid'])[0]  # x values in pixor , but y in world frame!!
+        dets_lidar[k][2] = (det_lidar[j]['centroid'])[1]  # y values in pixor , but x in world frame
+        dets_lidar[k][3] = 1
+        dets_lidar[k][4] = det_lidar[j]['heading']
+        dets_lidar[k][5] = det_lidar[j]['width']  # width is in the y direction for Louis
+        dets_lidar[k][6] = det_lidar[j]['length']
+        dets_lidar[k][7] = 1
+        dets_lidar[k][8] = 2  # sensor type: 2
+
+        pos_lidar[0][0] = dets_lidar[k][1]
+        pos_lidar[1][0] = dets_lidar[k][2]
+        pos_lidar[2][0] = 0
+        pos_lidar[3][0] = 1
+        T2 = np.matmul(T1, pos_lidar)
+        dets_lidar[k][1] = T2[0][0]
+        dets_lidar[k][2] = T2[1][0]
+
+        k += 1
+        pos_lidar = np.zeros([4, 1])
+
+    return dets_lidar
