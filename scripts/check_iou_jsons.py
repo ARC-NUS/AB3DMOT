@@ -8,7 +8,7 @@ import numpy as np
 import cv2
 import math
 import pypcd
-
+from datetime import datetime
 from munkres import Munkres, print_matrix, DISALLOWED
 import copy
 from numba import jit
@@ -358,6 +358,11 @@ if __name__ == '__main__':
   thres_d = 100. # 100 threshold distance to count as a correspondance, beyond it will be considered as missed detection
   #tracker_json_path = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_statemax_age=8,min_hits=6,hung_thresh=0.25_Qqv_0.01953125.json"
   #tracker_json_path = "/media/yl/downloads/tracker_results/set_8/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
-  tracker_json_path = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_04_02_2020.json"
+  today = datetime.today()
+  d1 = today.strftime("%d_%m_%Y")
+  set_num = '1'
+  tracker_json_path = "./results/JI_Cetran_Set"+ set_num + "/SensorFusedTrackOutput_Set" + set_num + '_' + d1 + ".json"
+  #tracker_json_path = "./results/yltracker_set_4.json"
+
   MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
   print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt

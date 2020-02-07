@@ -45,7 +45,7 @@ def camRadarFuse(dets_cam, dets_radar):
 
     for w in range(len(dets_cam)):
         test_x = dets_cam[w][1]
-        min_err = 0.05
+        min_err = 0.03
         bestTrack_Radar = -1
         for q in range(len(dets_radar)):
             test_radar = dets_radar[q][3]
@@ -70,10 +70,20 @@ def camRadarFuse(dets_cam, dets_radar):
             print('radar similar point: %s' % (q))
             k = numCamDar
             dets_camDar[k][0] = frame_name
-            dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
-            dets_camDar[k][2] = dets_radar[bestTrack_Radar][2]
+
+            testing_distort = False
+
+            if testing_distort:
+                dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
+                dets_camDar[k][2] = -dets_radar[bestTrack_Radar][2]
+
+                print ("x %f" %dets_camDar[k][1] + " y %f" %dets_camDar[k][2])
+            else:
+                dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
+                dets_camDar[k][2] = dets_radar[bestTrack_Radar][2]
+
             dets_camDar[k][3] = 1
-            dets_camDar[k][4] = -dets_radar[bestTrack_Radar][4] #dets_radar[q][3]
+            dets_camDar[k][4] = 0 #-dets_radar[bestTrack_Radar][4] #dets_radar[q][3]
             dets_camDar[k][5] = width
             dets_camDar[k][6] = length
             dets_camDar[k][7] = 1  # HEIGHT
@@ -98,13 +108,25 @@ def readCamera(frame_name, det_cam):
     dets_cam = np.zeros([len(det_cam), 5])
     for j in range(len(det_cam)):
         dets_cam[h][0] = frame_name
-        cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
-        theta = np.arctan(cam_x / f)
 
-        #DONE : Change the distortion??
-        theta = theta + 0.005 * np.sin(abs(theta))
+        testing_distort = False
 
-        dets_cam[h][1] = theta
+        if testing_distort:
+            cam_x = det_cam[j]['relative_coordinates']['center_x']
+            cam_y = det_cam[j]['relative_coordinates']['center_y']
+            pts_uv = np.array([cam_x, cam_y])
+            print(cam_x)
+            cx, cy = undistort_unproject_pts(pts_uv)
+            print(cx)
+            cam_x = -cx + 0.5
+            theta =  np.arctan(cam_x / f)
+
+        else:
+            cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
+            theta = np.arctan(cam_x / f)
+            theta = theta + 0.005 * np.sin(abs(theta))
+
+        dets_cam[h][1] =theta
         type = det_cam[j]['class_id']  # class_id = 2 is a car
         dets_cam[h][2] = type
         dets_cam[h][3] = det_cam[j]['confidence']
@@ -120,17 +142,21 @@ def readRadar(frame_name, det_radar):
         dets_radar[i][1] = det_radar[j]['obj_vcs_posex']
         dets_radar[i][2] = det_radar[j]['obj_vcs_posey']
         rangerate = float(det_radar[j]['range_rate'])
+
         #print(rangerate)
         # dets_radar[i][1] = dets_radar[i][1] + 0.1*rangerate
         # dets_radar[i][2] = dets_radar[i][2] + 0.1*rangerate
 
         ## To compensate of the fact that the radar value doesn't give the centroid information....
-        if rangerate < 0:
-            dets_radar[i][1] = dets_radar[i][1] - 0.7
-            dets_radar[i][2] = dets_radar[i][2] - 0.7
-        else:
-            dets_radar[i][1] = dets_radar[i][1] + 0.7
-            dets_radar[i][2] = dets_radar[i][2] + 0.7
+        testing_distort = False
+
+        if testing_distort == 0:
+            if rangerate < 0:
+                dets_radar[i][1] = dets_radar[i][1] - 0.7
+                dets_radar[i][2] = dets_radar[i][2] - 0.7
+            else:
+                dets_radar[i][1] = dets_radar[i][1] + 0.7
+                dets_radar[i][2] = dets_radar[i][2] + 0.7
 
         dets_radar[i][3] = np.arctan(dets_radar[i][2] / dets_radar[i][1])
         angle = float(det_radar[j]['angle_centroid'])
@@ -238,6 +264,9 @@ def iou3d(corners1, corners2):
     rect2 = [(corners2[i, 0], corners2[i, 2]) for i in range(3, -1, -1)]
     area1 = poly_area(np.array(rect1)[:, 0], np.array(rect1)[:, 1])
     area2 = poly_area(np.array(rect2)[:, 0], np.array(rect2)[:, 1])
+    #
+    if (area1 == area2 and rect1 == rect2):
+        print('ooo')
     inter, inter_area = convex_hull_intersection(rect1, rect2)
     iou_2d = inter_area / (area1 + area2 - inter_area)
     ymax = min(corners1[0, 1], corners2[0, 1])
@@ -257,15 +286,6 @@ def roty(t):
     return np.array([[c, 0, s],
                      [0, 1, 0],
                      [-s, 0, c]])
-
-@jit
-def rotz(t):
-    ''' Rotation about the z-axis. '''
-    c = np.cos(t)
-    s = np.sin(t)
-    return np.array([[c, -s, 0],
-                     [s, c, 0],
-                     [0, 0, 1]])
 
 
 def convert_3dbox_to_8corner(bbox3d_input):
@@ -370,7 +390,6 @@ class KalmanBoxTracker(object):
         self.hit_streak += 1  # number of continuing hit
         if self.still_first:
             self.first_continuing_hit += 1  # number of continuing hit in the fist time
-
 
         ######################### orientation correction
         if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2  # make the theta still in the range
@@ -484,11 +503,7 @@ if __name__ == '__main__':
 
     # #################################
     # # Take in bag value names
-
-    # TODO : IMPORTANT VARIABLESS!!
-    set_num = "1"
-
-    mainJson_loc = '../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_'+ set_num +'/'
+    mainJson_loc = '../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/'
 
     #Read the set1 radar points
     pathJson = mainJson_loc + '/radar_obstacles/radar_obstacles.json'
@@ -520,7 +535,7 @@ if __name__ == '__main__':
         dataPose = pose.get('ego_loc')
         numPose = len(dataPose)
 
-    pathJson = mainJson_loc + '/labels/set'+set_num+'_annotations.json'
+    pathJson = mainJson_loc + '/labels/set1_annotations.json'
     # pathJson = mainJson_loc + '/fused_pose/fused_pose.json'
     with open(pathJson, "r") as json_file:
         labels = json.load(json_file)
@@ -557,7 +572,7 @@ if __name__ == '__main__':
     today = datetime.today()
     d1 = today.strftime("%d_%m_%Y")
 
-    tracker_json_outfile = "./results/JI_Cetran_Set"+ set_num + "/SensorFusedTrackOutput_Set" + set_num + '_' + d1 + ".json"
+    tracker_json_outfile = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_" + d1 + ".json"
     seq_dets_total = []
 
     for frame_name in range(0, numPose): #numPose
@@ -589,7 +604,6 @@ if __name__ == '__main__':
         dets_radar = readRadar(frame_name, det_radar)
         dets_radar_right = readRadar(frame_name, det_radar_right)
         dets_radar_left = readRadar(frame_name, det_radar_left)
-
 
         dets_radar_back = readRadar(frame_name, det_radar_back)
 
@@ -634,19 +648,20 @@ if __name__ == '__main__':
 
         dets_all = {'dets': seq_dets_total[:, 1:8], 'info': additional_info}
         start_time = time.time()
-        trackers = mot_tracker.update(dets_all)
 
         if(np.count_nonzero(dets_camDar) != 0):
             seq_dets_total2 = dets_camDar
             additional_info2 = additional_info_2
             dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
-            trackers2 = mot_tracker.update(dets_all2)
+            trackers = mot_tracker.update(dets_all2)
 
         if(np.count_nonzero(dets_camDar_back) != 0):
             seq_dets_total2 = dets_camDar_back
             additional_info2 = additional_info_3
             dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
-            trackers2 = mot_tracker.update(dets_all2)
+            trackers = mot_tracker.update(dets_all2)
+
+        trackers = mot_tracker.update(dets_all)
 
         cycle_time = time.time() - start_time
         total_time += cycle_time
@@ -663,10 +678,8 @@ if __name__ == '__main__':
             bbox2d_tmp_trk = d[10:14]
             conf_tmp = d[14]
 
-            # obj_dict = {"width": d[1], "height": d[0], "length": d[2], "x": d[3], "y": d[4], "z": d[5], "yaw": d[6],
-            #             "id": d[7]}
-
             #why are the values of bbox3d_tmp different from the standard??
+
             T_tracked[0] = d[3]
             T_tracked[1] = d[4]
             T_tracked[3]= 1
@@ -682,6 +695,7 @@ if __name__ == '__main__':
             #print(str_to_srite)
             # eval_file.write(str_to_srite)
             #print('Check')
+
         total_list.append({"name": dataL[frame_name]['name'], "objects": result_trks})
         #print(result_trks)
 

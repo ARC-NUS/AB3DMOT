@@ -186,9 +186,9 @@ def p_grid_search():
 if __name__ == '__main__':
     #pixor_json_name = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
 
-    pixor_json_name = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs_pixorpp_kitti_nuscene.json"
+    pixor_json_name = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_4/pixor_outputs_pixorpp_kitti_nuscene.json"
     pixor_stats_json = pixor_json_name[0:len(pixor_json_name) - 5] + "_stats.json"
-    fused_pose_json = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/fused_pose/fused_pose_new.json"
+    fused_pose_json = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_4/fused_pose/fused_pose_new.json"
 
     #fused_pose_json = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/fused_pose/fused_pose.json"
 
@@ -235,7 +235,7 @@ if __name__ == '__main__':
             raise ValueError
 
         # tracker_json_outfile = "/home/yl/Downloads/tracker_results/set_7/cyra_state_10" + tracker_params +"_Q"+ q_params + ".json"
-        tracker_json_outfile = "./results/yltracker2.json"
+        tracker_json_outfile = "./results/yltracker_set_4.json"
         get_tracker_json(pixor_json_name=pixor_json_name, pixor_stats_json=pixor_stats_json,
                          tracker_json_outfile=tracker_json_outfile,
                          fused_pose_json=fused_pose_json, max_age=max_age, min_hits=min_hits, hung_thresh=hung_thresh,
