@@ -12,30 +12,25 @@ from wen_utils import STATE_SIZE, MEAS_SIZE, MEAS_SIZE_Radar, MOTION_MODEL, get_
 import json
 from datetime import datetime
 from main import AB3DMOT
+from covariance import Covariance
+from cv2 import cv2
 
 def undistort_unproject_pts(pts_uv):
     """
     This function converts
     """
-    w = 960
-    h = 604
+    sf = 0.5  # scaling factor
+    K = np.array([[981.276 * sf, 0.0, 985.405 * sf],
+                  [0.0, 981.414 * sf, 629.584 * sf],
+                  [0.0, 0.0, 1.0]])
+    D = np.array([[-0.0387077], [-0.0105319], [-0.0168433], [0.0310624]])
 
-    x = pts_uv[0] #*416
-    y = pts_uv[1] #*416
-    # x = x/float(w)
-    # y = y/float(h)
+    pts = pts_uv
+    Knew = K.copy()
+    #print(np.array([[pts_uv]]).shape)
+    ux, uy = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]), K=K, D=D, P=Knew)[0][0]]
 
-    k1 = -0.9
-    k2 = 0.61
-    p1 = 0
-    p2 = 0
-
-    cx = 0.5   #960/2.
-    cy = 0.5   #604/2.
-    r2 = ((x-cx)*2 + (y-cy)*2)
-    ux = cx + (x-cx)/(1+k1*r2 + k2*(r2**2))
-    uy = cy + (y-cy)/(1+k1*r2 + k2*(r2**2))
-
+    print(ux, uy)
     return ux, uy
 
 def camRadarFuse(dets_cam, dets_radar):
@@ -45,7 +40,7 @@ def camRadarFuse(dets_cam, dets_radar):
 
     for w in range(len(dets_cam)):
         test_x = dets_cam[w][1]
-        min_err = 0.03
+        min_err = 0.05
         bestTrack_Radar = -1
         for q in range(len(dets_radar)):
             test_radar = dets_radar[q][3]
@@ -70,18 +65,8 @@ def camRadarFuse(dets_cam, dets_radar):
             print('radar similar point: %s' % (q))
             k = numCamDar
             dets_camDar[k][0] = frame_name
-
-            testing_distort = False
-
-            if testing_distort:
-                dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
-                dets_camDar[k][2] = -dets_radar[bestTrack_Radar][2]
-
-                print ("x %f" %dets_camDar[k][1] + " y %f" %dets_camDar[k][2])
-            else:
-                dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
-                dets_camDar[k][2] = dets_radar[bestTrack_Radar][2]
-
+            dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
+            dets_camDar[k][2] = dets_radar[bestTrack_Radar][2]
             dets_camDar[k][3] = 1
             dets_camDar[k][4] = 0 #-dets_radar[bestTrack_Radar][4] #dets_radar[q][3]
             dets_camDar[k][5] = width
@@ -108,25 +93,16 @@ def readCamera(frame_name, det_cam):
     dets_cam = np.zeros([len(det_cam), 5])
     for j in range(len(det_cam)):
         dets_cam[h][0] = frame_name
+        cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
+        theta = np.arctan(cam_x / f)
 
-        testing_distort = False
+        #TODO: Undistort the points
+        #cam_x =undistort_unproject_pts(cam_x,cam_y)
 
-        if testing_distort:
-            cam_x = det_cam[j]['relative_coordinates']['center_x']
-            cam_y = det_cam[j]['relative_coordinates']['center_y']
-            pts_uv = np.array([cam_x, cam_y])
-            print(cam_x)
-            cx, cy = undistort_unproject_pts(pts_uv)
-            print(cx)
-            cam_x = -cx + 0.5
-            theta =  np.arctan(cam_x / f)
+        #DONE : Change the distortion??
+        theta = theta + 0.005 * np.sin(abs(theta))
 
-        else:
-            cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
-            theta = np.arctan(cam_x / f)
-            theta = theta + 0.005 * np.sin(abs(theta))
-
-        dets_cam[h][1] =theta
+        dets_cam[h][1] = theta
         type = det_cam[j]['class_id']  # class_id = 2 is a car
         dets_cam[h][2] = type
         dets_cam[h][3] = det_cam[j]['confidence']
@@ -142,21 +118,17 @@ def readRadar(frame_name, det_radar):
         dets_radar[i][1] = det_radar[j]['obj_vcs_posex']
         dets_radar[i][2] = det_radar[j]['obj_vcs_posey']
         rangerate = float(det_radar[j]['range_rate'])
-
         #print(rangerate)
         # dets_radar[i][1] = dets_radar[i][1] + 0.1*rangerate
         # dets_radar[i][2] = dets_radar[i][2] + 0.1*rangerate
 
         ## To compensate of the fact that the radar value doesn't give the centroid information....
-        testing_distort = False
-
-        if testing_distort == 0:
-            if rangerate < 0:
-                dets_radar[i][1] = dets_radar[i][1] - 0.7
-                dets_radar[i][2] = dets_radar[i][2] - 0.7
-            else:
-                dets_radar[i][1] = dets_radar[i][1] + 0.7
-                dets_radar[i][2] = dets_radar[i][2] + 0.7
+        if rangerate < 0:
+            dets_radar[i][1] = dets_radar[i][1] - 0.7
+            dets_radar[i][2] = dets_radar[i][2] - 0.7
+        else:
+            dets_radar[i][1] = dets_radar[i][1] + 0.7
+            dets_radar[i][2] = dets_radar[i][2] + 0.7
 
         dets_radar[i][3] = np.arctan(dets_radar[i][2] / dets_radar[i][1])
         angle = float(det_radar[j]['angle_centroid'])
@@ -264,9 +236,6 @@ def iou3d(corners1, corners2):
     rect2 = [(corners2[i, 0], corners2[i, 2]) for i in range(3, -1, -1)]
     area1 = poly_area(np.array(rect1)[:, 0], np.array(rect1)[:, 1])
     area2 = poly_area(np.array(rect2)[:, 0], np.array(rect2)[:, 1])
-    #
-    if (area1 == area2 and rect1 == rect2):
-        print('ooo')
     inter, inter_area = convex_hull_intersection(rect1, rect2)
     iou_2d = inter_area / (area1 + area2 - inter_area)
     ymax = min(corners1[0, 1], corners2[0, 1])
@@ -286,6 +255,15 @@ def roty(t):
     return np.array([[c, 0, s],
                      [0, 1, 0],
                      [-s, 0, c]])
+
+@jit
+def rotz(t):
+    ''' Rotation about the z-axis. '''
+    c = np.cos(t)
+    s = np.sin(t)
+    return np.array([[c, -s, 0],
+                     [s, c, 0],
+                     [0, 0, 1]])
 
 
 def convert_3dbox_to_8corner(bbox3d_input):
@@ -324,7 +302,7 @@ class KalmanBoxTracker(object):
     """
     count = 0
 
-    def __init__(self, bbox3D, info):
+    def __init__(self, bbox3D, info, covariance_id = 1):
         """
         Initialises a tracker using initial bounding box.
         """
@@ -337,37 +315,26 @@ class KalmanBoxTracker(object):
             self.kf.F = get_CV_F(0.05)
         if MOTION_MODEL == "CA":
             self.kf.F = get_CA_F(0.05)
-        # else:
-        #     print("unknown motion model", MOTION_MODEL)
+        else:
+            print("unknown motion model", MOTION_MODEL)
 
-        """
-        Initilise for diff sensors 
-        """
     # x y z theta l w h
         self.kf.H = np.zeros((MEAS_SIZE,STATE_SIZE))
         for i in range(min(MEAS_SIZE,STATE_SIZE)):
           self.kf.H[i,i]=1.
 
-        self.kf.R[0:,0:] *= 10   # measurement uncertainty
-        self.kf.P[7:,7:] *= 1000  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-        self.kf.P *= 10.
+        if covariance_id == 0:
+            self.kf.P[7:,7:] *= 1000  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+            self.kf.P *= 10.
+            self.kf.Q[7:, 7:] *= 0.01  # process uncertainty
 
-        #self.kf.Q[7:, 7:] = Q
+        elif covariance_id == 1:  # for kitti car, not supported
+            covariance = Covariance(covariance_id)
+            self.kf.P = covariance.P
+            self.kf.Q = covariance.Q
+            self.kf.R = covariance.R
 
-        self.kf.Q[7:, 7:] *= 0.01   # process uncertainty
         self.kf.x[:7] = bbox3D.reshape((7, 1))
-
-        # self.kfr.H = np.zeros((MEAS_SIZE_Radar, STATE_SIZE))
-        #
-        # for i in range(min(MEAS_SIZE_Radar, STATE_SIZE)):
-        #   self.kfr.H[i, i] = 1.
-
-        #self.kfr.x[:7] = bbox3D.reshape((7, 1))
-
-        self.kf.R[0:,0:] *= 100.  #R  # measurement uncertainty
-        self.kf.P[7:,7:] *= 1000.  # state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-        self.kf.P *=10 # P_0  #10.
-
         self.time_since_update = 0
         self.id = KalmanBoxTracker.count
         KalmanBoxTracker.count += 1
@@ -378,6 +345,8 @@ class KalmanBoxTracker(object):
         self.still_first = True
         self.age = 0
         self.info = info  # other info
+        self.tracking_score = track_score
+        self.tracking_name = tracking_name
 
 
     def update(self, bbox3D, info):
@@ -390,6 +359,7 @@ class KalmanBoxTracker(object):
         self.hit_streak += 1  # number of continuing hit
         if self.still_first:
             self.first_continuing_hit += 1  # number of continuing hit in the fist time
+
 
         ######################### orientation correction
         if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2  # make the theta still in the range
@@ -444,7 +414,58 @@ class KalmanBoxTracker(object):
         """
         return self.kf.x[:7].reshape((7,))
 
-def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):      #self.hungarian_thresh
+def angle_in_range(angle):
+    '''
+    Input angle: -2pi ~ 2pi
+    Output angle: -pi ~ pi
+    '''
+    if angle > np.pi:
+        angle -= 2 * np.pi
+    if angle < -np.pi:
+        angle += 2 * np.pi
+    return angle
+
+def diff_orientation_correction(det, trk):
+    '''
+    return the angle diff = det - trk
+    if angle diff > 90 or < -90, rotate trk and update the angle diff
+    '''
+    diff = det - trk
+    diff = angle_in_range(diff)
+    if diff > np.pi / 2:
+        diff -= np.pi
+    if diff < -np.pi / 2:
+        diff += np.pi
+    diff = angle_in_range(diff)
+    return diff
+
+def greedy_match(distance_matrix):
+    '''
+    Find the one-to-one matching using greedy algorithm choosing small distance
+    distance_matrix: (num_detections, num_tracks)
+    '''
+    matched_indices = []
+
+    num_detections, num_tracks = distance_matrix.shape
+    distance_1d = distance_matrix.reshape(-1)
+    index_1d = np.argsort(distance_1d)
+    index_2d = np.stack([index_1d // num_tracks, index_1d % num_tracks], axis=1)
+    detection_id_matches_to_tracking_id = [-1] * num_detections
+    tracking_id_matches_to_detection_id = [-1] * num_tracks
+    for sort_i in range(index_2d.shape[0]):
+        detection_id = int(index_2d[sort_i][0])
+        tracking_id = int(index_2d[sort_i][1])
+        if tracking_id_matches_to_detection_id[tracking_id] == -1 and detection_id_matches_to_tracking_id[
+            detection_id] == -1:
+            tracking_id_matches_to_detection_id[tracking_id] = detection_id
+            detection_id_matches_to_tracking_id[detection_id] = tracking_id
+            matched_indices.append([detection_id, tracking_id])
+
+    matched_indices = np.array(matched_indices)
+    return matched_indices
+
+
+def associate_detections_to_trackers(detections, trackers, iou_threshold=0.1):      #self.hungarian_thresh
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.25):
     """
@@ -503,7 +524,11 @@ if __name__ == '__main__':
 
     # #################################
     # # Take in bag value names
-    mainJson_loc = '../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/'
+
+    # TODO : IMPORTANT VARIABLESS!!
+    set_num = "1"
+
+    mainJson_loc = '../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_'+ set_num +'/'
 
     #Read the set1 radar points
     pathJson = mainJson_loc + '/radar_obstacles/radar_obstacles.json'
@@ -535,7 +560,7 @@ if __name__ == '__main__':
         dataPose = pose.get('ego_loc')
         numPose = len(dataPose)
 
-    pathJson = mainJson_loc + '/labels/set1_annotations.json'
+    pathJson = mainJson_loc + '/labels/set'+set_num+'_annotations.json'
     # pathJson = mainJson_loc + '/fused_pose/fused_pose.json'
     with open(pathJson, "r") as json_file:
         labels = json.load(json_file)
@@ -572,7 +597,7 @@ if __name__ == '__main__':
     today = datetime.today()
     d1 = today.strftime("%d_%m_%Y")
 
-    tracker_json_outfile = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_" + d1 + ".json"
+    tracker_json_outfile = "./results/JI_Cetran_Set"+ set_num + "/SensorFusedTrackOutput_Set" + set_num + '_' + d1 + ".json"
     seq_dets_total = []
 
     for frame_name in range(0, numPose): #numPose
@@ -604,6 +629,7 @@ if __name__ == '__main__':
         dets_radar = readRadar(frame_name, det_radar)
         dets_radar_right = readRadar(frame_name, det_radar_right)
         dets_radar_left = readRadar(frame_name, det_radar_left)
+
 
         dets_radar_back = readRadar(frame_name, det_radar_back)
 
@@ -645,9 +671,11 @@ if __name__ == '__main__':
         dets_camDar_back, additional_info_3 = camRadarFuse(dets_cam_back, dets_radar_back)
 
         total_frames += 1
-
-        dets_all = {'dets': seq_dets_total[:, 1:8], 'info': additional_info}
         start_time = time.time()
+        trackers =[]
+        dets_all = {'dets': seq_dets_total[:, 1:8], 'info': additional_info}
+
+        trackers = mot_tracker.update(dets_all)
 
         if(np.count_nonzero(dets_camDar) != 0):
             seq_dets_total2 = dets_camDar
@@ -660,8 +688,6 @@ if __name__ == '__main__':
             additional_info2 = additional_info_3
             dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
             trackers = mot_tracker.update(dets_all2)
-
-        trackers = mot_tracker.update(dets_all)
 
         cycle_time = time.time() - start_time
         total_time += cycle_time
@@ -678,8 +704,10 @@ if __name__ == '__main__':
             bbox2d_tmp_trk = d[10:14]
             conf_tmp = d[14]
 
-            #why are the values of bbox3d_tmp different from the standard??
+            # obj_dict = {"width": d[1], "height": d[0], "length": d[2], "x": d[3], "y": d[4], "z": d[5], "yaw": d[6],
+            #             "id": d[7]}
 
+            #why are the values of bbox3d_tmp different from the standard??
             T_tracked[0] = d[3]
             T_tracked[1] = d[4]
             T_tracked[3]= 1
@@ -695,7 +723,6 @@ if __name__ == '__main__':
             #print(str_to_srite)
             # eval_file.write(str_to_srite)
             #print('Check')
-
         total_list.append({"name": dataL[frame_name]['name'], "objects": result_trks})
         #print(result_trks)
 

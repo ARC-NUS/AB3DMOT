@@ -146,7 +146,6 @@ def unique_rows(a):
     unique_a = np.unique(a.view([('', a.dtype)]*a.shape[1]))
     return unique_a.view(a.dtype).reshape((unique_a.shape[0], a.shape[1]))
 
-
 @jit  # let Numba decide when and how to optimize:
 def poly_area(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
@@ -304,7 +303,7 @@ class KalmanBoxTracker(object):
     """
     count = 0
 
-    def __init__(self, bbox3D, info):
+    def __init__(self, bbox3D, info, covariance_id = 0):
         """
         Initialises a tracker using initial bounding box.
         """
@@ -424,48 +423,48 @@ class KalmanBoxTracker(object):
         Returns the current bounding box estimate.
         """
         return self.kf.x[:7].reshape((7,))
-
-def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):      #self.hungarian_thresh
-    # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
-    # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.25):
-    """
-    Assigns detections to tracked object (both represented as bounding boxes)
-    detections:  N x 8 x 3
-    trackers:    M x 8 x 3
-    Returns 3 lists of matches, unmatched_detections and unmatched_trackers
-    """
-    if (len(trackers) == 0):
-        return np.empty((0, 2), dtype=int), np.arange(len(detections)), np.empty((0, 8, 3), dtype=int)
-    iou_matrix = np.zeros((len(detections), len(trackers)), dtype=np.float32)
-
-    for d, det in enumerate(detections):
-        for t, trk in enumerate(trackers):
-            iou_matrix[d, t] = iou3d(det, trk)[0]  # det: 8 x 3, trk: 8 x 3
-    matched_indices = linear_assignment(-iou_matrix)  # hungarian algorithm
-
-    unmatched_detections = []
-    for d, det in enumerate(detections):
-        if (d not in matched_indices[:, 0]):
-            unmatched_detections.append(d)
-    unmatched_trackers = []
-    for t, trk in enumerate(trackers):
-        if (t not in matched_indices[:, 1]):
-            unmatched_trackers.append(t)
-
-    # filter out matched with low IOU
-    matches = []
-    for m in matched_indices:
-        if (iou_matrix[m[0], m[1]] < iou_threshold):
-            unmatched_detections.append(m[0])
-            unmatched_trackers.append(m[1])
-        else:
-            matches.append(m.reshape(1, 2))
-    if (len(matches) == 0):
-        matches = np.empty((0, 2), dtype=int)
-    else:
-        matches = np.concatenate(matches, axis=0)
-
-    return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
+#
+# def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):      #self.hungarian_thresh
+#     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
+#     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.25):
+#     """
+#     Assigns detections to tracked object (both represented as bounding boxes)
+#     detections:  N x 8 x 3
+#     trackers:    M x 8 x 3
+#     Returns 3 lists of matches, unmatched_detections and unmatched_trackers
+#     """
+#     if (len(trackers) == 0):
+#         return np.empty((0, 2), dtype=int), np.arange(len(detections)), np.empty((0, 8, 3), dtype=int)
+#     iou_matrix = np.zeros((len(detections), len(trackers)), dtype=np.float32)
+#
+#     for d, det in enumerate(detections):
+#         for t, trk in enumerate(trackers):
+#             iou_matrix[d, t] = iou3d(det, trk)[0]  # det: 8 x 3, trk: 8 x 3
+#     matched_indices = linear_assignment(-iou_matrix)  # hungarian algorithm
+#
+#     unmatched_detections = []
+#     for d, det in enumerate(detections):
+#         if (d not in matched_indices[:, 0]):
+#             unmatched_detections.append(d)
+#     unmatched_trackers = []
+#     for t, trk in enumerate(trackers):
+#         if (t not in matched_indices[:, 1]):
+#             unmatched_trackers.append(t)
+#
+#     # filter out matched with low IOU
+#     matches = []
+#     for m in matched_indices:
+#         if (iou_matrix[m[0], m[1]] < iou_threshold):
+#             unmatched_detections.append(m[0])
+#             unmatched_trackers.append(m[1])
+#         else:
+#             matches.append(m.reshape(1, 2))
+#     if (len(matches) == 0):
+#         matches = np.empty((0, 2), dtype=int)
+#     else:
+#         matches = np.concatenate(matches, axis=0)
+#
+#     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
 if __name__ == '__main__':
 

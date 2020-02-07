@@ -9,10 +9,7 @@ class Covariance(object):
     '''
 
     def __init__(self, covariance_id):
-        if covariance_id == 2:
-            self.num_states = 11  # with angular velocity
-        else:
-            self.num_states = 14 #10
+        self.num_states = 14 #10
         self.num_observations = 7
         self.P = np.eye(self.num_states)
         self.Q = np.eye(self.num_states)
