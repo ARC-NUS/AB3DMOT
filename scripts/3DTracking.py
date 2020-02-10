@@ -16,12 +16,12 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
 
     """""
     Function : happyTracker 
-    Inputs : dataR - Radar_obstacles, dataL (Pixor outputs) , dataC (Camera a0 outputs) , dataC_a3 (Camera a3 outputs), dataPose (Ego Pose) 
     Outputs : Trackers N x 8 array , where N is the number of tracked objects
      {"width": d[1], "height": d[0], "length": d[2], "x": T_track[0][0], "y": T_track[1][0], "z": d[5], "yaw": d[6], "id": d[7]}
     
+    Inputs : dataR - Radar_obstacles, dataL (Pixor outputs) , dataC (Camera a0 outputs) , dataC_a3 (Camera a3 outputs), dataPose (Ego Pose)
     DEFAULT VALUES 
-    max_age=3
+    max_age=3    
     min_hits=2
     hung_thresh=0.01 #.2
     
@@ -611,7 +611,7 @@ if __name__ == '__main__':
     dataR , dataL , dataC , dataC_a3 , dataPose = readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose)
 
     max_age=3
-    min_hits=4
+    min_hits=2
     hung_thresh=0.01 #.2
 
     Rlidar = np.identity(7)

@@ -260,15 +260,13 @@ def readCamera(frame_name, det_cam):
         cam_y = det_cam[j]['relative_coordinates']['center_y'] * 416
         xy_tuple = (cam_x,cam_y)
         upts = undistort_unproject_pts(xy_tuple)
-        print(upts)
+        #print(upts)
         #c = -(float(upts[0]) /536) +0.5
         #print(c)
         c2 = -upts[0] + (536 / 2)
         f3 = Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
         theta = np.arctan(float(c2)/ f3) #FIXME Verify if the theta is correct
-
-
-        print(theta)
+        #print(theta)
 
         dets_cam[h][1] = theta
         type = det_cam[j]['class_id']  # class_id = 2 is a car
@@ -289,8 +287,6 @@ def undistort_unproject_pts(xy_tuple):
                   [0.0, 981.414 * sfy, 629.584 * sfy],
                   [0.0, 0.0, 1.0]])
     D = np.array([[-0.0387077], [-0.0105319], [-0.0168433], [0.0310624]])
-
-    # FIXME
     pts = np.array([int(x) for x in xy_tuple])
     #print(pts)
     Knew = K.copy()
