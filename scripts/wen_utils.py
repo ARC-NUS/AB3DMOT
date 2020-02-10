@@ -251,25 +251,25 @@ def readCamera(frame_name, det_cam):
     ftest = 0.5 *( Camera_Matrix_GMSL_120[0][0] + Camera_Matrix_GMSL_120[1][1])
     test = 963.2848327985546 * float(416)/float(1920)
     f = ftest / test  # focal length fx
+    f_new = Camera_Matrix_GMSL_120[0][0]
     #print(det_cam)
     dets_cam = np.zeros([len(det_cam), 5])
     for j in range(len(det_cam)):
         dets_cam[h][0] = frame_name
-        # cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
-        # theta = np.arctan(cam_x / f)
-        # theta = theta + 0.005 * np.sin(abs(theta))
         cam_x = det_cam[j]['relative_coordinates']['center_x'] * 416
-        c2 = -float(cam_x/416) + 0.5
-        theta = np.arctan(c2/ f)
-        #print(theta)
         cam_y = det_cam[j]['relative_coordinates']['center_y'] * 416
         xy_tuple = (cam_x,cam_y)
         upts = undistort_unproject_pts(xy_tuple)
-        #print(upts)
-        c = -(float(upts[0]) /536) +0.5
+        print(upts)
+        #c = -(float(upts[0]) /536) +0.5
         #print(c)
-        theta = np.arctan(c/ f) #FIXME Verify if the theta is correct
-        #print(theta)
+        c2 = -upts[0] + (536 / 2)
+        f3 = Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
+        theta = np.arctan(float(c2)/ f3) #FIXME Verify if the theta is correct
+
+
+        print(theta)
+
         dets_cam[h][1] = theta
         type = det_cam[j]['class_id']  # class_id = 2 is a car
         dets_cam[h][2] = type
