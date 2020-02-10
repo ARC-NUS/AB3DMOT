@@ -25,12 +25,12 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
     min_hits=2
     hung_thresh=0.01 #.2
     
-    LIDAR Measurement and Model values : R, Q , P_0
+    LIDAR Measurement and Model values : Rlidar, Qlidar , P_0lidar
     Rlidar = np.identity(7)
     Qlidar = np.identity(14)  the covariance of the process noise;
     P_0lidar = np.identity(14) the covariance of the observation noise;
     
-    Camera Radar Measurement and Model values : R, Q , P_0
+    Camera Radar Measurement and Model values : Rcr, Qcr , P_0cr
     Rcr = np.identity(7)
     Qcr = np.identity(14)
     P_0cr = np.identity(14)
