@@ -36,7 +36,7 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
     P_0cr = np.identity(14)
     
     radarCam_threshold = 0.05  ; in radians the max angle difference +/- 0.025
-    radar_offset = 0.7 ; the position of the radar point and the actual center of the ego vehicle 
+    radar_offset = 0 ; the position of the radar point and the actual center of the ego vehicle 
     """""
 
     total_time = 0.0
