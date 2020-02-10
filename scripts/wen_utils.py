@@ -189,7 +189,6 @@ def hxRadar(x):
 
     return array ([[range, rangerate, theta]]).reshape((dim_z, 1))
 
-
 def camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold):
     dets_camDar = np.zeros([1, 9])
     additional_info_2 = np.zeros([1, 7])
@@ -250,22 +249,27 @@ def readCamera(frame_name, det_cam):
     #CAMERA INTRINSICS
     Camera_Matrix_GMSL_120 = np.array([[958.5928517660333, 0.0, 963.2848327985546], [0.0, 961.1122866843237, 644.5199995337151], [0.0, 0.0, 1.0]])  #
     ftest = 0.5 *( Camera_Matrix_GMSL_120[0][0] + Camera_Matrix_GMSL_120[1][1])
-    f = ftest / 1000  # focal length fx
-
+    test = 963.2848327985546 * float(416)/float(1920)
+    f = ftest / test  # focal length fx
+    #print(det_cam)
     dets_cam = np.zeros([len(det_cam), 5])
     for j in range(len(det_cam)):
         dets_cam[h][0] = frame_name
         # cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
         # theta = np.arctan(cam_x / f)
         # theta = theta + 0.005 * np.sin(abs(theta))
-
-        # TODO : Change the distortion??
-        cam_x = det_cam[j]['relative_coordinates']['center_x']
-        cam_y = det_cam[j]['relative_coordinates']['center_y']
-        cam_x, y = undistort_unproject_pts(cam_x, cam_y)
-        theta = np.arctan(cam_x / f)
-        theta = theta + 0.005 * np.sin(abs(theta))
-
+        cam_x = det_cam[j]['relative_coordinates']['center_x'] * 416
+        c2 = -float(cam_x/416) + 0.5
+        theta = np.arctan(c2/ f)
+        #print(theta)
+        cam_y = det_cam[j]['relative_coordinates']['center_y'] * 416
+        xy_tuple = (cam_x,cam_y)
+        upts = undistort_unproject_pts(xy_tuple)
+        #print(upts)
+        c = -(float(upts[0]) /536) +0.5
+        #print(c)
+        theta = np.arctan(c/ f) #FIXME Verify if the theta is correct
+        #print(theta)
         dets_cam[h][1] = theta
         type = det_cam[j]['class_id']  # class_id = 2 is a car
         dets_cam[h][2] = type
@@ -274,22 +278,27 @@ def readCamera(frame_name, det_cam):
         h += 1
     return dets_cam
 
-def undistort_unproject_pts(x,y):
+
+def undistort_unproject_pts(xy_tuple):
     """
     This function converts existing values into the undistorted values
     """
-    sf = 0.5  # scaling factor
-    K = np.array([[981.276 * sf, 0.0, 985.405 * sf],
-                  [0.0, 981.414 * sf, 629.584 * sf],
+    sfx = float(416)/float(1920)  # scaling factor
+    sfy = float(416)/float(1208)
+    K = np.array([[981.276 * sfx, 0.0, 985.405 * sfx],
+                  [0.0, 981.414 * sfy, 629.584 * sfy],
                   [0.0, 0.0, 1.0]])
     D = np.array([[-0.0387077], [-0.0105319], [-0.0168433], [0.0310624]])
 
-    pts = np.array([int(x), int(y)])
+    # FIXME
+    pts = np.array([int(x) for x in xy_tuple])
+    #print(pts)
     Knew = K.copy()
-    #print(np.array([[pts]]).shape)
-    ux, uy = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
-    #print (ux,uy)
-    return ux, uy
+    upts = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
+    #print(upts)
+    #x = int((512. + (point_out[0][0][0] * 1024)))
+    #y = int((288. + (point_out[0][0][1] * 576)))
+    return upts
 
 def readRadar(frame_name, det_radar, radar_offset):
     i = 0

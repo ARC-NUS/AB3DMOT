@@ -27,8 +27,8 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
     
     LIDAR Measurement and Model values : R, Q , P_0
     Rlidar = np.identity(7)
-    Qlidar = np.identity(14)
-    P_0lidar = np.identity(14)
+    Qlidar = np.identity(14)  the covariance of the process noise;
+    P_0lidar = np.identity(14) the covariance of the observation noise;
     
     Camera Radar Measurement and Model values : R, Q , P_0
     Rcr = np.identity(7)
@@ -54,6 +54,7 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
         det_cam = dataC[frame_name]['objects']
         det_cam_back = dataC_a3[frame_name]['objects']
         det_lidar = dataL[frame_name]['objects']
+
         seq_dets_pose[frame_name][0] = frame_name
         seq_dets_pose[frame_name][1] = dataPose[frame_name]['header']['stamp']
         seq_dets_pose[frame_name][2] = dataPose[frame_name]['pose']['position']['x']
@@ -85,19 +86,25 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
             additional_info = np.zeros([len(dets_lidar), 7])
             additional_info[:, 1] = 2
             dets_all = {'dets': dets_lidar[:, 1:8], 'info': additional_info}
+            mot_tracker.max_age = 3
+            mot_tracker.min_hits = 4
             trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
         #
-        # if (np.count_nonzero(dets_camDar) != 0):
-        #     seq_dets_total2 = dets_camDar
-        #     additional_info2 = additional_info_2
-        #     dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
-        #     trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
-        # # #
-        # if (np.count_nonzero(dets_camDar_back) != 0):
-        #     seq_dets_total2 = dets_camDar_back
-        #     additional_info2 = additional_info_3
-        #     dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
-        #     trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
+        if (np.count_nonzero(dets_camDar) != 0):
+            seq_dets_total2 = dets_camDar
+            additional_info2 = additional_info_2
+            dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
+            mot_tracker.max_age = 3
+            mot_tracker.min_hits = 4
+            trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
+        # #
+        if (np.count_nonzero(dets_camDar_back) != 0):
+            seq_dets_total2 = dets_camDar_back
+            additional_info2 = additional_info_3
+            dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
+            mot_tracker.max_age = 3
+            mot_tracker.min_hits = 4
+            trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
 
         cycle_time = time.time() - start_time
         total_time += cycle_time
@@ -388,6 +395,7 @@ class AB3DMOT(object):
         """
         dets, info = dets_all['dets'], dets_all['info']  # dets: N x 7, float numpy array
 
+        #FIXME
         if sensor_type == 1:  # LIDAR
             self.P = self.P_0lidar
             self.Q = self.Qlidar
@@ -442,6 +450,7 @@ class AB3DMOT(object):
             trk = KalmanBoxTracker(dets[i, :], info[i, :], self.R, self.Q, self.P_0, self.delta_t)
             self.trackers.append(trk)
 
+        #FIXME
         if sensor_type == 1:  # LIDAR
             self.P_0lidar = self.P
             self.Qlidar = self.Q
@@ -503,11 +512,11 @@ class KalmanBoxTracker(object):
         #     self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
         #     self.kf.P *= 10.
 
-        # innov cov from pixor stats
         self.kf.P = P_0
-
+        # self.kf.P *= 10.
+        # self.kf.P[7:, 7:] *= 1000.  #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
         # self.kf.Q[-1,-1] *= 0.01
-        #     self.kf.Q[7:,7:] *= 0.01 # process uncertainty
+        # self.kf.Q[7:,7:] *= 0.01 # process uncertainty
         self.kf.Q = Q
         self.kf.x[:7] = bbox3D.reshape((7, 1))
 
@@ -602,7 +611,7 @@ if __name__ == '__main__':
     dataR , dataL , dataC , dataC_a3 , dataPose = readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose)
 
     max_age=3
-    min_hits=2
+    min_hits=4
     hung_thresh=0.01 #.2
 
     Rlidar = np.identity(7)
@@ -613,8 +622,8 @@ if __name__ == '__main__':
     Qcr = np.identity(14)
     P_0cr = np.identity(14)
 
-    radarCam_threshold = 0.05  #.05 #radians!!
-    radar_offset = 0 #0.7
+    radarCam_threshold = 0.03  #.05 #radians!!
+    radar_offset = 0
     total_list = happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar , Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset)
 
     isPrint = 1
