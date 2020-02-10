@@ -42,27 +42,23 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
     total_time = 0.0
     total_frames = 0
     seq_dets_pose =np.zeros([len(dataPose), 5])
-    delta_t = 0.05
-    #mot_tracker = AB3DMOT(max_age=max_age, min_hits=min_hits, hung_thresh=hung_thresh, R=R, Q=Q, P_0=P_0, Rcr = Rcr, Qcr = Qcr, P_0cr = P_0cr, delta_t= delta_t, is_jic = False)
     mot_tracker = AB3DMOT(is_jic=True, max_age=max_age, min_hits=min_hits, hung_thresh=hung_thresh, Rlidar=Rlidar, Qlidar=Qlidar, P_0lidar=P_0lidar , Rcr=Rcr, Qcr=Qcr, P_0cr=P_0cr)
     total_list = []
 
+
     for frame_name in range(0, len(dataPose)):  # numPose
-        k = 0
         det_radar = dataR[frame_name]['front_esr_tracklist']
         det_radar_right = dataR[frame_name]['front_right_esr_tracklist']
         det_radar_left = dataR[frame_name]['front_left_esr_tracklist']
         det_radar_back = dataR[frame_name]['rear_sbmp_tracklist']
         det_cam = dataC[frame_name]['objects']
         det_cam_back = dataC_a3[frame_name]['objects']
-
         det_lidar = dataL[frame_name]['objects']
         seq_dets_pose[frame_name][0] = frame_name
         seq_dets_pose[frame_name][1] = dataPose[frame_name]['header']['stamp']
         seq_dets_pose[frame_name][2] = dataPose[frame_name]['pose']['position']['x']
         seq_dets_pose[frame_name][3] = dataPose[frame_name]['pose']['position']['y']
         seq_dets_pose[frame_name][4] = dataPose[frame_name]['pose']['attitude']['yaw']
-
         q1 = Quaternion(axis=[0, 0, 1], angle=seq_dets_pose[frame_name][4])
         T1 = q1.transformation_matrix
         T1[0][3] = seq_dets_pose[frame_name][2]
@@ -70,42 +66,12 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
 
         print("Processing ", dataL[frame_name]['name'],
               datetime.utcfromtimestamp(seq_dets_pose[frame_name][1]).strftime('%Y-%m-%d %H:%M:%S'))
-
         dets_radar = readRadar(frame_name, det_radar, radar_offset)
         dets_radar_right = readRadar(frame_name, det_radar_right, radar_offset)
         dets_radar_left = readRadar(frame_name, det_radar_left, radar_offset)
         dets_radar_back = readRadar(frame_name, det_radar_back, radar_offset)
-
         dets_radar = np.concatenate((dets_radar, dets_radar_right, dets_radar_left), axis=0)
-        dets_lidar = np.zeros([len(det_lidar), 9])
-
-        pos_lidar = np.zeros([4, 1])
-        for j in range(len(det_lidar)):
-            dets_lidar[k][0] = frame_name
-            dets_lidar[k][1] = (det_lidar[j]['centroid'])[0]  # x values in pixor , but y in world frame!!
-            dets_lidar[k][2] = (det_lidar[j]['centroid'])[1]  # y values in pixor , but x in world frame
-            dets_lidar[k][3] = 1
-            dets_lidar[k][4] = det_lidar[j]['heading']
-            dets_lidar[k][5] = det_lidar[j]['width']  # width is in the y direction for Louis
-            dets_lidar[k][6] = det_lidar[j]['length']
-            dets_lidar[k][7] = 1
-            dets_lidar[k][8] = 2  # sensor type: 2
-
-            pos_lidar[0][0] = dets_lidar[k][1]
-            pos_lidar[1][0] = dets_lidar[k][2]
-            pos_lidar[2][0] = 0
-            pos_lidar[3][0] = 1
-            T2 = np.matmul(T1, pos_lidar)
-            dets_lidar[k][1] = T2[0][0]
-            dets_lidar[k][2] = T2[1][0]
-
-            k += 1
-            pos_lidar = np.zeros([4, 1])
-
-        seq_dets_total = dets_lidar
-        additional_info = np.zeros([len(seq_dets_total), 7])
-        additional_info[:, 1] = 2
-
+        dets_lidar = readLidar(det_lidar, frame_name, T1)
         dets_cam = readCamera(frame_name, det_cam)
         dets_cam_back = readCamera(frame_name, det_cam_back)
         dets_camDar, additional_info_2 = camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold)
@@ -113,22 +79,25 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
 
         total_frames += 1
 
-        dets_all = {'dets': seq_dets_total[:, 1:8], 'info': additional_info}
         start_time = time.time()
         trackers = []
-        trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
-
-        if (np.count_nonzero(dets_camDar) != 0):
-            seq_dets_total2 = dets_camDar
-            additional_info2 = additional_info_2
-            dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
-            trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
-        # #
-        if (np.count_nonzero(dets_camDar_back) != 0):
-            seq_dets_total2 = dets_camDar_back
-            additional_info2 = additional_info_3
-            dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
-            trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
+        if (np.count_nonzero(dets_lidar) != 0):
+            additional_info = np.zeros([len(dets_lidar), 7])
+            additional_info[:, 1] = 2
+            dets_all = {'dets': dets_lidar[:, 1:8], 'info': additional_info}
+            trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
+        #
+        # if (np.count_nonzero(dets_camDar) != 0):
+        #     seq_dets_total2 = dets_camDar
+        #     additional_info2 = additional_info_2
+        #     dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
+        #     trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
+        # # #
+        # if (np.count_nonzero(dets_camDar_back) != 0):
+        #     seq_dets_total2 = dets_camDar_back
+        #     additional_info2 = additional_info_3
+        #     dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
+        #     trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
 
         cycle_time = time.time() - start_time
         total_time += cycle_time
@@ -136,6 +105,7 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
 
         T_inv = np.linalg.inv(T1)
         T_tracked = np.zeros([4, 1])
+
         for d in trackers:
 
             T_tracked[0] = d[3]
@@ -153,22 +123,6 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
 
     return total_list
 
-def undistort_unproject_pts(xy_tuple):
-    """
-    This function converts existing values into the undistorted values
-    """
-    sf = 0.5  # scaling factor
-    K = np.array([[981.276 * sf, 0.0, 985.405 * sf],
-                  [0.0, 981.414 * sf, 629.584 * sf],
-                  [0.0, 0.0, 1.0]])
-    D = np.array([[-0.0387077], [-0.0105319], [-0.0168433], [0.0310624]])
-
-    pts = np.array([int(x) for x in xy_tuple])
-    Knew = K.copy()
-    print(np.array([[pts]]).shape)
-    ux, uy = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
-
-    return ux, uy
 
 @jit  # let Numba decide when and how to optimize:
 def poly_area(x, y):
@@ -640,7 +594,7 @@ if __name__ == '__main__':
     det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle' , 5: 'Truck'}
 
     pathRadar = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/radar_obstacles/radar_obstacles.json'
-    pathLidar = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs2_pixorpp_kitti_nuscene.json'
+    pathLidar = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs_pixorpp_kitti_nuscene.json'
     pathCamera_a0 = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/image_detect/result_a0.json'
     pathCamera_a3 = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/image_detect/result_a3.json'
     pathPose = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/fused_pose/fused_pose.json'
@@ -649,7 +603,7 @@ if __name__ == '__main__':
 
     max_age=3
     min_hits=2
-    hung_thresh=0.05 #.2
+    hung_thresh=0.01 #.2
 
     Rlidar = np.identity(7)
     Qlidar = np.identity(14)
@@ -659,17 +613,17 @@ if __name__ == '__main__':
     Qcr = np.identity(14)
     P_0cr = np.identity(14)
 
-    radarCam_threshold = 0.05 #.05 #radians!!
-    radar_offset = 0.7
+    radarCam_threshold = 0.05  #.05 #radians!!
+    radar_offset = 0 #0.7
     total_list = happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar , Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset)
 
-    isPrint = 0
+    isPrint = 1
 
     if isPrint == True:
         today = datetime.today()
-        d1 = today.strftime("%d_%m_%Y")
-        set_num = 1
-        tracker_json_outfile = "./results/JI_Cetran_Set"+ set_num + "/SensorFusedTrackOutput_Set" + set_num + '_' + d1 + ".json"
+        d1 = today.strftime("%Y_%m_%d")
+        set_num = '1'
+        tracker_json_outfile = "./results/JI_Cetran_Set"+ set_num + "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
 
         with open(tracker_json_outfile, "w+") as outfile:
             json.dump(total_list, outfile, indent=1)

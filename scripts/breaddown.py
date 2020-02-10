@@ -8,7 +8,7 @@ from filterpy.kalman import ExtendedKalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
 from pyquaternion import Quaternion
-from wen_utils import STATE_SIZE, MEAS_SIZE, MEAS_SIZE_Radar, MOTION_MODEL, get_CV_F, get_CA_F
+from wen_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F
 import json
 from datetime import datetime
 from main import AB3DMOT
@@ -512,7 +512,7 @@ if __name__ == '__main__':
         dataC_a3 = json.load(json_file)
 
     #Read the ego pose
-    pathJson = mainJson_loc + '/fused_pose/fused_pose_new.json'
+    pathJson = mainJson_loc + '/fused_pose/fused_pose.json'
     #pathJson = mainJson_loc + '/fused_pose/fused_pose.json'
     with open(pathJson, "r") as json_file:
         pose = json.load(json_file)

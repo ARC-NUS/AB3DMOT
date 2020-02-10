@@ -7,13 +7,14 @@
 
 import json
 import numpy as np
+import cv2
 
 STATE_SIZE = 14
 MEAS_SIZE = 7   #measurement model for pixor, 7
-MEAS_SIZE_Radar = 3  #measurement model for radar, 3
+#MEAS_SIZE_Radar = 3  #measurement model for radar, 3
 #MOTION_MODEL = "CYRA"
-MOTION_MODEL="CA"
-#MOTION_MODEL="CV"
+#MOTION_MODEL="CA"
+MOTION_MODEL="CV"
 
 # set R based on pixor stats in json
 def px_stats_get_R(pixor_stats_json):
@@ -218,13 +219,13 @@ def camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold):
         if (bestTrack_Radar != -1 and abs(dets_radar[bestTrack_Radar][1]) < frontbackbounds and abs(
                 dets_radar[bestTrack_Radar][2] < sidebounds)):
             pos_cr = np.zeros([4, 1])
-            print('radar similar point: %s' % (q))
+            #print('radar similar point: %s' % (q))
             k = numCamDar
             dets_camDar[k][0] = frame_name
             dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
             dets_camDar[k][2] = dets_radar[bestTrack_Radar][2]
             dets_camDar[k][3] = 1
-            dets_camDar[k][4] = -dets_radar[bestTrack_Radar][4] #dets_radar[q][3]
+            dets_camDar[k][4] = 0 #-dets_radar[bestTrack_Radar][4] #dets_radar[q][3]
             dets_camDar[k][5] = width
             dets_camDar[k][6] = length
             dets_camDar[k][7] = 1  # HEIGHT
@@ -239,7 +240,6 @@ def camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold):
 
             dets_camDar[k][1] = T_cr[0][0]
             dets_camDar[k][2] = T_cr[1][0]
-
             additional_info_2[k, 1] = dets_cam[w][2]
 
     return dets_camDar, additional_info_2
@@ -255,11 +255,16 @@ def readCamera(frame_name, det_cam):
     dets_cam = np.zeros([len(det_cam), 5])
     for j in range(len(det_cam)):
         dets_cam[h][0] = frame_name
-        cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
-        theta = np.arctan(cam_x / f)
-
-        #DONE : Change the distortion??
+        # cam_x = -det_cam[j]['relative_coordinates']['center_x'] + 0.5
+        # theta = np.arctan(cam_x / f)
         # theta = theta + 0.005 * np.sin(abs(theta))
+
+        # TODO : Change the distortion??
+        cam_x = det_cam[j]['relative_coordinates']['center_x']
+        cam_y = det_cam[j]['relative_coordinates']['center_y']
+        cam_x, y = undistort_unproject_pts(cam_x, cam_y)
+        theta = np.arctan(cam_x / f)
+        theta = theta + 0.005 * np.sin(abs(theta))
 
         dets_cam[h][1] = theta
         type = det_cam[j]['class_id']  # class_id = 2 is a car
@@ -268,6 +273,23 @@ def readCamera(frame_name, det_cam):
         dets_cam[h][4] = 3  # SENSOR TYPE = 3
         h += 1
     return dets_cam
+
+def undistort_unproject_pts(x,y):
+    """
+    This function converts existing values into the undistorted values
+    """
+    sf = 0.5  # scaling factor
+    K = np.array([[981.276 * sf, 0.0, 985.405 * sf],
+                  [0.0, 981.414 * sf, 629.584 * sf],
+                  [0.0, 0.0, 1.0]])
+    D = np.array([[-0.0387077], [-0.0105319], [-0.0168433], [0.0310624]])
+
+    pts = np.array([int(x), int(y)])
+    Knew = K.copy()
+    #print(np.array([[pts]]).shape)
+    ux, uy = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
+    #print (ux,uy)
+    return ux, uy
 
 def readRadar(frame_name, det_radar, radar_offset):
     i = 0
@@ -327,10 +349,10 @@ def readJson (pathRadar , pathLidar , pathCamera_a0 , pathCamera_a3 , pathPose):
 
     return dataR , dataL , dataC , dataC_a3 , dataPose
 
-def readLidar (det_lidar, frame_name):
+def readLidar (det_lidar, frame_name, T1):
+    dets_lidar = np.zeros([len(det_lidar), 9])
     pos_lidar = np.zeros([4, 1])
     k = 0
-    dets_lidar = np.zeros([1, 9])
     for j in range(len(det_lidar)):
         dets_lidar[k][0] = frame_name
         dets_lidar[k][1] = (det_lidar[j]['centroid'])[0]  # x values in pixor , but y in world frame!!

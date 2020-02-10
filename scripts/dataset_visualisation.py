@@ -43,7 +43,7 @@ radar_obstacles_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_j
 
 # 20hz tracker
 #tracker_json_path = "/media/yl/downloads/tracker_results/set_7/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
-tracker_json_path = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_07_02_2020.json"
+tracker_json_path = "./results/JI_Cetran_Set1/TrackOutput_Set1_2020_02_10.json"
 
 # 20hz tracker
 #tracker_json_path = "/media/yl/downloads/tracker_results/set_7/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
