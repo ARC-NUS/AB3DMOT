@@ -8,11 +8,11 @@ from filterpy.kalman import ExtendedKalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
 from pyquaternion import Quaternion
-from wen_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F, camRadarFuse, readCamera, readRadar,readJson, readLidar
+from wen_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F, camRadarFuse, readCamera, readRadar,readJson, readLidar, readIBEO
 import json
 from datetime import datetime
 
-def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar , Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset):
+def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB, max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar , Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset):
 
     """""
     Function : happyTracker 
@@ -54,6 +54,7 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
         det_cam = dataC[frame_name]['objects']
         det_cam_back = dataC_a3[frame_name]['objects']
         det_lidar = dataL[frame_name]['objects']
+        det_IBEO = dataIB[frame_name]['data']
 
         seq_dets_pose[frame_name][0] = frame_name
         seq_dets_pose[frame_name][1] = dataPose[frame_name]['header']['stamp']
@@ -67,6 +68,8 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
 
         print("Processing ", dataL[frame_name]['name'],
               datetime.utcfromtimestamp(seq_dets_pose[frame_name][1]).strftime('%Y-%m-%d %H:%M:%S'))
+
+        ## Reads the values from the sensors and processes some back into the detections 7x1 situations......
         dets_radar = readRadar(frame_name, det_radar, radar_offset)
         dets_radar_right = readRadar(frame_name, det_radar_right, radar_offset)
         dets_radar_left = readRadar(frame_name, det_radar_left, radar_offset)
@@ -78,33 +81,46 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
         dets_camDar, additional_info_2 = camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold)
         dets_camDar_back, additional_info_3 = camRadarFuse(frame_name, dets_cam_back, dets_radar_back, T1 ,radarCam_threshold)
 
+        dets_IBEO, additional_info_ibeo = readIBEO(frame_name, det_IBEO, T1)
+
         total_frames += 1
 
         start_time = time.time()
         trackers = []
+        mot_tracker.max_age = 3
+        mot_tracker.min_hits = 3
+
         if (np.count_nonzero(dets_lidar) != 0):
             additional_info = np.zeros([len(dets_lidar), 7])
             additional_info[:, 1] = 2
             dets_all = {'dets': dets_lidar[:, 1:8], 'info': additional_info}
-            mot_tracker.max_age = 3
-            mot_tracker.min_hits = 4
+            # mot_tracker.max_age = 3
+            # mot_tracker.min_hits = 3
             trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
         #
-        if (np.count_nonzero(dets_camDar) != 0):
-            seq_dets_total2 = dets_camDar
-            additional_info2 = additional_info_2
+        # if (np.count_nonzero(dets_camDar) != 0):
+        #     seq_dets_total2 = dets_camDar
+        #     additional_info2 = additional_info_2
+        #     dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
+        #     # mot_tracker.max_age = 3
+        #     # mot_tracker.min_hits = 3
+        #     trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
+        # # #
+        # if (np.count_nonzero(dets_camDar_back) != 0):
+        #     seq_dets_total2 = dets_camDar_back
+        #     additional_info2 = additional_info_3
+        #     dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
+        #     # mot_tracker.max_age = 3
+        #     # mot_tracker.min_hits = 3
+        #     trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
+
+        if (np.count_nonzero(dets_IBEO) != 0):
+            seq_dets_total2 = dets_IBEO
+            additional_info2 = additional_info_ibeo
             dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
-            mot_tracker.max_age = 3
-            mot_tracker.min_hits = 4
-            trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
-        # #
-        if (np.count_nonzero(dets_camDar_back) != 0):
-            seq_dets_total2 = dets_camDar_back
-            additional_info2 = additional_info_3
-            dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
-            mot_tracker.max_age = 3
-            mot_tracker.min_hits = 4
-            trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
+            # mot_tracker.max_age = 3
+            # mot_tracker.min_hits = 3
+            trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 4)
 
         cycle_time = time.time() - start_time
         total_time += cycle_time
@@ -126,6 +142,30 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits
 
             result_trks.append(obj_dict)
         total_list.append({"name": dataL[frame_name]['name'], "objects": result_trks})
+
+
+        #     bbox3d_tmp = d[0:7]
+        #     id_tmp = d[7]
+        #     ori_tmp = d[8]
+        #     type_tmp = det_id2str[d[7]] #det_id2str[d[9]]
+        #     bbox2d_tmp_trk = d[10:14]
+        #     conf_tmp = d[14]
+        #
+        #     str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame_name, id_tmp,
+        #                                                                               type_tmp, ori_tmp,
+        #                                                                               bbox2d_tmp_trk[0],
+        #                                                                               bbox2d_tmp_trk[1],
+        #                                                                               bbox2d_tmp_trk[2],
+        #                                                                               bbox2d_tmp_trk[3],
+        #                                                                               bbox3d_tmp[0], bbox3d_tmp[1],
+        #                                                                               bbox3d_tmp[2], bbox3d_tmp[3],
+        #                                                                               bbox3d_tmp[4], bbox3d_tmp[5],
+        #                                                                               bbox3d_tmp[6],
+        #                                                                               conf_tmp)
+        #     eval_file.write(str_to_srite)
+        #
+        # eval_file.close()
+
     print("Total Tracking took: %.3f for %d frames or %.1f FPS" % (total_time, total_frames, total_frames / total_time))
 
     return total_list
@@ -481,7 +521,7 @@ class AB3DMOT(object):
 
 class KalmanBoxTracker(object):
     """
-    This class represents the internel state of individual tracked objects observed as bbox.
+    This class represents the internal state of individual tracked objects observed as bbox.
     """
     count = 0
 
@@ -608,7 +648,9 @@ if __name__ == '__main__':
     pathCamera_a3 = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/image_detect/result_a3.json'
     pathPose = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/fused_pose/fused_pose.json'
 
-    dataR , dataL , dataC , dataC_a3 , dataPose = readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose)
+    pathIBEO = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/ecu_obj_list/ecu_obj_list.json'
+
+    dataR , dataL , dataC , dataC_a3 , dataPose, dataIB = readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose, pathIBEO)
 
     max_age=3
     min_hits=2
@@ -624,7 +666,7 @@ if __name__ == '__main__':
 
     radarCam_threshold = 0.03  #.05 #radians!!
     radar_offset = 0
-    total_list = happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar , Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset)
+    total_list = happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar , Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset)
 
     isPrint = 1
 

@@ -154,7 +154,6 @@ def get_CYRA_F(delta_t):
     F[8, 11] = delta_t
     return F
 
-
 def HJradar(x):    #For radar measurement H
 
     dist = np.sqrt(x[0][0]**2 + x[1][0]**2)
@@ -205,7 +204,7 @@ def camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold):
                 radarCam_threshold = diff
                 bestTrack_Radar = q
 
-        if (dets_cam[w][2] == 2):
+        if (dets_cam[w][2] == 2):  #2 is a car , 5 is a truck
             length = 5  # 5
             width = 2.5  # 2.5
         else:
@@ -276,7 +275,6 @@ def readCamera(frame_name, det_cam):
         h += 1
     return dets_cam
 
-
 def undistort_unproject_pts(xy_tuple):
     """
     This function converts existing values into the undistorted values
@@ -329,7 +327,7 @@ def unique_rows(a):
     unique_a = np.unique(a.view([('', a.dtype)]*a.shape[1]))
     return unique_a.view(a.dtype).reshape((unique_a.shape[0], a.shape[1]))
 
-def readJson (pathRadar , pathLidar , pathCamera_a0 , pathCamera_a3 , pathPose):
+def readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose, pathIBEO):
 
     # # Read the set1 radar points
     with open(pathRadar, "r") as json_file:
@@ -352,7 +350,10 @@ def readJson (pathRadar , pathLidar , pathCamera_a0 , pathCamera_a3 , pathPose):
         pose = json.load(json_file)
         dataPose = pose.get('ego_loc')
 
-    return dataR , dataL , dataC , dataC_a3 , dataPose
+    with open(pathIBEO, "r") as json_file:
+        dataIB = json.load(json_file) .get('ibeo_obj')
+
+    return     dataR , dataL , dataC , dataC_a3 , dataPose, dataIB
 
 def readLidar (det_lidar, frame_name, T1):
     dets_lidar = np.zeros([len(det_lidar), 9])
@@ -381,3 +382,70 @@ def readLidar (det_lidar, frame_name, T1):
         pos_lidar = np.zeros([4, 1])
 
     return dets_lidar
+
+def readIBEO(frame_name, det_IBEO, T1):
+    dets_IBEO_temp = np.zeros([1, 9])
+    pos_IBEO = np.zeros([4, 1])
+    k = 0
+    additional_info_2_temp = np.zeros([1, 7])
+    dets_IBEO = []
+    additional_info_2 = []
+
+    for j in range(len(det_IBEO)):
+        obj_class = det_IBEO[j]['obj_class']
+        width = float(det_IBEO[j]['obj_size']['x'])/100
+        length = float(det_IBEO[j]['obj_size']['y'])/100
+        if obj_class == 6:
+            print('Detected Truck!')
+        x_bus = float(det_IBEO[j]['obj_center']['x']) / 100
+        y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
+
+        if obj_class > 3 and obj_class != 8 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
+
+            if obj_class == 3:
+                obj_class_foloyolo = 0
+            if obj_class == 9 or obj_class == 4:
+                obj_class_foloyolo = 1
+            if obj_class == 5:
+                obj_class_foloyolo = 2
+            if obj_class == 8:
+                obj_class_foloyolo = 3
+                # if obj_class == 5:
+                #     obj_class_foloyolo = 4
+            if obj_class == 6: #TRUCKO
+                obj_class_foloyolo = 5
+                if width < 5:
+                    width = 5
+
+            dets_IBEO_temp[0][0] = frame_name
+            dets_IBEO_temp[0][1] = x_bus # x values in pixor , but y in world frame!!
+            dets_IBEO_temp[0][2] = y_bus  # y values in pixor , but x in world frame
+            dets_IBEO_temp[0][3] = 1
+            dets_IBEO_temp[0][4] = det_IBEO[j]['yaw']
+            dets_IBEO_temp[0][5] = length  # width is in the y direction for Louis
+            dets_IBEO_temp[0][6] = width
+            dets_IBEO_temp[0][7] = 1
+            dets_IBEO_temp[0][8] = 4  # sensor type: 4 IBEO!!!
+
+            pos_IBEO[0][0] = dets_IBEO_temp[0][1]
+            pos_IBEO[1][0] = dets_IBEO_temp[0][2]
+            pos_IBEO[2][0] = 0
+            pos_IBEO[3][0] = 1
+            T2 = np.matmul(T1, pos_IBEO)
+            dets_IBEO_temp[0][1] = T2[0][0]
+            dets_IBEO_temp[0][2] = T2[1][0]
+            additional_info_2_temp[0, 1] = obj_class_foloyolo
+            if k == 0:
+                dets_IBEO = np.copy(dets_IBEO_temp)
+                additional_info_2 = np.copy(additional_info_2_temp)
+
+            else:
+                dets_IBEO = np.vstack((dets_IBEO, dets_IBEO_temp))
+                additional_info_2 = np.vstack((additional_info_2, additional_info_2_temp))
+            k += 1
+            # print ('k is = %d' %k)
+            pos_IBEO = np.zeros([4, 1])
+
+ #   print (dets_IBEO, additional_info_2)
+
+    return dets_IBEO, additional_info_2
