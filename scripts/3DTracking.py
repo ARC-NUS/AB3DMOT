@@ -8,43 +8,45 @@ from filterpy.kalman import ExtendedKalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
 from pyquaternion import Quaternion
-from wen_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F, camRadarFuse, readCamera, readRadar,readJson, readLidar, readIBEO
+from wen_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F, camRadarFuse, readCamera, readRadar, \
+    readJson, readLidar, readIBEO
 import json
 from datetime import datetime
 
-def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB, max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar , Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset):
 
+def happyTracker(dataR, dataL, dataC, dataC_a3, dataPose, dataIB, max_age, min_hits, hung_thresh, Rlidar, Qlidar,
+                 P_0lidar, Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset):
     """""
     Function : happyTracker 
     Outputs : Trackers N x 8 array , where N is the number of tracked objects
      {"width": d[1], "height": d[0], "length": d[2], "x": T_track[0][0], "y": T_track[1][0], "z": d[5], "yaw": d[6], "id": d[7]}
-    
+
     Inputs : dataR - Radar_obstacles, dataL (Pixor outputs) , dataC (Camera a0 outputs) , dataC_a3 (Camera a3 outputs), dataPose (Ego Pose)
     DEFAULT VALUES 
     max_age=3    
     min_hits=2
     hung_thresh=0.01 #.2
-    
+
     LIDAR Measurement and Model values : Rlidar, Qlidar , P_0lidar
     Rlidar = np.identity(7)
     Qlidar = np.identity(14)  the covariance of the process noise;
     P_0lidar = np.identity(14) the covariance of the observation noise;
-    
+
     Camera Radar Measurement and Model values : Rcr, Qcr , P_0cr
     Rcr = np.identity(7)
     Qcr = np.identity(14)
     P_0cr = np.identity(14)
-    
+
     radarCam_threshold = 0.05  ; in radians the max angle difference +/- 0.025
     radar_offset = 0 ; the position of the radar point and the actual center of the ego vehicle 
     """""
 
     total_time = 0.0
     total_frames = 0
-    seq_dets_pose =np.zeros([len(dataPose), 5])
-    mot_tracker = AB3DMOT(is_jic=True, max_age=max_age, min_hits=min_hits, hung_thresh=hung_thresh, Rlidar=Rlidar, Qlidar=Qlidar, P_0lidar=P_0lidar , Rcr=Rcr, Qcr=Qcr, P_0cr=P_0cr)
+    seq_dets_pose = np.zeros([len(dataPose), 5])
+    mot_tracker = AB3DMOT(is_jic=True, max_age=max_age, min_hits=min_hits, hung_thresh=hung_thresh, Rlidar=Rlidar,
+                          Qlidar=Qlidar, P_0lidar=P_0lidar, Rcr=Rcr, Qcr=Qcr, P_0cr=P_0cr)
     total_list = []
-
 
     for frame_name in range(0, len(dataPose)):  # numPose
         det_radar = dataR[frame_name]['front_esr_tracklist']
@@ -79,7 +81,8 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB, max_age, 
         dets_cam = readCamera(frame_name, det_cam)
         dets_cam_back = readCamera(frame_name, det_cam_back)
         dets_camDar, additional_info_2 = camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold)
-        dets_camDar_back, additional_info_3 = camRadarFuse(frame_name, dets_cam_back, dets_radar_back, T1 ,radarCam_threshold)
+        dets_camDar_back, additional_info_3 = camRadarFuse(frame_name, dets_cam_back, dets_radar_back, T1,
+                                                           radarCam_threshold)
 
         dets_IBEO, additional_info_ibeo = readIBEO(frame_name, det_IBEO, T1)
 
@@ -87,17 +90,17 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB, max_age, 
 
         start_time = time.time()
         trackers = []
-        mot_tracker.max_age = 3
-        mot_tracker.min_hits = 3
-
-        if (np.count_nonzero(dets_lidar) != 0):
-            additional_info = np.zeros([len(dets_lidar), 7])
-            additional_info[:, 1] = 2
-            dets_all = {'dets': dets_lidar[:, 1:8], 'info': additional_info}
-            # mot_tracker.max_age = 3
-            # mot_tracker.min_hits = 3
-            trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
+        # mot_tracker.max_age = 3
+        # mot_tracker.min_hits = 3
         #
+        # if (np.count_nonzero(dets_lidar) != 0):
+        #     additional_info = np.zeros([len(dets_lidar), 7])
+        #     additional_info[:, 1] = 2
+        #     dets_all = {'dets': dets_lidar[:, 1:8], 'info': additional_info}
+        #     # mot_tracker.max_age = 3
+        #     # mot_tracker.min_hits = 3
+        #     trackers = mot_tracker.update(dets_all=dets_all, sensor_type=1)
+        # #
         # if (np.count_nonzero(dets_camDar) != 0):
         #     seq_dets_total2 = dets_camDar
         #     additional_info2 = additional_info_2
@@ -120,7 +123,7 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB, max_age, 
             dets_all2 = {'dets': seq_dets_total2[:, 1:8], 'info': additional_info2}
             # mot_tracker.max_age = 3
             # mot_tracker.min_hits = 3
-            trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 4)
+            trackers = mot_tracker.update(dets_all=dets_all2, sensor_type=4)
 
         cycle_time = time.time() - start_time
         total_time += cycle_time
@@ -130,7 +133,6 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB, max_age, 
         T_tracked = np.zeros([4, 1])
 
         for d in trackers:
-
             T_tracked[0] = d[3]
             T_tracked[1] = d[4]
             T_tracked[3] = 1
@@ -142,7 +144,6 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB, max_age, 
 
             result_trks.append(obj_dict)
         total_list.append({"name": dataL[frame_name]['name'], "objects": result_trks})
-
 
         #     bbox3d_tmp = d[0:7]
         #     id_tmp = d[7]
@@ -175,13 +176,15 @@ def happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB, max_age, 
 def poly_area(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
-@jit  #TODO understand where this corners came from
+
+@jit  # TODO understand where this corners came from
 def box3d_vol(corners):
     ''' corners: (8,3) no assumption on axis direction '''
     a = np.sqrt(np.sum((corners[0, :] - corners[1, :]) ** 2))
     b = np.sqrt(np.sum((corners[1, :] - corners[2, :]) ** 2))
     c = np.sqrt(np.sum((corners[0, :] - corners[4, :]) ** 2))
     return a * b * c
+
 
 @jit
 def convex_hull_intersection(p1, p2):
@@ -199,6 +202,7 @@ def convex_hull_intersection(p1, p2):
 
     else:
         return None, 0.0
+
 
 def polygon_clip(subjectPolygon, clipPolygon):
     """ Clip a polygon with another polygon.
@@ -222,7 +226,7 @@ def polygon_clip(subjectPolygon, clipPolygon):
         # if dc[0] * dp[1] - dc[1] * dp[0] == 0:
         #     return 0
         n3 = 1.0 / (dc[0] * dp[1] - dc[1] * dp[0])
-        #print('n3 values is : %d' % n3)
+        # print('n3 values is : %d' % n3)
         return [(n1 * dp[0] - n2 * dc[0]) * n3, (n1 * dp[1] - n2 * dc[1]) * n3]
 
     outputList = subjectPolygon
@@ -247,6 +251,7 @@ def polygon_clip(subjectPolygon, clipPolygon):
         if len(outputList) == 0:
             return None
     return (outputList)
+
 
 def iou3d(corners1, corners2):
     ''' Compute 3D bounding box IoU.
@@ -273,6 +278,7 @@ def iou3d(corners1, corners2):
     iou = inter_vol / (vol1 + vol2 - inter_vol)
     return iou, iou_2d
 
+
 # FIXME change from 3d to 2d IOU checker, check if correct or not
 def iou2d(corners1, corners2):
     ''' Compute 3D bounding box IoU.
@@ -298,6 +304,7 @@ def iou2d(corners1, corners2):
     # iou = inter_vol / (vol1 + vol2 - inter_vol)
     return iou_2d
 
+
 @jit
 def roty(t):
     ''' Rotation about the y-axis. '''
@@ -307,6 +314,7 @@ def roty(t):
                      [0, 1, 0],
                      [-s, 0, c]])
 
+
 @jit
 def rotz(t):
     ''' Rotation about the z-axis. '''
@@ -315,6 +323,7 @@ def rotz(t):
     return np.array([[c, -s, 0],
                      [s, c, 0],
                      [0, 0, 1]])
+
 
 def convert_3dbox_to_8corner(bbox3d_input):
     ''' Takes an object and a projection matrix (P) and projects the 3d
@@ -345,6 +354,7 @@ def convert_3dbox_to_8corner(bbox3d_input):
     corners_3d[2, :] = corners_3d[2, :] + bbox3d[2]
 
     return np.transpose(corners_3d)
+
 
 def associate_detections_to_trackers(detections, trackers, iou_threshold):
     # def associate_detections_to_trackers(detections,trackers,iou_threshold=0.01):     # ablation study
@@ -391,12 +401,13 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold):
 
     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
+
 class AB3DMOT(object):
-    def __init__(self, is_jic, max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar , Rcr, Qcr, P_0cr):
-    #def __init__(self, max_age=2, min_hits=3, hung_thresh=0.1, is_jic=False,
-          #        R=np.identity(7), Q=np.identity(10), P_0=np.identity(10),
-          #        delta_t=0.05):  # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
-    # def __init__(self, max_age, min_hits, hung_thresh, R, Q, P_0, Rcr, Qcr, P_0cr, delta_t, is_jic = False):
+    def __init__(self, is_jic, max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar, Rcr, Qcr, P_0cr):
+        # def __init__(self, max_age=2, min_hits=3, hung_thresh=0.1, is_jic=False,
+        #        R=np.identity(7), Q=np.identity(10), P_0=np.identity(10),
+        #        delta_t=0.05):  # max age will preserve the bbox does not appear no more than 2 frames, interpolate the detection
+        # def __init__(self, max_age, min_hits, hung_thresh, R, Q, P_0, Rcr, Qcr, P_0cr, delta_t, is_jic = False):
 
         self.max_age = max_age
         self.min_hits = min_hits
@@ -419,7 +430,6 @@ class AB3DMOT(object):
         self.Qlidar = Qlidar
         self.P_0lidar = P_0lidar
 
-
         self.delta_t = 0.05  # FIXME make it variable for fusion/ live usage
 
     def update(self, dets_all, sensor_type):
@@ -435,7 +445,7 @@ class AB3DMOT(object):
         """
         dets, info = dets_all['dets'], dets_all['info']  # dets: N x 7, float numpy array
 
-        #FIXME
+        # FIXME
         if sensor_type == 1:  # LIDAR
             self.P = self.P_0lidar
             self.Q = self.Qlidar
@@ -490,7 +500,7 @@ class AB3DMOT(object):
             trk = KalmanBoxTracker(dets[i, :], info[i, :], self.R, self.Q, self.P_0, self.delta_t)
             self.trackers.append(trk)
 
-        #FIXME
+        # FIXME
         if sensor_type == 1:  # LIDAR
             self.P_0lidar = self.P
             self.Qlidar = self.Q
@@ -518,6 +528,7 @@ class AB3DMOT(object):
         if (len(ret) > 0):
             return np.concatenate(ret)  # x, y, z, theta, l, w, h, ID, other info, confidence
         return np.empty((0, 15))
+
 
 class KalmanBoxTracker(object):
     """
@@ -636,11 +647,12 @@ class KalmanBoxTracker(object):
         """
         return self.kf.x[:7].reshape((7,))
 
+
 if __name__ == '__main__':
 
     print("Initialising...")
 
-    det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle' , 5: 'Truck'}
+    det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle', 5: 'Truck'}
 
     pathRadar = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/radar_obstacles/radar_obstacles.json'
     pathLidar = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs_pixorpp_kitti_nuscene.json'
@@ -650,11 +662,12 @@ if __name__ == '__main__':
 
     pathIBEO = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/ecu_obj_list/ecu_obj_list.json'
 
-    dataR , dataL , dataC , dataC_a3 , dataPose, dataIB = readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose, pathIBEO)
+    dataR, dataL, dataC, dataC_a3, dataPose, dataIB = readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3,
+                                                               pathPose, pathIBEO)
 
-    max_age=3
-    min_hits=2
-    hung_thresh=0.01 #.2
+    max_age = 3
+    min_hits = 2
+    hung_thresh = 0.01  # .2
 
     Rlidar = np.identity(7)
     Qlidar = np.identity(14)
@@ -664,9 +677,10 @@ if __name__ == '__main__':
     Qcr = np.identity(14)
     P_0cr = np.identity(14)
 
-    radarCam_threshold = 0.03  #.05 #radians!!
+    radarCam_threshold = 0.03  # .05 #radians!!
     radar_offset = 0
-    total_list = happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age, min_hits, hung_thresh, Rlidar, Qlidar, P_0lidar , Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset)
+    total_list = happyTracker(dataR, dataL, dataC, dataC_a3, dataPose, dataIB, max_age, min_hits, hung_thresh, Rlidar,
+                              Qlidar, P_0lidar, Rcr, Qcr, P_0cr, radarCam_threshold, radar_offset)
 
     isPrint = 1
 
@@ -674,7 +688,7 @@ if __name__ == '__main__':
         today = datetime.today()
         d1 = today.strftime("%Y_%m_%d")
         set_num = '1'
-        tracker_json_outfile = "./results/JI_Cetran_Set"+ set_num + "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
+        tracker_json_outfile = "./results/JI_Cetran_Set" + set_num + "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
 
         with open(tracker_json_outfile, "w+") as outfile:
             json.dump(total_list, outfile, indent=1)

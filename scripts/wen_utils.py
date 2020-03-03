@@ -396,11 +396,11 @@ def readIBEO(frame_name, det_IBEO, T1):
         width = float(det_IBEO[j]['obj_size']['x'])/100
         length = float(det_IBEO[j]['obj_size']['y'])/100
         if obj_class == 6:
-            print('Detected Truck!')
+            #print('Detected Truck!')
         x_bus = float(det_IBEO[j]['obj_center']['x']) / 100
         y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
 
-        if obj_class > 3 and obj_class != 8 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
+        if obj_class > 3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
 
             if obj_class == 3:
                 obj_class_foloyolo = 0

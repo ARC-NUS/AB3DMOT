@@ -352,7 +352,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
           
 if __name__ == '__main__':
   #labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json"
-  labels_json_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/labels/set1_annotations.json"
+  labels_json_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/labels/set1_annotations_qc.json"
 
   distance_metric = "IOU" # using IOU as distance metric
   thres_d = 100. # 100 threshold distance to count as a correspondance, beyond it will be considered as missed detection
