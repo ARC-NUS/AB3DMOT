@@ -363,7 +363,7 @@ if __name__ == '__main__':
   set_num = '1'
 
   #tracker_json_path = "./results/JI_Cetran_Set1/TrackOutput_Set1_2020_02_10.json"
-  tracker_json_path = "./results/JI_Cetran_Set1/TrackOutput_Set1_2020_03_02.json"
+  tracker_json_path = "./results/JI_Cetran_Set1/TrackOutput_Set1_2020_03_04.json"
 
   #tracker_json_path = "./results/JI_Cetran_Set"+ set_num + "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
   #tracker_json_path = "./results/JI_Cetran_Set1/yltracker_set_1.json"

@@ -262,7 +262,7 @@ def readCamera(frame_name, det_cam):
         #print(upts)
         #c = -(float(upts[0]) /536) +0.5
         #print(c)
-        c2 = -upts[0] + (536 / 2)
+        c2 = -upts[0]  #+ (536 / 2)
         f3 = Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
         theta = np.arctan(float(c2)/ f3) #FIXME Verify if the theta is correct
         #print(theta)
@@ -395,7 +395,7 @@ def readIBEO(frame_name, det_IBEO, T1):
         obj_class = det_IBEO[j]['obj_class']
         width = float(det_IBEO[j]['obj_size']['x'])/100
         length = float(det_IBEO[j]['obj_size']['y'])/100
-        if obj_class == 6:
+        #if obj_class == 6:
             #print('Detected Truck!')
         x_bus = float(det_IBEO[j]['obj_center']['x']) / 100
         y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
