@@ -1,17 +1,9 @@
+basedir = ['/media/wen/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_8',
 
-from __future__ import print_function
-import os.path, copy, numpy as np, time, sys
-import json
-from datetime import datetime
-from KFTracking import happyTracker
-from wen_utils import readJson
-from check_iou_jsons import check_iou_json
-import glob
-#
+'/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_3',
+'/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_2',
+'/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_1',
+'/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_12',
 
-bag_dir = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/'
-basedir_total = sorted(glob.glob(bag_dir + "set*/"))
-
-for i in range(len(basedir_total)):
-    basedir = basedir_total[i]
-    print (basedir)
+'/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_3',
+'/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_9']

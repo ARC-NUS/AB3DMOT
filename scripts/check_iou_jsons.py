@@ -174,7 +174,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
 #               print "checking time step: ", time_step
       tracks = tracker_data[(index+1-l_index)*10-1] # FIXME this will only work if the files are 10 hz apart
 
-      print('Track name %s' %( tracks['name']))
+      #print('Track name %s' %( tracks['name']))
       if tracks['name'] != pcd_name:
           print "Error: expected pcd file: ", pcd_name, "but instead is: ", tracks['name'], "label and tracking json files do not match or has unconventional frequencies.\n", \
                                  "label n tracker data must be 10 hz apart" 
@@ -352,7 +352,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
           
 if __name__ == '__main__':
   #labels_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_low/set_8/labels.old/Set_8_annotations.json"
-  labels_json_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/labels/set1_annotations_qc.json"
+  labels_json_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/labels/set1_annotations.json"
 
   distance_metric = "IOU" # using IOU as distance metric
   thres_d = 100. # 100 threshold distance to count as a correspondance, beyond it will be considered as missed detection
@@ -369,5 +369,6 @@ if __name__ == '__main__':
   #tracker_json_path = "./results/JI_Cetran_Set1/yltracker_set_1.json"
 
 
-  MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
+  MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt  = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
   print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt
+

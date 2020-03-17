@@ -8,6 +8,7 @@
 import json
 import numpy as np
 import cv2
+import os
 
 STATE_SIZE = 14
 MEAS_SIZE = 7   #measurement model for pixor, 7
@@ -51,6 +52,7 @@ def px_stats_get_P_0(pixor_stats_json, p0_v=1000., factor=1.):
         P_0[3, 3] = var[4]  # theta
         P_0[4, 4] = var[3]  # l
         P_0[5, 5] = var[2]  # w
+        P_0[6, 6] = 0.  # h
         P_0[6, 6] = 0.  # h
         P_0 = P_0 * factor
         P_0[7, 7] = p0_v  # vx
@@ -242,9 +244,16 @@ def camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold):
 
     return dets_camDar, additional_info_2
 
+def undistort_points(xy_tuple, K, D):
+    pts = np.array([int(x) for x in xy_tuple])
+    Knew = K.copy()
+    #print(np.array([[pts]]).shape)
+
+    upts = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
+    return upts
+
 def readCamera(frame_name, det_cam):
     h = 0
-
     #CAMERA INTRINSICS
     Camera_Matrix_GMSL_120 = np.array([[958.5928517660333, 0.0, 963.2848327985546], [0.0, 961.1122866843237, 644.5199995337151], [0.0, 0.0, 1.0]])  #
     ftest = 0.5 *( Camera_Matrix_GMSL_120[0][0] + Camera_Matrix_GMSL_120[1][1])
@@ -252,21 +261,22 @@ def readCamera(frame_name, det_cam):
     f = ftest / test  # focal length fx
     f_new = Camera_Matrix_GMSL_120[0][0]
     #print(det_cam)
+    sf = 0.5
     dets_cam = np.zeros([len(det_cam), 5])
+    K = np.array([[981.276*sf, 0.0, 985.405*sf],
+                  [0.0, 981.414*sf, 629.584*sf],
+                  [0.0, 0.0, 1.0]])
+    D = np.array([[-0.0387077],[-0.0105319],[-0.0168433],[0.0310624]])
+
     for j in range(len(det_cam)):
         dets_cam[h][0] = frame_name
-        cam_x = det_cam[j]['relative_coordinates']['center_x'] * 416
-        cam_y = det_cam[j]['relative_coordinates']['center_y'] * 416
-        xy_tuple = (cam_x,cam_y)
-        upts = undistort_unproject_pts(xy_tuple)
-        #print(upts)
-        #c = -(float(upts[0]) /536) +0.5
-        #print(c)
-        c2 = -upts[0]  #+ (536 / 2)
+        cam_x = det_cam[j]['relative_coordinates']['center_x'] * 960
+        cam_y = det_cam[j]['relative_coordinates']['center_y'] * 604
+        xy_tuple = (cam_x, cam_y)
+        upts = undistort_points(xy_tuple, K, D)
+        c2 = -upts[0]  + (960 / 2)
         f3 = Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
         theta = np.arctan(float(c2)/ f3) #FIXME Verify if the theta is correct
-        #print(theta)
-
         dets_cam[h][1] = theta
         type = det_cam[j]['class_id']  # class_id = 2 is a car
         dets_cam[h][2] = type
@@ -279,20 +289,33 @@ def undistort_unproject_pts(xy_tuple):
     """
     This function converts existing values into the undistorted values
     """
-    sfx = float(416)/float(1920)  # scaling factor
-    sfy = float(416)/float(1208)
-    K = np.array([[981.276 * sfx, 0.0, 985.405 * sfx],
-                  [0.0, 981.414 * sfy, 629.584 * sfy],
+    # sfx = float(416)/float(1920)  # scaling factor
+    # sfy = float(416)/float(1208)
+    # K = np.array([[981.276 * sfx, 0.0, 985.405 * sfx],
+    #               [0.0, 981.414 * sfy, 629.584 * sfy],
+    #               [0.0, 0.0, 1.0]])
+    # D = np.array([[-0.0387077], [-0.0105319], [-0.0168433], [0.0310624]])
+    # pts = np.array([int(x) for x in xy_tuple])
+    # #print(pts)
+    # Knew = K.copy()
+    # upts = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
+    # #print(upts)
+    # #x = int((512. + (point_out[0][0][0] * 1024)))
+    # #y = int((288. + (point_out[0][0][1] * 576)))
+    # return upts
+
+    sf = 0.5 # scaling factor
+    K = np.array([[981.276*sf, 0.0, 985.405*sf],
+                  [0.0, 981.414*sf, 629.584*sf],
                   [0.0, 0.0, 1.0]])
-    D = np.array([[-0.0387077], [-0.0105319], [-0.0168433], [0.0310624]])
+    D = np.array([[-0.0387077],[-0.0105319],[-0.0168433],[0.0310624]])
+
     pts = np.array([int(x) for x in xy_tuple])
-    #print(pts)
     Knew = K.copy()
+    #print(np.array([[pts]]).shape)
     upts = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
-    #print(upts)
-    #x = int((512. + (point_out[0][0][0] * 1024)))
-    #y = int((288. + (point_out[0][0][1] * 576)))
     return upts
+
 
 def readRadar(frame_name, det_radar, radar_offset):
     i = 0
@@ -306,13 +329,13 @@ def readRadar(frame_name, det_radar, radar_offset):
         # dets_radar[i][1] = dets_radar[i][1] + 0.1*rangerate
         # dets_radar[i][2] = dets_radar[i][2] + 0.1*rangerate
 
-        ## To compensate of the fact that the radar value doesn't give the centroid information....
-        if rangerate < 0:
-            dets_radar[i][1] = dets_radar[i][1] - radar_offset
-            dets_radar[i][2] = dets_radar[i][2] - radar_offset
-        else:
-            dets_radar[i][1] = dets_radar[i][1] + radar_offset
-            dets_radar[i][2] = dets_radar[i][2] + radar_offset
+        # ## To compensate of the fact that the radar value doesn't give the centroid information....
+        # if rangerate < 0:
+        #     dets_radar[i][1] = dets_radar[i][1] - radar_offset
+        #     dets_radar[i][2] = dets_radar[i][2] - radar_offset
+        # else:
+        #     dets_radar[i][1] = dets_radar[i][1] + radar_offset
+        #     dets_radar[i][2] = dets_radar[i][2] + radar_offset
 
         dets_radar[i][3] = np.arctan(dets_radar[i][2] / dets_radar[i][1])
         angle = float(det_radar[j]['angle_centroid'])
@@ -327,8 +350,10 @@ def unique_rows(a):
     unique_a = np.unique(a.view([('', a.dtype)]*a.shape[1]))
     return unique_a.view(a.dtype).reshape((unique_a.shape[0], a.shape[1]))
 
+#def readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a1, pathCamera_a2, pathCamera_a3, pathPose, pathIBEO):
 def readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose, pathIBEO):
 
+    # # Read the set1 radar points
     # # Read the set1 radar points
     with open(pathRadar, "r") as json_file:
         dataR = json.load(json_file).get('radar')
@@ -337,9 +362,17 @@ def readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose, pathI
     with open(pathLidar, "r") as json_file:
         dataL = json.load(json_file)
 
-    # Read the set1 a0 camera points
+    # Read the a0 camera points
     with open(pathCamera_a0, "r") as json_file:
         dataC = json.load(json_file)
+
+#     # Read the a0 camera points
+#     with open(pathCamera_a1, "r") as json_file:
+#         dataC_a1 = json.load(json_file)
+#
+# # Read the set1 camera points
+#     with open(pathCamera_a2, "r") as json_file:
+#         dataC_a2 = json.load(json_file)
 
     # Read the set1 camera points
     with open(pathCamera_a3, "r") as json_file:
@@ -353,7 +386,8 @@ def readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose, pathI
     with open(pathIBEO, "r") as json_file:
         dataIB = json.load(json_file) .get('ibeo_obj')
 
-    return     dataR , dataL , dataC , dataC_a3 , dataPose, dataIB
+#    return dataR, dataL, dataC, dataC_a1, dataC_a2, dataC_a3, dataPose, dataIB
+    return dataR, dataL, dataC, dataC_a3, dataPose, dataIB
 
 def readLidar (det_lidar, frame_name, T1):
     dets_lidar = np.zeros([len(det_lidar), 9])
