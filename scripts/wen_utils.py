@@ -206,12 +206,20 @@ def camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold):
                 radarCam_threshold = diff
                 bestTrack_Radar = q
 
-        if (dets_cam[w][2] == 2):  #2 is a car , 5 is a truck
+        if (dets_cam[w][2] == 4):  #4 ==car
             length = 5  # 5
             width = 2.5  # 2.5
-        else:
-            length = 8
-            width = 3
+        if (dets_cam[w][2] == 5):  # 5 == truck
+            length = 8 # 5
+            width = 3  # 2.5
+        if (dets_cam[w][2] == 6):  # 6 == bus!!
+            length = 12 # 5
+            width = 3  # 2.5
+        if (dets_cam[w][2] <= 3):  #0 == pedesterians/bicycles/pmd/motorbike!!
+            length = 1  # 5
+            width = 1  # 2.5
+        # if (dets_cam[w][2] == 0):  #0 == pedesterians!!
+        #     print('Human detected on camera radar !!!!')
 
         sidebounds = 20 #25 #20
         frontbackbounds = 35.2 #40 #35.2
@@ -219,6 +227,8 @@ def camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold):
         if (bestTrack_Radar != -1 and abs(dets_radar[bestTrack_Radar][1]) < frontbackbounds and abs(
                 dets_radar[bestTrack_Radar][2] < sidebounds)):
             pos_cr = np.zeros([4, 1])
+            # if (dets_cam[w][2] == 0):  #0 == pedesterians!!
+            #     print('Human detected on camera radar !!!!')
             #print('radar similar point: %s' % (q))
             k = numCamDar
             dets_camDar[k][0] = frame_name
@@ -278,8 +288,28 @@ def readCamera(frame_name, det_cam):
         f3 = Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
         theta = np.arctan(float(c2)/ f3) #FIXME Verify if the theta is correct
         dets_cam[h][1] = theta
+
+        # det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle' , 5: 'Truck'}
         type = det_cam[j]['class_id']  # class_id = 2 is a car
-        dets_cam[h][2] = type
+
+        #print type
+        if type == 0:
+            type_sf = 0
+
+        if type == 1:
+            type_sf = 1
+        if type == 2:
+            type_sf = 4
+        if type == 3:
+            type_sf = 3
+        if type == 4:
+            type_sf = 6
+        if type == 5:
+            type_sf = 5
+
+        #det_id2str = {0: 'Pedestrian', 1: 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car', 5: 'Truck', 6: 'Bus'}
+
+        dets_cam[h][2] = type_sf
         dets_cam[h][3] = det_cam[j]['confidence']
         dets_cam[h][4] = 3  # SENSOR TYPE = 3
         h += 1
@@ -390,6 +420,7 @@ def readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose, pathI
     return dataR, dataL, dataC, dataC_a3, dataPose, dataIB
 
 def readLidar (det_lidar, frame_name, T1):
+
     dets_lidar = np.zeros([len(det_lidar), 9])
     pos_lidar = np.zeros([4, 1])
     k = 0
@@ -437,17 +468,18 @@ def readIBEO(frame_name, det_IBEO, T1):
         if obj_class > 3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
 
             if obj_class == 3:
-                obj_class_foloyolo = 0
-            if obj_class == 9 or obj_class == 4:
-                obj_class_foloyolo = 1
+                obj_class_folobus = 0
+                print("Pedesterian detected from IBEO!!")
+            if obj_class == 9 :
+                obj_class_folobus = 1
             if obj_class == 5:
-                obj_class_foloyolo = 2
-            if obj_class == 8:
-                obj_class_foloyolo = 3
+                obj_class_folobus = 4
+            if obj_class == 8 or obj_class == 4:
+                obj_class_folobus = 3
                 # if obj_class == 5:
                 #     obj_class_foloyolo = 4
             if obj_class == 6: #TRUCKO
-                obj_class_foloyolo = 5
+                obj_class_folobus = 5
                 if width < 5:
                     width = 5
 
@@ -468,7 +500,7 @@ def readIBEO(frame_name, det_IBEO, T1):
             T2 = np.matmul(T1, pos_IBEO)
             dets_IBEO_temp[0][1] = T2[0][0]
             dets_IBEO_temp[0][2] = T2[1][0]
-            additional_info_2_temp[0, 1] = obj_class_foloyolo
+            additional_info_2_temp[0, 1] = obj_class_folobus
             if k == 0:
                 dets_IBEO = np.copy(dets_IBEO_temp)
                 additional_info_2 = np.copy(additional_info_2_temp)

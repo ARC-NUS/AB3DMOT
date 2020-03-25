@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from KFTracking import happyTracker
 from wen_utils import readJson
-from check_iou_jsons import check_iou_json
+from check_iou_jsons import check_iou_json, check_iou_json_class
 import glob
 import csv
 
@@ -80,8 +80,8 @@ if __name__ == '__main__':
     #     #FIXME : Do a coarse grid search
 #    for max_age in range(1,5):
     count = 0
-    tracker_json_outfile = '/home/wen/AB3DMOT/scripts/results/sensorfusion/GSearch_20200319_p2.json'
-    savePath = '/home/wen/AB3DMOT/scripts/results/sensorfusion/GSearch_20200319_p2.csv'
+    tracker_json_outfile = '/home/wen/AB3DMOT/scripts/results/sensorfusion/GSearch_20200319_p4.json'
+    savePath = '/home/wen/AB3DMOT/scripts/results/sensorfusion/GSearch_20200319_p4.csv'
 
     with open(savePath, 'w') as csvfile:
         spamwriter = csv.writer(csvfile, delimiter=',',
@@ -92,9 +92,9 @@ if __name__ == '__main__':
     HighestAMOTA = 0
     HAMOTP = 0
 
-    HighestAMOTA = 0.3608196
-    HAMOTP =88.8618
-    HighestCount = 5910
+    HighestAMOTA = 0.36288560555982946
+    HAMOTP =88.8604145548471
+    HighestCount = 8435
 
     for rlA in range(len(rng_thres)):
         for rlB in range(len(rng_thres)):
@@ -106,9 +106,11 @@ if __name__ == '__main__':
                                 #for ht in range(len(hung_thresh_total)):
                                 AMOTA = 0
                                 AMOTP = 0
+
                                 count = count + 1
                                 print(count)
-                                if count > 6250:
+
+                                if count > 8643:
                                     for i in range(len(basedir_total)):
                                         dataR= dataR_total[i]; dataL = dataL_total[i];  dataC = dataC_total[i];
                                         dataC_a3 = dataC_a3_total[i]; dataPose= dataPose_total[i]; dataIB = dataIB_total[i];
@@ -207,6 +209,13 @@ if __name__ == '__main__':
                                                                                                                                              tracker_json_outfile,
                                                                                                                                              thres_d,
                                                                                                                                              distance_metric)
+
+                                                MOTA, MOTP, MOTA_class, MOTP_class, total_missed_class, total_gt_class, total_dist_class, MOTA_status, MOTP_status = check_iou_json_class(
+                                                    labels_json_path,
+                                                    tracker_json_path,
+                                                    thres_d,
+                                                    distance_metric)
+
                                                 #print (MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt)
 
                                                 AMOTA = AMOTA + MOTA

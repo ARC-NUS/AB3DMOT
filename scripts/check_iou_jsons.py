@@ -131,11 +131,55 @@ def is_in_PIXOR_FOV(label):
 #   return is_pxpp_fov(pts)
 
 
+def classChecker(x):
+    # color_range = np.array(plt.get_cmap('Dark2').colors) * 256
+    classCheck = 10  # for when the class detected is WONKY.
+    if x == "pe" or x == "Pe":  # pedestrian/person/Pedestrian
+        # color = tuple(color_range[0])
+        classCheck = 0
+    if x == "bi" or x == "Bi":  # bicycle/Bicycle
+        # color = tuple(color_range[1])
+        classCheck = 1
+    if x == "pm" or x == "PM":  # PMD/pmd
+        # color = tuple(color_range[2])
+        classCheck = 2
+    if x == "mo" or x == "Mo":  # motorbike/Motorbike
+        # color = tuple(color_range[3])
+        classCheck = 3
+    if x == "ca" or x == "Ca":  # car (van is also car)/Car
+        # color = tuple(color_range[4])
+        classCheck = 4
+    if x == "tr" or x == "Tr" or x == "tu":  # truck (lorry is also truck)/Truck
+        # color = tuple(color_range[5])
+        classCheck = 5
+    if x == "bu" or x == "Bu":  # bus/Bus
+        # color = tuple(color_range[6])
+        classCheck = 6
+
+    if classCheck == 10:
+        print("No class detected", x)
+        classCheck = 10
+    return classCheck
+
+
+def safe_div(x, y, type):
+    status = 1
+    if y == 0:
+        status = 0
+        return 0.0, status
+    else:
+        if type == 1:
+            return 1 - x / y, status
+        if type == 2:
+            return x / y, status
+
+
 def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., distance_metric="IOU", is_write=True,
-                   total_list=None):
+                         total_list=None):
     labels_json_file = open(labels_json_path)
     labels_data = json.load(labels_json_file, encoding="utf-8")
 
+    #print labels_json_path
     if is_write:
         tracker_json_file = open(tracker_json_path)
         tracker_data = json.load(tracker_json_file, encoding="utf-8")
@@ -160,12 +204,27 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
     #   missed_frames=0 # counting missed objects when tracker misses a frame. by right should never non-zero
     #   fp_frames=0
 
+    # DOING CLASS BASED
+    total_dist_class = np.zeros([7])
+    total_ct_class = np.zeros([7])
+    total_gt_class = np.zeros([7])
+    total_missed_class = np.zeros([7])
+    total_mt_class = np.zeros([7])
+    total_fpt_class = np.zeros([7])
+    total_mmet_class = np.zeros([7])
+    frame = 0
     for index, labels in enumerate(labels_data):  # for each pcd/timestep labelled
+        #print frame
+        #frame += 1
         # init params for each timestep
         mme_t = 0
         m_t = 0
         fp_t = 0
         new_mappings = {}
+
+        mme_t_class = np.zeros([7])
+        m_t_class = np.zeros([7])
+        fp_t_class = np.zeros([7])
 
         # match label to tracker output ##############################################
         pcd_name = labels['name']
@@ -186,7 +245,6 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
                     total_missed += len(labels['annotations'])
                 continue
             else:
-                # FIXME create empty 'label' to do mota with
                 while tracks['name'] != pcd_name:
                     l_index -= 1
                     total_fpt += len(tracks["objects"])
@@ -253,7 +311,7 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
                     ox_c = float(label['geometry']['position']['x'])
                     oy_c = float(label['geometry']['position']['y'])
                     otheta = float(label['geometry']['rotation']['z'])
-                    #                     oobj_id = corresp_label['classId']
+
                     opts = get_vertices(ow, ob, ox_c, oy_c, otheta, 0, 0, 1)
 
                     tw = float(obj['width'])
@@ -261,7 +319,7 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
                     tx_c = float(obj['x'])
                     ty_c = float(obj['y'])
                     ttheta = float(obj['yaw'])
-                    #                     tobj_id = int(corresp_track['id'])
+
                     tpts = get_vertices(tw, tb, tx_c, ty_c, ttheta, 0, 0, 1)
 
                     corresp_mat[i, j] = get_MOT_dist(opts, tpts, distance_metric)
@@ -273,33 +331,44 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
         # Munkres  algo
         m = Munkres()
         indexes = m.compute(munkres_cost)
-
         #             print indexes
 
         #             print "corresp_mat: ", corresp_mat
 
         #               print "munkres results:"
+        # print opts
         for row, column in indexes:
             value = corresp_mat[row, column]
-            #                   print row, column, value
-            if value < thres_d:  # FIXME signage different for IOU and eucledian?
+            #print row, column, value
+            if value < thres_d:  # FIXME signage different for IOU and eucledian?  if the IOU is < 100 then YAY .
                 #                     print "val: ", value, "; thresh: ", thres_d
+                className = labels['annotations'][row]['className'][0:2]
+                classCheck = classChecker(className)
                 if labels['annotations'][row]['classId'] in mappings:
                     # TODO check for mismatched/contradictions
                     if mappings[labels['annotations'][row]['classId']] != tracks['objects'][column]['id']:
                         # change in corresponding tracking
                         mme_t += 1
+
+                        # print classCheck
+                        mme_t_class[classCheck] += 1
                         # update mappings with new correspondance
                         new_mappings.update({labels['annotations'][row]['classId']: tracks['objects'][column]['id']})
                 else:
                     # new correspondance
                     new_mappings.update({labels['annotations'][row]['classId']: tracks['objects'][column]['id']})
 
+                # print opts, tpts
+                # total_dist += value
+                total_dist_class[classCheck] += get_MOT_dist(opts, tpts, distance_metric) #value
+                total_ct_class[classCheck] += 1
+
                 total_dist += get_MOT_dist(opts, tpts, distance_metric)
                 total_ct_check += 1
 
+        #total_ct_class[classCheck] += len(new_mappings)
         total_ct += len(new_mappings)  # count number of matches
-
+        #print total_ct, total_ct_class
         mappings = copy.deepcopy(new_mappings)
         # match label to tracker output complete ######################################
 
@@ -310,18 +379,28 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
             if obj['id'] not in mappings.values():
                 # false positive
                 fp_t += 1
+                # TODO : Add class Name to the list of tracks!! D;
+                classCheck = int(obj['classType'])
+                fp_t_class[classCheck] += 1
 
         # calculate misses
         for label in labels['annotations']:
             if is_in_PIXOR_FOV(label):
+                className = label['className'][0:2]
+                classCheck = classChecker(className)
+                # print classCheck
+                total_gt_class[classCheck] += 1
                 total_gt += 1
                 if label['classId'] not in mappings:
                     # missed detection
                     m_t += 1
-
+                    className = labels['annotations'][row]['className'][0:2]
+                    classCheck = classChecker(className)
+                    #print classCheck
+                    m_t_class[classCheck] += 1
         #             total_gt += len(labels['annotations'])
 
-        total_missed += m_t
+        total_missed += m_t  # false negatives
         total_missed += fp_t
         total_missed += mme_t
 
@@ -329,22 +408,48 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
         total_fpt += fp_t
         total_mmet += mme_t
 
+        total_missed_class += m_t_class  # false negatives
+        total_missed_class += fp_t_class
+        total_missed_class += mme_t_class
+
+        total_mt_class += m_t_class
+        total_fpt_class += fp_t_class
+        total_mmet_class += mme_t_class
+
     try:
         # calculate MOTP
         MOTP = total_dist / total_ct
-
         # calculate MOTA
         MOTA = 1. - (total_missed * 1.) / total_gt
+
     except:
         MOTA = -float('inf')
         MOTP = 0.
-    #             print "error calculating MOTA"
-    # #           print "MOTP: ", MOTP, "MOTA: ", MOTA
-    #             print "total dist: ", total_dist, "\ntotal num of objects per frame:", total_gt
-    #             print "total mt, fp, mme: ", total_mt, total_fpt, total_mmet
-    #             print "total tracked: ", total_ct
 
-    return MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt
+    MOTA_class = np.zeros(7)
+    MOTA_status = np.zeros(7)
+    MOTP_class = np.zeros(7)
+    MOTP_status = np.zeros(7)
+
+    for i in range(5):
+        if i == 4:
+            MOTA_class[i], MOTA_status[i] = safe_div(sum(total_missed_class[i:i+3]), sum(total_gt_class[i:i+3]), 1)
+            MOTP_class[i], MOTP_status[i] = safe_div(sum(total_dist_class[i:i+3]), sum(total_ct_class[i:i+3]), 2)
+        else:
+            MOTA_class[i], MOTA_status[i] = safe_div(total_missed_class[i], total_gt_class[i], 1)
+            MOTP_class[i], MOTP_status[i] = safe_div(total_dist_class[i], total_ct_class[i], 2)
+
+        # if MOTA_status[i] == 0:
+        #     print("Warning", "No ground truth. MOTA calculation not possible for class ", i)
+        #
+        # if MOTP_status[i] == 0:
+        #     print("Warning", "No continuous track. MOTP calculation not possible for class ", i)
+
+
+
+    return MOTA, MOTP, MOTA_class, MOTP_class,  total_missed_class , total_gt_class, total_dist_class, MOTA_status, MOTP_status
+
+
 
 def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_metric = "IOU", is_write=True, total_list=None):
   labels_json_file = open(labels_json_path)
@@ -583,6 +688,6 @@ if __name__ == '__main__':
   #tracker_json_path = "./results/JI_Cetran_Set1/yltracker_set_1.json"
 
 
-  MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt  = check_iou_json(labels_json_path, tracker_json_path, thres_d, distance_metric)
+  MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt  = check_iou_json_class(labels_json_path, tracker_json_path, thres_d, distance_metric)
   print MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt
 

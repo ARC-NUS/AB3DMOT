@@ -59,6 +59,23 @@ d1 = today.strftime("%Y_%m_%d")
 # output image folder. WARNING: IMAGE FOLDER MUST ALREADY EXIST
 img_path = "/home/wen/AB3DMOT/scripts/results/JI_Cetran_Set1/data/tracker_images/" + d1 + "/"
 
+
+data_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/"
+labels_json_path = '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_3/set3_47_10_annotations.json'
+pixor_json_path = "/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_3/pixor_outputs_pixorpp_kitti_nuscene_stk.json"
+tracker_json_path = "./results/JI_Cetran_Set1/TrackOutput_Set1_2020_03_24.json"
+tracker_json_path2 = "./results/JI_Cetran_Set1/TrackOutput_Set1_2020_03_24.json"
+
+# output image folder. WARNING: IMAGE FOLDER MUST ALREADY EXIST
+#img_path = "/home/yl/bus_ws/src/auto_bus/perception/ros_to_rawdata/files/test/"
+
+today = date.today()
+d1 = today.strftime("%Y_%m_%d")
+
+# output image folder. WARNING: IMAGE FOLDER MUST ALREADY EXIST
+img_path = "/home/wen/AB3DMOT/scripts/results/JI_Cetran_Set1/data/tracker_images/" + d1 + "/"
+img_path='/home/wen/AB3DMOT/scripts/results/sensorfusion/tracker_visualiser/'
+
 if not os.path.exists(img_path):
     os.makedirs(img_path)
 
@@ -244,9 +261,9 @@ with open(radar_obstacles_path) as radar_obstacles_file:
                         thickness = 1
 
 
-                        cv2.putText(img, "Tracker_(Lidar Only)", (50, 50), font, fontScale,
+                        cv2.putText(img, "Tracker_(SF - IBEO)", (50, 50), font, fontScale,
                                     (50, 205, 50), thickness)
-                        cv2.putText(img, "Tracker_(Sensor Fusion)", (50, 70), font, fontScale, (0,191,255), thickness)
+                        cv2.putText(img, "Tracker_(SF - All sensors)", (50, 70), font, fontScale, (0,191,255), thickness)
                         cv2.putText(img, "PIXOR++", (50, 90), font, fontScale, (255, 255, 0), thickness)
                         cv2.putText(img, "Labels", (50, 110), font, fontScale, (255, 20, 147), thickness)
 
