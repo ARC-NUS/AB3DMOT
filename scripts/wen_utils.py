@@ -9,6 +9,7 @@ import json
 import numpy as np
 import cv2
 import os
+from pyquaternion import Quaternion
 
 STATE_SIZE = 14
 MEAS_SIZE = 7   #measurement model for pixor, 7
@@ -190,87 +191,141 @@ def hxRadar(x):
 
     return array ([[range, rangerate, theta]]).reshape((dim_z, 1))
 
-def camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold):
-    dets_camDar = np.zeros([1, 9])
-    additional_info_2 = np.zeros([1, 7])
+def getTransform(x,y,z,roll, pitch, yaw):
+    qY = Quaternion(axis=[1, 0, 0], angle=roll)
+    qP = Quaternion(axis=[0, 1, 0], angle=pitch)
+    qR = Quaternion(axis=[0, 0, 1], angle=yaw)
+    q1 = qR * qP * qY
+    T1 = q1.transformation_matrix
+    T1[0][3] = x
+    T1[1][3] = y
+    T1[2][3] = z
+    T1[3][3] = 1
+    return T1
+
+def camRadarFuse(frame_name, dets_cam, dets_radar_total, T1, rcThres,camNum):
+    dets_camDar = [] #np.zeros([1, 9])
+    additional_info_2 = [] #np.zeros([1, 7])
     numCamDar = 0
+    T_blc0 = getTransform(8.660, -0.030, 0.1356, 0.003490659, 0, 0)
+    T_blc1 = getTransform(7.752, 1.267, 2.085, 0, 0.5323254, 0.261799)
+    T_blc2 = getTransform(7.755, -1.267, 2.085, 0, 0.6370452, 0.261799)
+    T_blc3 = getTransform(-3.175, -0.010, 1.745, -0.00872665, 0.0698132, 0)
+
+
+    #TODO just write some class function with camera intrinsics...
+    if camNum == 0:
+        T_cam = T_blc0
+        x1 = T_cam[0][3]
+        y1 = T_cam[1][3]
+
+    elif camNum == 1:
+        T_cam = T_blc1
+
+    elif camNum == 2:
+        T_cam = T_blc2
+
+    elif camNum == 3:
+        T_cam = T_blc3
+        x1 = T_cam[0][3]
+        y1 = T_cam[1][3]
 
     for w in range(len(dets_cam)):
-        test_x = dets_cam[w][1]
-        #radarCam_threshold = 0.05
-        bestTrack_Radar = -1
-        for q in range(len(dets_radar)):
-            test_radar = dets_radar[q][3]
-            diff = test_radar - test_x
-            if (abs(diff) < radarCam_threshold):
-                radarCam_threshold = diff
-                bestTrack_Radar = q
+        theta = dets_cam[w][1]
+        classObj = dets_cam[w][2]
 
-        if (dets_cam[w][2] == 4):  #4 ==car
-            length = 5  # 5
-            width = 2.5  # 2.5
-        if (dets_cam[w][2] == 5):  # 5 == truck
-            length = 8 # 5
-            width = 3  # 2.5
-        if (dets_cam[w][2] == 6):  # 6 == bus!!
-            length = 12 # 5
-            width = 3  # 2.5
-        if (dets_cam[w][2] <= 3):  #0 == pedesterians/bicycles/pmd/motorbike!!
-            length = 1  # 5
-            width = 1  # 2.5
-        # if (dets_cam[w][2] == 0):  #0 == pedesterians!!
-        #     print('Human detected on camera radar !!!!')
+        for rf in range(len(dets_radar_total)):
+            if camNum == 0 and dets_radar_total[rf, 1] < 40 and abs(dets_radar_total[rf, 2]) < 20:
+                x2 = dets_radar_total[rf][1] - x1  # 8.0 - (-ve)
+                y2 = dets_radar_total[rf][2] - y1  # -1.2 - (-ve)
+                thetaC = np.arctan(y2 / x2)
+                diff = abs(thetaC - theta);
+                radarx = dets_radar_total[rf, 1]
+                radary = dets_radar_total[rf, 2]
 
-        sidebounds = 20 #25 #20
-        frontbackbounds = 35.2 #40 #35.2
+                if (diff < rcThres):
+                    d = np.sqrt((x1 - dets_radar_total[rf][1]) ** 2 + (y1 - dets_radar_total[rf][2]) ** 2) * np.sin(
+                        diff)
 
-        if (bestTrack_Radar != -1 and abs(dets_radar[bestTrack_Radar][1]) < frontbackbounds and abs(
-                dets_radar[bestTrack_Radar][2] < sidebounds)):
-            pos_cr = np.zeros([4, 1])
-            # if (dets_cam[w][2] == 0):  #0 == pedesterians!!
-            #     print('Human detected on camera radar !!!!')
-            #print('radar similar point: %s' % (q))
-            k = numCamDar
-            dets_camDar[k][0] = frame_name
-            dets_camDar[k][1] = dets_radar[bestTrack_Radar][1]
-            dets_camDar[k][2] = dets_radar[bestTrack_Radar][2]
-            dets_camDar[k][3] = 1
-            dets_camDar[k][4] = 0 #-dets_radar[bestTrack_Radar][4] #dets_radar[q][3]
-            dets_camDar[k][5] = width
-            dets_camDar[k][6] = length
-            dets_camDar[k][7] = 1  # HEIGHT
-            dets_camDar[k][8] = 2  # sensor type: 2
+                    dets_camDar, additional_info_2 = getCR(frame_name, radarx, radary, T1, classObj, dets_camDar,
+                                                           additional_info_2)
 
-            pos_cr[0][0] = dets_camDar[k][1]
-            pos_cr[1][0] = dets_camDar[k][2]
-            pos_cr[2][0] = 0
-            pos_cr[3][0] = 1
+            elif camNum == 3 and dets_radar_total[rf, 1] < 0 and dets_radar_total[rf, 1] > -35 and abs(
+                        dets_radar_total[rf, 2]) < 20:
+                x2 = x1 - dets_radar_total[rf][1]  # 8.0 - (-ve)
+                y2 = y1 - dets_radar_total[rf][2]  # -1.2 - (-ve)
+                thetaC = -np.arctan(y2 / x2)
+                diff = abs(thetaC - theta);
+                radarx = dets_radar_total[rf, 1]
+                radary = dets_radar_total[rf, 2]
 
-            T_cr = np.matmul(T1, pos_cr)
+                if (diff < rcThres):
+                    d = np.sqrt((x1 - dets_radar_total[rf][1]) ** 2 + (y1 - dets_radar_total[rf][2]) ** 2) * np.sin(
+                        diff)
 
-            dets_camDar[k][1] = T_cr[0][0]
-            dets_camDar[k][2] = T_cr[1][0]
-            additional_info_2[k, 1] = dets_cam[w][2]
+                    dets_camDar, additional_info_2 = getCR(frame_name, radarx, radary, T1, classObj, dets_camDar,
+                                                           additional_info_2)
+
 
     return dets_camDar, additional_info_2
+
+def getCR(frame_name, radarx, radary, T1, classObj, dets_camDar_total, ai_total):
+    if (classObj == 4):  # 4 ==car
+        length = 5  # 5
+        width = 2.5  # 2.5
+    elif (classObj == 5):  # 5 == truck
+        length = 8  # 5
+        width = 3  # 2.5
+    elif (classObj == 6):  # 6 == bus!!
+        length = 12  # 5
+        width = 3  # 2.5
+    elif (classObj <= 3):  # 0 == pedesterians/bicycles/pmd/motorbike!!
+        length = 1  # 5
+        width = 1  # 2.5
+
+    dets_camDar = np.zeros([1,9])
+    pos_cr = np.zeros([4, 1])
+    additional_info_2 = np.zeros([1, 7])
+    k = 0
+
+    pos_cr[0][0] = radarx
+    pos_cr[1][0] = radary
+    pos_cr[2][0] = 0
+    pos_cr[3][0] = 1
+
+    T_cr = np.matmul(T1, pos_cr)
+    print("x",  radarx, "y", radary)
+    dets_camDar[k][0] = frame_name
+    dets_camDar[k][1] = T_cr[0][0]
+    dets_camDar[k][2] = T_cr[1][0]
+    dets_camDar[k][3] = 1
+    dets_camDar[k][4] = 0  # -dets_radar[bestTrack_Radar][4] #dets_radar[q][3]
+    dets_camDar[k][5] = width
+    dets_camDar[k][6] = length
+    dets_camDar[k][7] = 1  # HEIGHT
+    dets_camDar[k][8] = 2  # sensor type: 2
+
+    additional_info_2[k, 1] = classObj
+
+    if len(dets_camDar_total) == 0:
+        dets_camDar_total = dets_camDar
+        ai_total = additional_info_2
+    else:
+        dets_camDar_total = np.vstack((dets_camDar_total, dets_camDar))
+        ai_total = np.vstack((ai_total, additional_info_2))
+
+
+    return dets_camDar_total, ai_total
 
 def undistort_points(xy_tuple, K, D):
     pts = np.array([int(x) for x in xy_tuple])
     Knew = K.copy()
-    #print(np.array([[pts]]).shape)
-
     upts = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
     return upts
 
-def readCamera(frame_name, det_cam):
+def readCamera(frame_name, det_cam, camNum):
     h = 0
     #CAMERA INTRINSICS
-    Camera_Matrix_GMSL_120 = np.array([[958.5928517660333, 0.0, 963.2848327985546], [0.0, 961.1122866843237, 644.5199995337151], [0.0, 0.0, 1.0]])  #
-    ftest = 0.5 *( Camera_Matrix_GMSL_120[0][0] + Camera_Matrix_GMSL_120[1][1])
-    test = 963.2848327985546 * float(416)/float(1920)
-    f = ftest / test  # focal length fx
-    f_new = Camera_Matrix_GMSL_120[0][0]
-    #print(det_cam)
     sf = 0.5
     dets_cam = np.zeros([len(det_cam), 5])
     K = np.array([[981.276*sf, 0.0, 985.405*sf],
@@ -284,28 +339,32 @@ def readCamera(frame_name, det_cam):
         cam_y = det_cam[j]['relative_coordinates']['center_y'] * 604
         xy_tuple = (cam_x, cam_y)
         upts = undistort_points(xy_tuple, K, D)
-        c2 = -upts[0]  + (960 / 2)
-        f3 = Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
-        theta = np.arctan(float(c2)/ f3) #FIXME Verify if the theta is correct
+
+        if camNum == 0:
+            c2 = -upts[0]  + (960 / 2)
+
+        #TODO test for side cameras as well!
+        if camNum == 3:
+            c2 = upts[0]  - (960 / 2)
+
+        f3 = K[0][0] #Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
+        theta = np.arctan(float(c2)/ f3) #THETA fixed!
         dets_cam[h][1] = theta
 
-        # det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle' , 5: 'Truck'}
-        type = det_cam[j]['class_id']  # class_id = 2 is a car
-
-        #print type
-        if type == 0:
-            type_sf = 0
-
-        if type == 1:
-            type_sf = 1
+        type = det_cam[j]['class_id']
+        type_sf = type
+        # if type == 0:
+        #     type_sf = 0
+        # if type == 1:
+        #     type_sf = 1
         if type == 2:
             type_sf = 4
-        if type == 3:
-            type_sf = 3
+        # if type == 3:
+        #     type_sf = 3
         if type == 4:
             type_sf = 6
-        if type == 5:
-            type_sf = 5
+        # if type == 5:
+        #     type_sf = 5
 
         #det_id2str = {0: 'Pedestrian', 1: 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car', 5: 'Truck', 6: 'Bus'}
 
@@ -315,39 +374,7 @@ def readCamera(frame_name, det_cam):
         h += 1
     return dets_cam
 
-def undistort_unproject_pts(xy_tuple):
-    """
-    This function converts existing values into the undistorted values
-    """
-    # sfx = float(416)/float(1920)  # scaling factor
-    # sfy = float(416)/float(1208)
-    # K = np.array([[981.276 * sfx, 0.0, 985.405 * sfx],
-    #               [0.0, 981.414 * sfy, 629.584 * sfy],
-    #               [0.0, 0.0, 1.0]])
-    # D = np.array([[-0.0387077], [-0.0105319], [-0.0168433], [0.0310624]])
-    # pts = np.array([int(x) for x in xy_tuple])
-    # #print(pts)
-    # Knew = K.copy()
-    # upts = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
-    # #print(upts)
-    # #x = int((512. + (point_out[0][0][0] * 1024)))
-    # #y = int((288. + (point_out[0][0][1] * 576)))
-    # return upts
-
-    sf = 0.5 # scaling factor
-    K = np.array([[981.276*sf, 0.0, 985.405*sf],
-                  [0.0, 981.414*sf, 629.584*sf],
-                  [0.0, 0.0, 1.0]])
-    D = np.array([[-0.0387077],[-0.0105319],[-0.0168433],[0.0310624]])
-
-    pts = np.array([int(x) for x in xy_tuple])
-    Knew = K.copy()
-    #print(np.array([[pts]]).shape)
-    upts = [int(x) for x in cv2.fisheye.undistortPoints(np.array([[[float(x) for x in pts]]]),K=K, D=D, P=Knew)[0][0]]
-    return upts
-
-
-def readRadar(frame_name, det_radar, radar_offset):
+def readRadar(frame_name, det_radar):
     i = 0
     dets_radar = np.zeros([len(det_radar), 6])
     for j in range(len(det_radar)):
@@ -355,18 +382,6 @@ def readRadar(frame_name, det_radar, radar_offset):
         dets_radar[i][1] = det_radar[j]['obj_vcs_posex']
         dets_radar[i][2] = det_radar[j]['obj_vcs_posey']
         rangerate = float(det_radar[j]['range_rate'])
-        #print(rangerate)
-        # dets_radar[i][1] = dets_radar[i][1] + 0.1*rangerate
-        # dets_radar[i][2] = dets_radar[i][2] + 0.1*rangerate
-
-        # ## To compensate of the fact that the radar value doesn't give the centroid information....
-        # if rangerate < 0:
-        #     dets_radar[i][1] = dets_radar[i][1] - radar_offset
-        #     dets_radar[i][2] = dets_radar[i][2] - radar_offset
-        # else:
-        #     dets_radar[i][1] = dets_radar[i][1] + radar_offset
-        #     dets_radar[i][2] = dets_radar[i][2] + radar_offset
-
         dets_radar[i][3] = np.arctan(dets_radar[i][2] / dets_radar[i][1])
         angle = float(det_radar[j]['angle_centroid'])
         dets_radar[i][4] = np.deg2rad(angle)

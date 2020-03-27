@@ -13,6 +13,8 @@ import json
 from datetime import datetime
 from shapely.geometry import Polygon
 import glob
+from check_iou_jsons import check_iou_json
+import subprocess
 
 def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age, min_hits, hung_thresh,
                                Rlidar, Qmodel, P_0lidar , Rcr, P_0cr, Ribeo, P_0ibeo, radarCam_threshold, radar_offset, testPIXOR, testIBEO, testCamDar):
@@ -57,7 +59,9 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
         det_radar = dataR[frame_name]['front_esr_tracklist']
         det_radar_right = dataR[frame_name]['front_right_esr_tracklist']
         det_radar_left = dataR[frame_name]['front_left_esr_tracklist']
-        det_radar_back = dataR[frame_name]['rear_sbmp_tracklist']
+        det_radar_backL = dataR[frame_name]['rear_sbmp_tracklist']
+        det_radar_backR = dataR[frame_name]['fsm4_tracklist']
+
         det_cam = dataC[frame_name]['objects']
         det_cam_back = dataC_a3[frame_name]['objects']
         det_lidar = dataL[frame_name]['objects']
@@ -73,20 +77,24 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
         T1[0][3] = seq_dets_pose[frame_name][2]
         T1[1][3] = seq_dets_pose[frame_name][3]
 
-        # print("Processing ", dataL[frame_name]['name'],
-        #       datetime.utcfromtimestamp(seq_dets_pose[frame_name][1]).strftime('%Y-%m-%d %H:%M:%S'))
+        dets_radar = readRadar(frame_name, det_radar)
+        dets_radar_right = readRadar(frame_name, det_radar_right)
+        dets_radar_left = readRadar(frame_name, det_radar_left)
+        dets_radar_backL = readRadar(frame_name, det_radar_backL)
+        dets_radar_backR = readRadar(frame_name, det_radar_backR)
 
-        ## Reads the values from the sensors and processes some back into the detections 7x1 situations......
-        dets_radar = readRadar(frame_name, det_radar, radar_offset)
-        dets_radar_right = readRadar(frame_name, det_radar_right, radar_offset)
-        dets_radar_left = readRadar(frame_name, det_radar_left, radar_offset)
-        dets_radar_back = readRadar(frame_name, det_radar_back, radar_offset)
-        dets_radar = np.concatenate((dets_radar, dets_radar_right, dets_radar_left), axis=0)
         dets_lidar = readLidar(det_lidar, frame_name, T1)
-        dets_cam = readCamera(frame_name, det_cam)
-        dets_cam_back = readCamera(frame_name, det_cam_back)
-        dets_camDar, additional_info_2 = camRadarFuse(frame_name, dets_cam, dets_radar, T1, radarCam_threshold)
-        dets_camDar_back, additional_info_3 = camRadarFuse(frame_name, dets_cam_back, dets_radar_back, T1 ,radarCam_threshold)
+
+
+        dets_cam = readCamera(frame_name, det_cam, camNum = 0)
+        dets_radar_total_a0 = np.vstack((dets_radar, dets_radar_right, dets_radar_left))
+        dets_camDar, additional_info_2 = camRadarFuse(frame_name, dets_cam, dets_radar_total_a0, T1, radarCam_threshold, 0 )
+
+        dets_cam_back = readCamera(frame_name, det_cam_back, camNum=3)
+        dets_radar_total_a3 = np.vstack((dets_radar_backL, dets_radar_backR))
+        dets_camDar_back, additional_info_3 = camRadarFuse(frame_name, dets_cam_back, dets_radar_total_a3, T1 ,radarCam_threshold,3)
+
+
         dets_IBEO, additional_info_ibeo = readIBEO(frame_name, det_IBEO, T1)
 
         total_frames += 1
@@ -104,9 +112,9 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
             dets_all2 = {'dets': dets_camDar[:, 1:8], 'info': additional_info_2}
             trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
         # #
-        # if testCamDar == 1 and (np.count_nonzero(dets_camDar_back) != 0):
-        #     dets_all2 = {'dets': dets_camDar_back[:, 1:8], 'info': additional_info_3}
-        #     trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
+        if testCamDar == 1 and (np.count_nonzero(dets_camDar_back) != 0):
+            dets_all2 = {'dets': dets_camDar_back[:, 1:8], 'info': additional_info_3}
+            trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
 
         if testIBEO == 1 and(np.count_nonzero(dets_IBEO) != 0):
             dets_all2 = {'dets': dets_IBEO[:, 1:8], 'info': additional_info_ibeo}
@@ -125,6 +133,7 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
             T_tracked[1] = d[4]
             T_tracked[3] = 1
             T_track = np.matmul(T_inv, T_tracked)
+
             det_id2str = {0: 'Pedestrian', 1 : 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car' , 5: 'Truck', 6: 'Bus'}
             #type_tmp = det_id2str[d[9]]
 
@@ -132,6 +141,7 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
                         "z": d[5], "yaw": d[6],
                         "id": d[7], "className": det_id2str[d[9]], "classType": d[9]}
 
+            print("x", T_track[0][0], "y", T_track[1][0])
             #TODO add obj_dict for classes as well!!!
             #
             # obj_dict = {"width": d[1], "height": d[0], "length": d[2], "x": T_track[0][0], "y": T_track[1][0],
@@ -261,9 +271,9 @@ def happyTrackerwCamera(dataR, dataL, dataC, dataC_a3, dataPose, dataIB, max_age
             dets_all2 = {'dets': dets_camDar[:, 1:8], 'info': additional_info_2}
             trackers = mot_tracker.update(dets_all=dets_all2, sensor_type=2)
         # #
-        # if testCamDar == 1 and (np.count_nonzero(dets_camDar_back) != 0):
-        #     dets_all2 = {'dets': dets_camDar_back[:, 1:8], 'info': additional_info_3}
-        #     trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
+        if testCamDar == 1 and (np.count_nonzero(dets_camDar_back) != 0):
+            dets_all2 = {'dets': dets_camDar_back[:, 1:8], 'info': additional_info_3}
+            trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
 
         if testIBEO == 1 and (np.count_nonzero(dets_IBEO) != 0):
             dets_all2 = {'dets': dets_IBEO[:, 1:8], 'info': additional_info_ibeo}
@@ -277,6 +287,8 @@ def happyTrackerwCamera(dataR, dataL, dataC, dataC_a3, dataPose, dataIB, max_age
         T_tracked = np.zeros([4, 1])
 
         for d in trackers:
+
+
             T_tracked[0] = d[3]
             T_tracked[1] = d[4]
             T_tracked[3] = 1
@@ -288,6 +300,9 @@ def happyTrackerwCamera(dataR, dataL, dataC, dataC_a3, dataPose, dataIB, max_age
                         "z": d[5], "yaw": d[6],
                         "id": d[7], "className": det_id2str[d[9]], "classType": d[9]}
 
+
+            print("x", T_track[0][0], "y", T_track[1][0])
+
             # TODO add obj_dict for classes as well!!!
             #
             # obj_dict = {"width": d[1], "height": d[0], "length": d[2], "x": T_track[0][0], "y": T_track[1][0],
@@ -296,30 +311,6 @@ def happyTrackerwCamera(dataR, dataL, dataC, dataC_a3, dataPose, dataIB, max_age
 
             result_trks.append(obj_dict)
         total_list.append({"name": dataL[frame_name]['name'], "objects": result_trks})
-
-        #     bbox3d_tmp = d[0:7]
-        #     id_tmp = d[7]
-        #     ori_tmp = d[8]
-        #     type_tmp = det_id2str[d[7]] #det_id2str[d[9]]
-        #     bbox2d_tmp_trk = d[10:14]
-        #     conf_tmp = d[14]
-        #
-        #     str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame_name, id_tmp,
-        #                                                                               type_tmp, ori_tmp,
-        #                                                                               bbox2d_tmp_trk[0],
-        #                                                                               bbox2d_tmp_trk[1],
-        #                                                                               bbox2d_tmp_trk[2],
-        #                                                                               bbox2d_tmp_trk[3],
-        #                                                                               bbox3d_tmp[0], bbox3d_tmp[1],
-        #                                                                               bbox3d_tmp[2], bbox3d_tmp[3],
-        #                                                                               bbox3d_tmp[4], bbox3d_tmp[5],
-        #                                                                               bbox3d_tmp[6],
-        #                                                                               conf_tmp)
-        #     eval_file.write(str_to_srite)
-        #
-        # eval_file.close()
-
-    # print("Total Tracking took: %.3f for %d frames or %.1f FPS" % (total_time, total_frames, total_frames / total_time))
 
     return total_list
 
@@ -917,7 +908,7 @@ if __name__ == '__main__':
     basedir = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/'
 
     testCamDar = 0
-    testPIXOR = 1
+    testPIXOR = 0
     testIBEO = 1
 
     pathRadar = basedir + '/radar_obstacles/radar_obstacles.json'
@@ -930,76 +921,119 @@ if __name__ == '__main__':
     pathIBEO = basedir + '/ecu_obj_list/ecu_obj_list.json'
     pathPose = basedir + '/fused_pose/fused_pose.json'
 
-
-
-    basedir_total = ['/media/wen/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_8',
-                     '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_3',
-                     '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_2',
-                     '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_1',
-                     '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_12',
-                     '/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_3',
-                     '/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_9']
-    labels_total = ['/media/wen/demo_ssd/raw_data/train_labels/JI_ST-cloudy-day_2019-08-27-21-55-47/set_8',
-                    '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_3',
-                    '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_2',
-                    '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_1',
-                    '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_12',
-                    '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_3',
-                    '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_9']
-    num_testcase = 3 ** 20
-
-    names = ['Set Number', 'Max age', 'Min hits', 'Hung thres', 'rlA - Q xy', 'rlB - Q theta', 'rlC - P_0 xy ',
-             'rlD - P_0 xy ', 'rlE - P_0 xy ', 'AMOTA', 'AMOTP', 'AMOTA- ped' 'AMOTP-ped', 'AMOTA- bi', 'AMOTP-bi',
-             'AMOTA- pmd' 'AMOTP-pmd', 'AMOTA- motorbike', 'AMOTP-motorbike', 'AMOTA- car', 'AMOTP-car',
-             'AMOTA- truck', 'AMOTP-truck', 'AMOTA- bus', 'AMOTP-bus']
-
-    MOT_total = names
-
-    MOT_curr = np.zeros([1, 30])
-    hung_thresh_total = np.array([0.01, 0.03])
-    rng_thres = np.array([0.01, 0.1, 1, 10, 100])
-    # tracker_json_outfile = basedir +  "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
-
-    i = 6 #to be the one with pedesterians
-    basedir = basedir_total[i]
-    print(basedir)
-    labels_json_path = glob.glob(labels_total[i] + "/*annotations.json")
-    print(labels_json_path)
-    # Join various path components
-    pathRadar = os.path.join(basedir, "radar_obstacles/radar_obstacles.json")
-    pathCamera_a0 = glob.glob(basedir + "/image_detections/results_a0*.json")[0]
-    pathCamera_a3 = glob.glob(basedir + "/image_detections/results_a3*.json")[0]
-    pathLidar = basedir + '/pixor_outputs_pixorpp_kitti_nuscene_stk.json'
-    pathIBEO = basedir + '/ecu_obj_list/ecu_obj_list.json'
-    pathPose = basedir + '/fused_pose/fused_pose.json'
-
+    #
+    #
+    # basedir_total = ['/media/wen/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_8',
+    #                  '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_3',
+    #                  '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_2',
+    #                  '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_1',
+    #                  '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_12',
+    #                  '/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_3',
+    #                  '/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_9']
+    # labels_total = ['/media/wen/demo_ssd/raw_data/train_labels/JI_ST-cloudy-day_2019-08-27-21-55-47/set_8',
+    #                 '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_3',
+    #                 '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_2',
+    #                 '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_1',
+    #                 '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_12',
+    #                 '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_3',
+    #                 '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_9']
+    # num_testcase = 3 ** 20
+    #
+    # names = ['Set Number', 'Max age', 'Min hits', 'Hung thres', 'rlA - Q xy', 'rlB - Q theta', 'rlC - P_0 xy ',
+    #          'rlD - P_0 xy ', 'rlE - P_0 xy ', 'AMOTA', 'AMOTP', 'AMOTA- ped' 'AMOTP-ped', 'AMOTA- bi', 'AMOTP-bi',
+    #          'AMOTA- pmd' 'AMOTP-pmd', 'AMOTA- motorbike', 'AMOTP-motorbike', 'AMOTA- car', 'AMOTP-car',
+    #          'AMOTA- truck', 'AMOTP-truck', 'AMOTA- bus', 'AMOTP-bus']
+    #
+    # # tracker_json_outfile = basedir +  "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
+    #
+    # i = 6 #to be the one with pedesterians
+    # basedir = basedir_total[i]
+    # print(basedir)
+    # labels_json_path = glob.glob(labels_total[i] + "/*annotations.json")
+    # print(labels_json_path)
+    # # Join various path components
+    # pathRadar = os.path.join(basedir, "radar_obstacles/radar_obstacles.json")
+    # pathCamera_a0 = glob.glob(basedir + "/image_detections/results_a0*.json")[0]
+    # pathCamera_a3 = glob.glob(basedir + "/image_detections/results_a3*.json")[0]
+    # pathLidar = basedir + '/pixor_outputs_pixorpp_kitti_nuscene_stk.json'
+    # pathIBEO = basedir + '/ecu_obj_list/ecu_obj_list.json'
+    # pathPose = basedir + '/fused_pose/fused_pose.json'
+    #
 
     # dataR, dataL, dataC, dataC_a1, dataC_a2, dataC_a3, dataPose, dataIB = readJson(pathRadar,
     #                         pathLidar, pathCamera_a0, pathCamera_a1, pathCamera_a2, pathCamera_a3, pathPose, pathIBEO)
+
+
+    hung_thresh_total = np.array([0.01, 0.03])
+    rng_thres = np.array([0.01, 0.1, 1, 10, 100])
+
+
     dataR , dataL , dataC , dataC_a3 , dataPose, dataIB = readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose, pathIBEO)
 
-    max_age=7
-    min_hits=4
-    hung_thresh=0.01 #.2
+    max_age=4
+    min_hits=3
+    rlA = 0
+    rlB = 0
+    rlC = 2
+    rlD = 3
+    rlE = 4
 
-    Qmodel  = np.identity(14)
-
-    Ribeo = np.identity(7)
-    P_0ibeo = np.identity(14)
+    hung_thresh = 0.01  # hung_thresh_total[ht]
 
     Rlidar = np.identity(7)
+    Rlidar[2, 2] = 10. ** -5  # z
+    Rlidar[6, 6] = 10. ** -5  # h
+
+    Qmodel = np.identity(14)
+    # tuning
+    Qmodel[0][0] *= rng_thres[rlA]
+    Qmodel[1][1] = Qmodel[0][0]
+    Qmodel[3][3] *= rng_thres[rlB]
+    # Qmodel[4][4] *= rng_thres[rlC]
+    # Qmodel[5][5] =Qmodel[4][4]
+    # Qmodel[7][7] *= rng_thres[rlD]
+    # Qmodel[8][8] =Qmodel[7][7]
+
     P_0lidar = np.identity(14)
+    # tuning
+    P_0lidar[0][0] *= rng_thres[rlC]
+    P_0lidar[1][1] = P_0lidar[0][0]
 
     Rcr = np.identity(7)
+    Rcr[2, 2] = 10. ** -5  # z
+    Rcr[6, 6] = 10. ** -5  # h
+
     P_0cr = np.identity(14)
 
-    radarCam_threshold = 0.05  #.05 #radians!!
+    # tuning
+    P_0cr[0][0] *= rng_thres[rlD]
+    P_0cr[1][1] = P_0cr[0][0]
+    # P_0cr[3][3] *= rng_thres[rlD]
+    # P_0cr[7][7] *= rng_thres[rlH]
+    # P_0cr[8][8] = P_0cr[7][7]
+
+    Ribeo = np.identity(7)
+    Ribeo[2, 2] = 10. ** -5  # z
+    Ribeo[6, 6] = 10. ** -5  # h
+
+    P_0ibeo = np.identity(14)
+    # # tuning
+    P_0ibeo[0][0] *= rng_thres[rlE]
+    P_0ibeo[1][1] = P_0ibeo[0][0]
+    # P_0ibeo[3][3] *= rng_thres[rlD]
+    # P_0ibeo[4][4] *= rng_thres[rlG]
+    # P_0ibeo[5][5] = P_0ibeo[4][4]
+    # P_0ibeo[7][7] *= rng_thres[rlH]
+    # P_0ibeo[8][8] = P_0ibeo[7][7]
+
+    radarCam_threshold = 0.1 # .05 #radians!!
     radar_offset = 0
 
     total_list = happyTracker (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age, min_hits, hung_thresh,
                                Rlidar, Qmodel, P_0lidar , Rcr, P_0cr, Ribeo, P_0ibeo, radarCam_threshold, radar_offset, testPIXOR, testIBEO, testCamDar)
 
     isPrint = 1
+    isCheckIOU = 1
 
     if isPrint == True:
         today = datetime.today()
@@ -1007,10 +1041,24 @@ if __name__ == '__main__':
         set_num = '1'
         #tracker_json_outfile = "./results/JI_Cetran_Set"+ set_num + "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
         #tracker_json_outfile = "./results/JI_Cetran_Set" + set_num + "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
-        tracker_json_outfile = "./results/JI_Cetran_Set1/TrackOutput_Set1_2020_03_24.json"
+        tracker_json_outfile = "/home/wen/AB3DMOT/scripts/results/sensorfusion/checkSF.json"
         with open(tracker_json_outfile, "w+") as outfile:
             json.dump(total_list, outfile, indent=1)
 
         print('Saved tracking results as Json')
 
+    if isCheckIOU == True:
+        labels_json_path = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/labels/set1_annotations.json'
+        distance_metric = "IOU"  # using IOU as distance metric
+        thres_d = 100.  # 100 threshold distance to count as a correspondance, beyond it will be considered as missed detection
+
+        MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(labels_json_path,
+                                                                                                     tracker_json_outfile,
+                                                                                                     thres_d,
+                                                                                                     distance_metric)
+        print(MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt)
+
+    visualise = 1
+    if visualise == True:
+        subprocess.call(['python', 'dataset_visualisation.py'])
 

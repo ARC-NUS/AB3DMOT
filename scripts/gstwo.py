@@ -101,9 +101,9 @@ if __name__ == '__main__':
     HighestAMOTA = 0
     HAMOTP = 0
 
-    HighestAMOTA = 0.36288560555982946
-    HAMOTP = 88.8604145548471
-    HighestCount = 8435
+    HighestAMOTA = 0.4773002588
+    HAMOTP = 88.3180452958
+    HighestCount = 8681
 
     withCR = 0
 
@@ -128,8 +128,8 @@ if __name__ == '__main__':
                                 count = count + 1
                                 print(count)
 
-                                if count == 8435 or count > 8643:
-                                #if count == 8435:
+                                #if count == 8681 or count > 8643:
+                                if count == 8681:
                                     for i in range(len(basedir_total)):
                                         dataR = dataR_total[i];
                                         dataL = dataL_total[i];
@@ -170,7 +170,6 @@ if __name__ == '__main__':
                                             # tuning
                                             P_0lidar[0][0] *= rng_thres[rlC]
                                             P_0lidar[1][1] = P_0lidar[0][0]
-                                            P_0lidar[3][3] *= rng_thres[rlD]
 
                                             Rcr = np.identity(7)
                                             Rcr[2, 2] = 10. ** -5  # z
@@ -179,8 +178,8 @@ if __name__ == '__main__':
                                             P_0cr = np.identity(14)
 
                                             # tuning
-                                            #P_0cr[0][0] *= rng_thres[rlC]
-                                            #P_0cr[1][1] = P_0cr[0][0]
+                                            P_0cr[0][0] *= rng_thres[rlD]
+                                            P_0cr[1][1] = P_0cr[0][0]
                                             # P_0cr[3][3] *= rng_thres[rlD]
                                             # P_0cr[7][7] *= rng_thres[rlH]
                                             # P_0cr[8][8] = P_0cr[7][7]

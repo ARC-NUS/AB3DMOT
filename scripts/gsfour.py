@@ -154,8 +154,8 @@ if __name__ == '__main__':
                                             P_0cr = np.identity(14)
 
                                             # tuning
-                                            P_0cr[0][0] *= rng_thres[rlD]
-                                            P_0cr[1][1] = P_0cr[0][0]
+                                            #P_0cr[0][0] *= rng_thres[rlD]
+                                            #P_0cr[1][1] = P_0cr[0][0]
                                             # P_0cr[3][3] *= rng_thres[rlD]
                                             # P_0cr[7][7] *= rng_thres[rlH]
                                             # P_0cr[8][8] = P_0cr[7][7]
