@@ -7,11 +7,12 @@ from wen_utils import readJson
 from check_iou_jsons import check_iou_json, check_iou_json_class
 import glob
 import csv
+
 def safe_div(x, y):
     status = 1
     if y == 0:
         return 0.0
-    return x/y
+    return float(x)/y
 
 
 if __name__ == '__main__':
@@ -19,10 +20,16 @@ if __name__ == '__main__':
 
     det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle', 5: 'Truck'}
 
-    # TODO : Change the base directory!!!
+    # #if testing ALL directories
+    # set_v = glob.glob("/media/wen/demo_ssd/raw_data/*/*/log_high/set*")
+    # sets = []
+    # for set in set_v:
+    #     if (set[-2:-1] + set[-1]) != "_0":
+    #         if sets == []:
+    #             sets = set
+    #         else:
+    #             sets = np.vstack((sets, set))
 
-    # bag_dir = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/"
-    # basedir_total = sorted(glob.glob(bag_dir + "set*"))
     basedir_total = ['/media/wen/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_8',
                      '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_3',
                      '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_2',
@@ -37,6 +44,15 @@ if __name__ == '__main__':
                     '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_12',
                     '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_3',
                     '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_9']
+
+    labels_total = ['/media/wen/demo_ssd/raw_data/trash/train_labels/JI_ST-cloudy-day_2019-08-27-21-55-47/set_8',
+                    '/media/wen/demo_ssd/raw_data/trash/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_3',
+                    '/media/wen/demo_ssd/raw_data/trash/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_2',
+                    '/media/wen/demo_ssd/raw_data/trash/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_1',
+                    '/media/wen/demo_ssd/raw_data/trash/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_12',
+                    '/media/wen/demo_ssd/raw_data/trash/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_3',
+                    '/media/wen/demo_ssd/raw_data/trash/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_9']
+
     num_testcase = 3 ** 20
 
     names = ['Set Number', 'Max age', 'Min hits', 'Hung thres', 'rlA - Q xy', 'rlB - Q theta', 'rlC - P_0 xy ',
@@ -59,8 +75,14 @@ if __name__ == '__main__':
         print(labels_json_path)
         # Join various path components
         pathRadar = os.path.join(basedir, "radar_obstacles/radar_obstacles.json")
-        pathCamera_a0 = glob.glob(basedir + "/image_detections/results_a0*.json")[0]
-        pathCamera_a3 = glob.glob(basedir + "/image_detections/results_a3*.json")[0]
+
+        #Camera 6 class model :: yolov3-tiny-prn-slim_best.weights
+        # pathCamera_a0 = glob.glob(basedir + "/image_detections/results_a0_yolov3-tiny-prn-slim_best.weights*.json")[0]
+        # pathCamera_a3 = glob.glob(basedir + "/image_detections/results_a3_yolov3-tiny-prn-slim_best.weights*.json")[0]
+
+        pathCamera_a0 = glob.glob(basedir + "/image_detections/results_cama0*.json")[0]
+        pathCamera_a3 = glob.glob(basedir + "/image_detections/results_cama3*.json")[0]
+
         #pathLidar = basedir + '/pixor_outputs_pixorpp_kitti_nuscene_stk.json'
         pathLidar = basedir + '/pixor_outputs_tf_epoch_150_valloss_0.2106.json'
         pathIBEO = basedir + '/ecu_obj_list/ecu_obj_list.json'
@@ -83,29 +105,34 @@ if __name__ == '__main__':
             dataPose_total = np.vstack((dataPose_total, dataPose))
             dataIB_total = np.vstack((dataIB_total, dataIB))
 
-    #     #FIXME : Do a coarse grid search
-    #    for max_age in range(1,5):
-    count = 0
-    tracker_json_outfile = '/home/wen/AB3DMOT/scripts/results/sensorfusion/allset_class2_withoutCR.json'
-    savePath = '/home/wen/AB3DMOT/scripts/results/sensorfusion/allset_class2_withoutCR.csv'
 
+    count = 0
+
+    Test_v = 15659
+    tracker_json_outfile = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_' + str(Test_v) + '.json'
+    savePath = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_' + str(Test_v) + '.csv'
     with open(savePath, 'w') as csvfile:
         spamwriter = csv.writer(csvfile, delimiter=',',
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
         spamwriter.writerow(
-            ['Set Number', 'Max age', 'Min hits', 'Hung thres', 'rlA - Q xy', 'rlB - Q theta', 'rlC - P_0 xy ',
+            ['GS Number', 'Max age', 'Min hits', 'Hung thres', 'rlA - Q xy', 'rlB - Q theta', 'rlC - P_0 xy ',
              'rlD - P_0 xy ', 'rlE - P_0 xy ', 'AMOTA', 'AMOTP','AMOTA- ped', 'AMOTP-ped', 'AMOTA- bi', 'AMOTP-bi',
              'AMOTA- pmd', 'AMOTP-pmd', 'AMOTA- motorbike', 'AMOTP-motorbike', 'AMOTA- vehicle', 'AMOTP-vehicle',
              ])
 
-    HighestAMOTA = 0
-    HAMOTP = 0
 
-    HighestAMOTA = 0.4773002588
-    HAMOTP = 88.3180452958
-    HighestCount = 8681
 
-    withCR = 0
+    HAMOTA_all =   0.431070974899
+    HAMOTP_all = 87.10681218624508
+    HC_all = 12569
+
+    HAMOTA_vehicles = 0.5132928917168759
+    HAMOTP_vehicles =  87.81524986706007
+    HCv = 12566
+
+    HAMOTA_ped = -0.00980392156862747
+    HAMOTP_ped = 25.0
+    HCp = 10255
 
 
     for rlA in range(len(rng_thres)):
@@ -129,7 +156,9 @@ if __name__ == '__main__':
                                 print(count)
 
                                 #if count == 8681 or count > 8643:
-                                if count == 8681:
+                                if count > Test_v :
+                                #if count == Test_v:
+
                                     for i in range(len(basedir_total)):
                                         dataR = dataR_total[i];
                                         dataL = dataL_total[i];
@@ -137,7 +166,8 @@ if __name__ == '__main__':
                                         dataC_a3 = dataC_a3_total[i];
                                         dataPose = dataPose_total[i];
                                         dataIB = dataIB_total[i];
-                                        testCamDar = 0;
+
+                                        testCamDar = 1;
                                         testPIXOR = 1;
                                         testIBEO = 1;
 
@@ -172,6 +202,8 @@ if __name__ == '__main__':
                                             P_0lidar[1][1] = P_0lidar[0][0]
 
                                             Rcr = np.identity(7)
+                                            Rcr[0, 0] = 0.001  #error in x and y !! for camera radar fusion
+                                            Rcr[1, 1] = 0.001 #error in x and y !! for camera radar fusion
                                             Rcr[2, 2] = 10. ** -5  # z
                                             Rcr[6, 6] = 10. ** -5  # h
 
@@ -185,6 +217,8 @@ if __name__ == '__main__':
                                             # P_0cr[8][8] = P_0cr[7][7]
 
                                             Ribeo = np.identity(7)
+                                            Ribeo[0, 0] = 0.01  # 10cm 0.1*0.1   0.01
+                                            Ribeo[1, 1]  = 0.01 #10cm 0.1*0.1   0.01
                                             Ribeo[2, 2] = 10. ** -5  # z
                                             Ribeo[6, 6] = 10. ** -5  # h
 
@@ -198,7 +232,7 @@ if __name__ == '__main__':
                                             # P_0ibeo[7][7] *= rng_thres[rlH]
                                             # P_0ibeo[8][8] = P_0ibeo[7][7]
 
-                                            radarCam_threshold = 0.05  # .05 #radians!!
+                                            radarCam_threshold = 0.1  # .05 #radians!!
                                             radar_offset = 0
 
                                             total_list = happyTracker(dataR, dataL, dataC, dataC_a3,
@@ -223,7 +257,7 @@ if __name__ == '__main__':
                                                 # print('Saved tracking results as Json')
 
                                             if isCheckIOU == True:
-                                                # labels_json_path = glob.glob(basedir +"/labels/*annotations.json")
+                                                #labels_json_path = glob.glob(basedir +"/labels/*annotations.json")
 
                                                 distance_metric = "IOU"  # using IOU as distance metric
                                                 thres_d = 100.  # 100 threshold distance to count as a correspondance, beyond it will be considered as missed detection
@@ -245,8 +279,7 @@ if __name__ == '__main__':
                                                     thres_d,
                                                     distance_metric)
 
-
-                                                #print(MOTA_class, MOTP_class)
+                                                # print(MOTA_class, MOTP_class)
                                                 AMOTA += MOTA
                                                 AMOTP += MOTP
 
@@ -258,9 +291,9 @@ if __name__ == '__main__':
                                     for i in range(5):
                                         AMOTAclass[i] = safe_div(sum_MOTAclass[i], sum_MOTAstatus[i])
                                         #print (sum_MOTAclass, sum_MOTAstatus, sum_MOTPclass, sum_MOTPstatus)
-                                        AMOTPclass[i] = safe_div(sum_MOTPclass[i], sum_MOTPstatus[i])
+                                        AMOTPclass[i] = safe_div(sum_MOTPclass[i], sum_MOTAstatus[i])
 
-                                    MOT_curr[0][0] = int(basedir[-1])
+                                    MOT_curr[0][0] = count
                                     MOT_curr[0][1] = max_age
                                     MOT_curr[0][2] = min_hits
                                     MOT_curr[0][3] = hung_thresh
@@ -283,13 +316,26 @@ if __name__ == '__main__':
                                     MOT_curr[0][20] = AMOTPclass[4]
 
 
-                                    if MOT_curr[0][9] > HighestAMOTA:
-                                        HighestAMOTA = MOT_curr[0][9]
-                                        HAMOTP = MOT_curr[0][10]
-                                        HighestCount = count
+                                    if MOT_curr[0][9] > HAMOTA_all:
+                                        HAMOTA_all = MOT_curr[0][9]
+                                        HAMOTP_all = MOT_curr[0][10]
+                                        HC_all = count
+
+                                    if  AMOTAclass[4] > HAMOTA_vehicles and AMOTPclass[4] != 0:
+                                        HAMOTA_vehicles = AMOTAclass[4]
+                                        HAMOTP_vehicles = AMOTPclass[4]
+                                        HCv = count
+
+                                    if AMOTAclass[0] > HAMOTA_ped and AMOTPclass[0] != 0:
+                                        HAMOTA_ped = AMOTAclass[0]
+                                        HAMOTP_ped = AMOTPclass[0]
+                                        HCp = count
+
 
                                     print('AMOTA :', MOT_curr[0][9], 'AMOTP :', MOT_curr[0][10], 'Using Camera Radar:', testCamDar)
-                                    print('HAMOTA :', HighestAMOTA, 'HAMOTP : ', HAMOTP, 'Count', HighestCount, 'Using Camera Radar:', testCamDar)
+                                    print('HAMOTA(ALL) :', HAMOTA_all, 'HAMOTP : ', HAMOTP_all, 'Count', HC_all, 'Using Camera Radar:', testCamDar)
+                                    print('HAMOTA(vehicles) :', HAMOTA_vehicles, 'HAMOTP : ', HAMOTP_vehicles, 'Count', HCv, 'Using Camera Radar:', testCamDar)
+                                    print('HAMOTA(pedesterians) :', HAMOTA_ped, 'HAMOTP : ', HAMOTP_ped, 'Count', HCp, 'Using Camera Radar:', testCamDar)
 
                                     myFile = open(savePath, 'a')
                                     with myFile:

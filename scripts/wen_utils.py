@@ -203,6 +203,32 @@ def getTransform(x,y,z,roll, pitch, yaw):
     T1[3][3] = 1
     return T1
 
+def getCluster(x1, y1, rx, ry, diff, clusterP):
+    minTest = 10
+    ip = -1
+    d = np.sqrt((x1 - rx) ** 2 + (y1 - ry) ** 2) * np.sin(diff)
+    if d < 0.1:
+        wt = 0.9
+    else:
+        wt = 0.5
+    if clusterP == []:
+        clusterP = np.array([[rx, ry]])
+    else:
+        for i in range((len(clusterP))):
+            test = np.sqrt((clusterP[i][0] - rx) ** 2 + (clusterP[i][1] - ry) ** 2)
+
+            if test < minTest:
+                minTest = test
+                ip = i
+
+        if ip > (-1):
+            clusterP[ip][0] = clusterP[ip][0] * (1 - wt) + rx * wt
+            clusterP[ip][1] = clusterP[ip][1] * (1 - wt) + ry * wt
+        else:
+            temp = np.array([[rx, ry]])
+            clusterP = np.vstack((clusterP, temp))
+    return clusterP
+
 def camRadarFuse(frame_name, dets_cam, dets_radar_total, T1, rcThres,camNum):
     dets_camDar = [] #np.zeros([1, 9])
     additional_info_2 = [] #np.zeros([1, 7])
@@ -212,12 +238,11 @@ def camRadarFuse(frame_name, dets_cam, dets_radar_total, T1, rcThres,camNum):
     T_blc2 = getTransform(7.755, -1.267, 2.085, 0, 0.6370452, 0.261799)
     T_blc3 = getTransform(-3.175, -0.010, 1.745, -0.00872665, 0.0698132, 0)
 
-
-    #TODO just write some class function with camera intrinsics...
     if camNum == 0:
         T_cam = T_blc0
-        x1 = T_cam[0][3]
-        y1 = T_cam[1][3]
+
+    elif camNum == 3:
+        T_cam = T_blc3
 
     elif camNum == 1:
         T_cam = T_blc1
@@ -225,17 +250,17 @@ def camRadarFuse(frame_name, dets_cam, dets_radar_total, T1, rcThres,camNum):
     elif camNum == 2:
         T_cam = T_blc2
 
-    elif camNum == 3:
-        T_cam = T_blc3
-        x1 = T_cam[0][3]
-        y1 = T_cam[1][3]
+
+    x1 = T_cam[0][3]
+    y1 = T_cam[1][3]
 
     for w in range(len(dets_cam)):
         theta = dets_cam[w][1]
         classObj = dets_cam[w][2]
+        clusterP = []
 
         for rf in range(len(dets_radar_total)):
-            if camNum == 0 and dets_radar_total[rf, 1] < 40 and abs(dets_radar_total[rf, 2]) < 20:
+            if camNum == 0 and dets_radar_total[rf, 1] < 35 and abs(dets_radar_total[rf, 2]) < 20:
                 x2 = dets_radar_total[rf][1] - x1  # 8.0 - (-ve)
                 y2 = dets_radar_total[rf][2] - y1  # -1.2 - (-ve)
                 thetaC = np.arctan(y2 / x2)
@@ -244,11 +269,7 @@ def camRadarFuse(frame_name, dets_cam, dets_radar_total, T1, rcThres,camNum):
                 radary = dets_radar_total[rf, 2]
 
                 if (diff < rcThres):
-                    d = np.sqrt((x1 - dets_radar_total[rf][1]) ** 2 + (y1 - dets_radar_total[rf][2]) ** 2) * np.sin(
-                        diff)
-
-                    dets_camDar, additional_info_2 = getCR(frame_name, radarx, radary, T1, classObj, dets_camDar,
-                                                           additional_info_2)
+                    clusterP = getCluster(x1, y1, radarx, radary, diff, clusterP)
 
             elif camNum == 3 and dets_radar_total[rf, 1] < 0 and dets_radar_total[rf, 1] > -35 and abs(
                         dets_radar_total[rf, 2]) < 20:
@@ -260,14 +281,19 @@ def camRadarFuse(frame_name, dets_cam, dets_radar_total, T1, rcThres,camNum):
                 radary = dets_radar_total[rf, 2]
 
                 if (diff < rcThres):
-                    d = np.sqrt((x1 - dets_radar_total[rf][1]) ** 2 + (y1 - dets_radar_total[rf][2]) ** 2) * np.sin(
-                        diff)
+                    clusterP = getCluster(x1, y1, radarx, radary, diff, clusterP)
 
-                    dets_camDar, additional_info_2 = getCR(frame_name, radarx, radary, T1, classObj, dets_camDar,
-                                                           additional_info_2)
+        for n in range(len(clusterP)):
+            dets_camDar, additional_info_2 = getCR(frame_name, clusterP[n][0], clusterP[n][1], T1, classObj, dets_camDar,
+                                               additional_info_2)
 
 
     return dets_camDar, additional_info_2
+
+
+
+
+
 
 def getCR(frame_name, radarx, radary, T1, classObj, dets_camDar_total, ai_total):
     if (classObj == 4):  # 4 ==car
@@ -280,8 +306,8 @@ def getCR(frame_name, radarx, radary, T1, classObj, dets_camDar_total, ai_total)
         length = 12  # 5
         width = 3  # 2.5
     elif (classObj <= 3):  # 0 == pedesterians/bicycles/pmd/motorbike!!
-        length = 1  # 5
-        width = 1  # 2.5
+        length = 2  # 5
+        width = 2 # 2.5
 
     dets_camDar = np.zeros([1,9])
     pos_cr = np.zeros([4, 1])
@@ -294,7 +320,7 @@ def getCR(frame_name, radarx, radary, T1, classObj, dets_camDar_total, ai_total)
     pos_cr[3][0] = 1
 
     T_cr = np.matmul(T1, pos_cr)
-    print("x",  radarx, "y", radary)
+    #print("x",  radarx, "y", radary)
     dets_camDar[k][0] = frame_name
     dets_camDar[k][1] = T_cr[0][0]
     dets_camDar[k][2] = T_cr[1][0]
@@ -334,23 +360,6 @@ def readCamera(frame_name, det_cam, camNum):
     D = np.array([[-0.0387077],[-0.0105319],[-0.0168433],[0.0310624]])
 
     for j in range(len(det_cam)):
-        dets_cam[h][0] = frame_name
-        cam_x = det_cam[j]['relative_coordinates']['center_x'] * 960
-        cam_y = det_cam[j]['relative_coordinates']['center_y'] * 604
-        xy_tuple = (cam_x, cam_y)
-        upts = undistort_points(xy_tuple, K, D)
-
-        if camNum == 0:
-            c2 = -upts[0]  + (960 / 2)
-
-        #TODO test for side cameras as well!
-        if camNum == 3:
-            c2 = upts[0]  - (960 / 2)
-
-        f3 = K[0][0] #Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
-        theta = np.arctan(float(c2)/ f3) #THETA fixed!
-        dets_cam[h][1] = theta
-
         type = det_cam[j]['class_id']
         type_sf = type
         # if type == 0:
@@ -366,12 +375,29 @@ def readCamera(frame_name, det_cam, camNum):
         # if type == 5:
         #     type_sf = 5
 
-        #det_id2str = {0: 'Pedestrian', 1: 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car', 5: 'Truck', 6: 'Bus'}
+        if type_sf < 4:  #camera should only consider CERTAIN classes!!
+            dets_cam[h][0] = frame_name
+            cam_x = det_cam[j]['relative_coordinates']['center_x'] * 960
+            cam_y = det_cam[j]['relative_coordinates']['center_y'] * 604
+            xy_tuple = (cam_x, cam_y)
+            upts = undistort_points(xy_tuple, K, D)
 
-        dets_cam[h][2] = type_sf
-        dets_cam[h][3] = det_cam[j]['confidence']
-        dets_cam[h][4] = 3  # SENSOR TYPE = 3
-        h += 1
+            if camNum == 0:
+                c2 = -upts[0]  + (960 / 2)
+
+            #TODO test for side cameras as well!
+            if camNum == 3:
+                c2 = upts[0]  - (960 / 2)
+
+            f3 = K[0][0] #Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
+            theta = np.arctan(float(c2)/ f3) #THETA fixed!
+            dets_cam[h][1] = theta
+            #det_id2str = {0: 'Pedestrian', 1: 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car', 5: 'Truck', 6: 'Bus'}
+
+            dets_cam[h][2] = type_sf
+            dets_cam[h][3] = det_cam[j]['confidence']
+            dets_cam[h][4] = 3  # SENSOR TYPE = 3
+            h += 1
     return dets_cam
 
 def readRadar(frame_name, det_radar):
@@ -480,8 +506,8 @@ def readIBEO(frame_name, det_IBEO, T1):
         x_bus = float(det_IBEO[j]['obj_center']['x']) / 100
         y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
 
-        if obj_class > 3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
-
+        if obj_class >3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
+            #for not no pedesterian detection w IBEO??
             if obj_class == 3:
                 obj_class_folobus = 0
                 print("Pedesterian detected from IBEO!!")

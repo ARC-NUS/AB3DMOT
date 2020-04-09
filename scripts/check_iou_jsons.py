@@ -169,9 +169,9 @@ def safe_div(x, y, type):
         return 0.0, status
     else:
         if type == 1:
-            return 1 - x / y, status
+            return 1 - float(x) / y, status
         if type == 2:
-            return x / y, status
+            return float(x) / y, status
 
 
 def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., distance_metric="IOU", is_write=True,
@@ -344,6 +344,8 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
                 #                     print "val: ", value, "; thresh: ", thres_d
                 className = labels['annotations'][row]['className'][0:2]
                 classCheck = classChecker(className)
+                # if classCheck == 0:
+                #     print ('hi')
                 if labels['annotations'][row]['classId'] in mappings:
                     # TODO check for mismatched/contradictions
                     if mappings[labels['annotations'][row]['classId']] != tracks['objects'][column]['id']:
@@ -360,6 +362,7 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
 
                 # print opts, tpts
                 # total_dist += value
+
                 total_dist_class[classCheck] += get_MOT_dist(opts, tpts, distance_metric) #value
                 total_ct_class[classCheck] += 1
 
@@ -379,7 +382,6 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
             if obj['id'] not in mappings.values():
                 # false positive
                 fp_t += 1
-                # TODO : Add class Name to the list of tracks!! D;
                 classCheck = int(obj['classType'])
                 fp_t_class[classCheck] += 1
 
@@ -394,7 +396,7 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
                 if label['classId'] not in mappings:
                     # missed detection
                     m_t += 1
-                    className = labels['annotations'][row]['className'][0:2]
+                    className = label['className'][0:2]
                     classCheck = classChecker(className)
                     #print classCheck
                     m_t_class[classCheck] += 1
@@ -439,14 +441,9 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
             MOTA_class[i], MOTA_status[i] = safe_div(total_missed_class[i], total_gt_class[i], 1)
             MOTP_class[i], MOTP_status[i] = safe_div(total_dist_class[i], total_ct_class[i], 2)
 
-        # if MOTA_status[i] == 0:
-        #     print("Warning", "No ground truth. MOTA calculation not possible for class ", i)
-        #
-        # if MOTP_status[i] == 0:
-        #     print("Warning", "No continuous track. MOTP calculation not possible for class ", i)
-
-
-
+    # print (total_missed_class, total_gt_class)
+    MOTA *= 100
+    MOTA_class *= 100
     return MOTA, MOTP, MOTA_class, MOTP_class,  total_missed_class , total_gt_class, total_dist_class, MOTA_status, MOTP_status
 
 
@@ -513,8 +510,7 @@ def check_iou_json(labels_json_path, tracker_json_path, thres_d=100., distance_m
                   print('Value to be checked %f ' %((index+1-l_index)*10-1))
                   if (index+1-l_index)*10-1 < 1000:
                     tracks = tracker_data[(index+1-l_index)*10-1]
-              
-          
+
       is_labelled = False
       corresp_label = None
       corresp_track = None

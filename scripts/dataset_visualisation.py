@@ -67,8 +67,8 @@ img_path = "/home/wen/AB3DMOT/scripts/results/JI_Cetran_Set1/data/tracker_images
 # tracker_json_path2 = "./results/JI_Cetran_Set1/TrackOutput_Set1_2020_03_24.json"
 
 
-labels_json_path = '/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/labels/set1_annotations.json'
-pixor_json_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs_pixorpp_kitti_nuscene.json"
+labels_json_path = '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_9/set9_47_10_annotations.json'
+pixor_json_path = "/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_9/pixor_outputs_pixorpp_kitti_nuscene_stk.json"
 tracker_json_path = "/home/wen/AB3DMOT/scripts/results/sensorfusion/checkSF.json"
 tracker_json_path2 = tracker_json_path
 
