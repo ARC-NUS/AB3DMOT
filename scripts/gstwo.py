@@ -108,7 +108,8 @@ if __name__ == '__main__':
 
     count = 0
 
-    Test_v = 15659
+    Test_v = 17897
+
     tracker_json_outfile = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_' + str(Test_v) + '.json'
     savePath = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_' + str(Test_v) + '.csv'
     with open(savePath, 'w') as csvfile:
@@ -122,18 +123,17 @@ if __name__ == '__main__':
 
 
 
-    HAMOTA_all =   0.431070974899
-    HAMOTP_all = 87.10681218624508
-    HC_all = 12569
+    HAMOTA_all = 43.77519
+    HAMOTP_all = 88.081624
+    HC_all = 17670
 
-    HAMOTA_vehicles = 0.5132928917168759
-    HAMOTP_vehicles =  87.81524986706007
-    HCv = 12566
+    HAMOTA_vehicles = 52.208708
+    HAMOTP_vehicles = 89.136235
+    HCv = 15817
 
-    HAMOTA_ped = -0.00980392156862747
-    HAMOTP_ped = 25.0
-    HCp = 10255
-
+    HAMOTA_ped = -3.4477
+    HAMOTP_ped = 50
+    HCp = 15655
 
     for rlA in range(len(rng_thres)):
         for rlB in range(len(rng_thres)):
@@ -154,9 +154,8 @@ if __name__ == '__main__':
 
                                 count = count + 1
                                 print(count)
-
                                 #if count == 8681 or count > 8643:
-                                if count > Test_v :
+                                if count == 10255 or count > Test_v :
                                 #if count == Test_v:
 
                                     for i in range(len(basedir_total)):
@@ -191,10 +190,6 @@ if __name__ == '__main__':
                                             Qmodel[0][0] *= rng_thres[rlA]
                                             Qmodel[1][1] = Qmodel[0][0]
                                             Qmodel[3][3] *= rng_thres[rlB]
-                                            # Qmodel[4][4] *= rng_thres[rlC]
-                                            # Qmodel[5][5] =Qmodel[4][4]
-                                            # Qmodel[7][7] *= rng_thres[rlD]
-                                            # Qmodel[8][8] =Qmodel[7][7]
 
                                             P_0lidar = np.identity(14)
                                             # tuning
@@ -263,16 +258,6 @@ if __name__ == '__main__':
                                                 thres_d = 100.  # 100 threshold distance to count as a correspondance, beyond it will be considered as missed detection
 
 
-                                                #OLD TRACKER
-                                                # MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet, total_gt = check_iou_json(
-                                                #     labels_json_path[0],
-                                                #     tracker_json_outfile,
-                                                #     thres_d,
-                                                #     distance_metric)
-
-                                                #print(MOTA, MOTP, total_dist, total_ct, total_mt, total_fpt, total_mmet,
-                                                     # total_gt)
-
                                                 MOTA, MOTP, MOTA_class, MOTP_class, total_missed_class, total_gt_class, total_dist_class, MOTA_status, MOTP_status = check_iou_json_class(
                                                     labels_json_path[0],
                                                     tracker_json_outfile,
@@ -325,7 +310,7 @@ if __name__ == '__main__':
                                         HAMOTA_vehicles = AMOTAclass[4]
                                         HAMOTP_vehicles = AMOTPclass[4]
                                         HCv = count
-
+                                    print (AMOTAclass[0] , AMOTPclass[0])
                                     if AMOTAclass[0] > HAMOTA_ped and AMOTPclass[0] != 0:
                                         HAMOTA_ped = AMOTAclass[0]
                                         HAMOTP_ped = AMOTPclass[0]

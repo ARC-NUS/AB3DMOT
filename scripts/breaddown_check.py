@@ -20,15 +20,6 @@ if __name__ == '__main__':
 
     det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle', 5: 'Truck'}
 
-    # #if testing ALL directories
-    # set_v = glob.glob("/media/wen/demo_ssd/raw_data/*/*/log_high/set*")
-    # sets = []
-    # for set in set_v:
-    #     if (set[-2:-1] + set[-1]) != "_0":
-    #         if sets == []:
-    #             sets = set
-    #         else:
-    #             sets = np.vstack((sets, set))
 
     basedir_total = ['/media/wen/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_8',
                      '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_3',
@@ -37,13 +28,6 @@ if __name__ == '__main__':
                      '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_12',
                      '/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_3',
                      '/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_9']
-    labels_total = ['/media/wen/demo_ssd/raw_data/train_labels/JI_ST-cloudy-day_2019-08-27-21-55-47/set_8',
-                    '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_3',
-                    '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_2',
-                    '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_1',
-                    '/media/wen/demo_ssd/raw_data/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_12',
-                    '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_3',
-                    '/media/wen/demo_ssd/raw_data/train_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_9']
 
     labels_total = ['/media/wen/demo_ssd/raw_data/trash/train_labels/JI_ST-cloudy-day_2019-08-27-21-55-47/set_8',
                     '/media/wen/demo_ssd/raw_data/trash/train_labels/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/set_3',
@@ -66,6 +50,11 @@ if __name__ == '__main__':
     #hung_thresh_total = np.array([0.01, 0.03])
     rng_thres = np.array([0.01, 0.1, 1, 10, 100])
     # tracker_json_outfile = basedir +  "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
+
+    today = datetime.today()
+    d1 = today.strftime("%Y_%m_%d")
+
+    tracker_json_outfile = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_' +d1 + '.json'
 
     # CURRENT: Do a coarse grid search
     for i in range(len(basedir_total)):
@@ -108,19 +97,7 @@ if __name__ == '__main__':
 
     count = 0
 
-    Test_v = 13007
-    tracker_json_outfile = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_' + str(Test_v) + '.json'
-    savePath = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_' + str(Test_v) + '.csv'
-    with open(savePath, 'w') as csvfile:
-        spamwriter = csv.writer(csvfile, delimiter=',',
-                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        spamwriter.writerow(
-            ['GS Number', 'Max age', 'Min hits', 'Hung thres', 'rlA - Q xy', 'rlB - Q theta', 'rlC - P_0 xy ',
-             'rlD - P_0 xy ', 'rlE - P_0 xy ', 'AMOTA', 'AMOTP','AMOTA- ped', 'AMOTP-ped', 'AMOTA- bi', 'AMOTP-bi',
-             'AMOTA- pmd', 'AMOTP-pmd', 'AMOTA- motorbike', 'AMOTP-motorbike', 'AMOTA- vehicle', 'AMOTP-vehicle',
-             ])
-
-
+    Test_v = 12566
 
     HAMOTA_all =   0.431070974899
     HAMOTP_all = 87.10681218624508
@@ -130,10 +107,13 @@ if __name__ == '__main__':
     HAMOTP_vehicles =  87.81524986706007
     HCv = 12566
 
-    HAMOTA_ped = -0.00980392156862747
-    HAMOTP_ped = 25.0
-    HCp = 10255
+    # HAMOTA_ped = -0.00980392156862747
+    # HAMOTP_ped = 25.0
+    # HCp = 10255
 
+    HAMOTA_ped = -10
+    HAMOTP_ped = 0
+    HCp = 0
 
     for rlA in range(len(rng_thres)):
         for rlB in range(len(rng_thres)):
@@ -153,12 +133,10 @@ if __name__ == '__main__':
                                 sum_MOTPstatus = np.zeros(7)
 
                                 count = count + 1
-                                print(count)
-
                                 #if count == 8681 or count > 8643:
-                                if count > Test_v :
-                                #if count == Test_v:
-
+                                #if count > Test_v :
+                                if count == Test_v:
+                                    print(count)
                                     for i in range(len(basedir_total)):
                                         dataR = dataR_total[i];
                                         dataL = dataL_total[i];
@@ -247,10 +225,6 @@ if __name__ == '__main__':
                                             isCheckIOU = 1
 
                                             if isPrint == True:
-                                                today = datetime.today()
-                                                d1 = today.strftime("%Y_%m_%d")
-                                                set_num = '1'
-                                                # tracker_json_outfile = basedir +  "/TrackOutput_Set" + set_num + '_' + d1 + ".json"
                                                 with open(tracker_json_outfile, "w+") as outfile:
                                                     json.dump(total_list, outfile, indent=1)
 
@@ -325,7 +299,7 @@ if __name__ == '__main__':
                                         HAMOTA_vehicles = AMOTAclass[4]
                                         HAMOTP_vehicles = AMOTPclass[4]
                                         HCv = count
-
+                                    print (AMOTAclass[0], AMOTPclass[0])
                                     if AMOTAclass[0] > HAMOTA_ped and AMOTPclass[0] != 0:
                                         HAMOTA_ped = AMOTAclass[0]
                                         HAMOTP_ped = AMOTPclass[0]
@@ -337,17 +311,5 @@ if __name__ == '__main__':
                                     print('HAMOTA(vehicles) :', HAMOTA_vehicles, 'HAMOTP : ', HAMOTP_vehicles, 'Count', HCv, 'Using Camera Radar:', testCamDar)
                                     print('HAMOTA(pedesterians) :', HAMOTA_ped, 'HAMOTP : ', HAMOTP_ped, 'Count', HCp, 'Using Camera Radar:', testCamDar)
 
-                                    myFile = open(savePath, 'a')
-                                    with myFile:
-                                        writer = csv.writer(myFile)
-                                        writer.writerows(MOT_curr)
-    #
-    #                              MOT_total = np.vstack((MOT_total, MOT_curr))
-    #
-    # myData = MOT_total #[[1, 2, 3], ['Good Morning', 'Good Evening', 'Good Afternoon']]
-    # myFile = open(savePath, 'w')
-    # with myFile:
-    #     writer = csv.writer(myFile)
-    #     writer.writerows(myData)
 
     print('Completed Tracking')

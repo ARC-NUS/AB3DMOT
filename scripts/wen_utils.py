@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-'''
- file for utils for CHRISTINAAAAAAAAA
-'''
+#
+# '''
+#  file for utils for CHRISTINAAAAAAAAA
+# '''
 
 import json
 import numpy as np
@@ -202,15 +202,39 @@ def getTransform(x,y,z,roll, pitch, yaw):
     T1[2][3] = z
     T1[3][3] = 1
     return T1
+#
+# def getCluster(x1, y1, rx, ry, diff, clusterP, theta, camNum):
+#     minTest = 10
+#     ip = -1
+#     d = np.sqrt((x1 - rx) ** 2 + (y1 - ry) ** 2) * np.sin(diff)
+#     if d < 0.1:
+#         wt = 0.9
+#     else:
+#         wt = 0.5
+#     if clusterP == []:
+#         clusterP = np.array([[rx, ry]])
+#     else:
+#         for i in range((len(clusterP))):
+#             test = np.sqrt((clusterP[i][0] - rx) ** 2 + (clusterP[i][1] - ry) ** 2)
+#
+#             if test < minTest:
+#                 minTest = test
+#                 ip = i
+#
+#         if ip > (-1):
+#             clusterP[ip][0] = clusterP[ip][0] * (1 - wt) + rx * wt
+#             clusterP[ip][1] = clusterP[ip][1] * (1 - wt) + ry * wt
+#         else:
+#             temp = np.array([[rx, ry]])
+#             clusterP = np.vstack((clusterP, temp))
+#     return clusterP
 
-def getCluster(x1, y1, rx, ry, diff, clusterP):
-    minTest = 10
+
+def getCluster(x1, y1, rx, ry, diff, clusterP, theta, camNum):
+    minTest = 5
     ip = -1
     d = np.sqrt((x1 - rx) ** 2 + (y1 - ry) ** 2) * np.sin(diff)
-    if d < 0.1:
-        wt = 0.9
-    else:
-        wt = 0.5
+
     if clusterP == []:
         clusterP = np.array([[rx, ry]])
     else:
@@ -222,70 +246,119 @@ def getCluster(x1, y1, rx, ry, diff, clusterP):
                 ip = i
 
         if ip > (-1):
-            clusterP[ip][0] = clusterP[ip][0] * (1 - wt) + rx * wt
-            clusterP[ip][1] = clusterP[ip][1] * (1 - wt) + ry * wt
+
+            range1 = np.sqrt(((clusterP[ip][0] - x1) ** 2) + ((clusterP[ip][1] - y1) ** 2))
+            range2 = np.sqrt((rx - x1) ** 2 + (ry - y1) ** 2)
+            ravg = 0.5 * (range1 + range2)
+
+            if camNum == 0:
+
+                clusterP[ip][0] = (ravg * np.cos(theta)) + x1
+                clusterP[ip][1] = (ravg * np.sin(theta)) + y1
+
+            elif camNum == 3:
+                temp = np.array([[rx, ry]])
+                clusterP = np.vstack((clusterP, temp))
+                clusterP[ip][0] = -(ravg * np.cos(theta)) + x1
+                clusterP[ip][1] = (ravg * np.sin(theta)) + y1
+
         else:
             temp = np.array([[rx, ry]])
             clusterP = np.vstack((clusterP, temp))
     return clusterP
 
 def camRadarFuse(frame_name, dets_cam, dets_radar_total, T1, rcThres,camNum):
-    dets_camDar = [] #np.zeros([1, 9])
-    additional_info_2 = [] #np.zeros([1, 7])
-    numCamDar = 0
-    T_blc0 = getTransform(8.660, -0.030, 0.1356, 0.003490659, 0, 0)
-    T_blc1 = getTransform(7.752, 1.267, 2.085, 0, 0.5323254, 0.261799)
-    T_blc2 = getTransform(7.755, -1.267, 2.085, 0, 0.6370452, 0.261799)
-    T_blc3 = getTransform(-3.175, -0.010, 1.745, -0.00872665, 0.0698132, 0)
+    a = []
+    if len(dets_cam) == 0 :
+        return a, a
 
-    if camNum == 0:
-        T_cam = T_blc0
+    else:
+        dets_camDar = [] #np.zeros([1, 9])
+        additional_info_2 = [] #np.zeros([1, 7])
+        numCamDar = 0
+        T_blc0 = getTransform(8.660, -0.030, 0.1356, 0.003490659, 0, 0)
+        T_blc1 = getTransform(7.752, 1.267, 2.085, 0, 0.5323254, 0.261799)
+        T_blc2 = getTransform(7.755, -1.267, 2.085, 0, 0.6370452, 0.261799)
+        T_blc3 = getTransform(-3.175, -0.010, 1.745, -0.00872665, 0.0698132, 0)
 
-    elif camNum == 3:
-        T_cam = T_blc3
+        if camNum == 0:
+            T_cam = T_blc0
 
-    elif camNum == 1:
-        T_cam = T_blc1
+        elif camNum == 3:
+            T_cam = T_blc3
 
-    elif camNum == 2:
-        T_cam = T_blc2
+        elif camNum == 1:
+            T_cam = T_blc1
+
+        elif camNum == 2:
+            T_cam = T_blc2
 
 
-    x1 = T_cam[0][3]
-    y1 = T_cam[1][3]
+        x1 = T_cam[0][3]
+        y1 = T_cam[1][3]
 
-    for w in range(len(dets_cam)):
-        theta = dets_cam[w][1]
-        classObj = dets_cam[w][2]
-        clusterP = []
+        for w in range(len(dets_cam)):
+            theta = dets_cam[w][1]
+            classObj = dets_cam[w][2]
+            height =  dets_cam[w][5]
+            clusterP = []
 
-        for rf in range(len(dets_radar_total)):
-            if camNum == 0 and dets_radar_total[rf, 1] < 35 and abs(dets_radar_total[rf, 2]) < 20:
-                x2 = dets_radar_total[rf][1] - x1  # 8.0 - (-ve)
-                y2 = dets_radar_total[rf][2] - y1  # -1.2 - (-ve)
-                thetaC = np.arctan(y2 / x2)
-                diff = abs(thetaC - theta);
-                radarx = dets_radar_total[rf, 1]
-                radary = dets_radar_total[rf, 2]
+            isClose = 0
+            if height > 0.1:
+                isClose = 1
 
-                if (diff < rcThres):
-                    clusterP = getCluster(x1, y1, radarx, radary, diff, clusterP)
 
-            elif camNum == 3 and dets_radar_total[rf, 1] < 0 and dets_radar_total[rf, 1] > -35 and abs(
-                        dets_radar_total[rf, 2]) < 20:
-                x2 = x1 - dets_radar_total[rf][1]  # 8.0 - (-ve)
-                y2 = y1 - dets_radar_total[rf][2]  # -1.2 - (-ve)
-                thetaC = -np.arctan(y2 / x2)
-                diff = abs(thetaC - theta);
-                radarx = dets_radar_total[rf, 1]
-                radary = dets_radar_total[rf, 2]
+            for rf in range(len(dets_radar_total)):
+                rx = dets_radar_total[rf, 1]
+                ry = dets_radar_total[rf, 2]
 
-                if (diff < rcThres):
-                    clusterP = getCluster(x1, y1, radarx, radary, diff, clusterP)
+                if camNum == 0:
 
-        for n in range(len(clusterP)):
-            dets_camDar, additional_info_2 = getCR(frame_name, clusterP[n][0], clusterP[n][1], T1, classObj, dets_camDar,
-                                               additional_info_2)
+                    rxmin = x1
+                    rxmax = 35
+                    if isClose == 1:
+                        rxmin = x1
+                        rxmax = 22
+
+                    else:
+                        rxmin = 20
+                        rxmax = 40
+
+
+                    if  rx > rxmin and rx < rxmax and abs(ry) < 20:
+                        x2 = rx - x1  # 8.0 - (-ve)
+                        y2 = ry - y1  # -1.2 - (-ve)
+                        thetaC = np.arctan(y2 / x2)
+                        diff = abs(thetaC - theta);
+
+                        if (diff < rcThres):
+                            clusterP = getCluster(x1, y1, rx, ry, diff, clusterP, theta, camNum)
+
+                elif camNum ==3:
+
+                    rxmin = -35
+                    rxmax = x1
+                    if isClose == 1:
+                        rxmin = -22
+                        rxmax = x1
+
+                    else:
+                        rxmin = -35
+                        rxmax = -20
+
+
+                    if  rx > rxmin and rx < rxmax and abs(ry) < 20:
+                        x2 = x1 - rx  # 8.0 - (-ve)
+                        y2 = y1 - ry  # -1.2 - (-ve)
+                        thetaC = -np.arctan(y2 / x2)
+                        diff = abs(thetaC - theta);
+
+                        if (diff < rcThres):
+                            clusterP =   getCluster(x1, y1, rx, ry, diff, clusterP, theta, camNum)
+
+            for n in range(len(clusterP)):
+                dets_camDar, additional_info_2 = getCR(frame_name, clusterP[n][0], clusterP[n][1], T1, classObj, dets_camDar,
+                                                   additional_info_2)
 
 
     return dets_camDar, additional_info_2
@@ -350,53 +423,59 @@ def undistort_points(xy_tuple, K, D):
     return upts
 
 def readCamera(frame_name, det_cam, camNum):
-    h = 0
-    #CAMERA INTRINSICS
-    sf = 0.5
-    dets_cam = np.zeros([len(det_cam), 5])
-    K = np.array([[981.276*sf, 0.0, 985.405*sf],
-                  [0.0, 981.414*sf, 629.584*sf],
-                  [0.0, 0.0, 1.0]])
-    D = np.array([[-0.0387077],[-0.0105319],[-0.0168433],[0.0310624]])
 
-    for j in range(len(det_cam)):
-        type = det_cam[j]['class_id']
-        type_sf = type
-        # if type == 0:
-        #     type_sf = 0
-        # if type == 1:
-        #     type_sf = 1
-        if type == 2:
-            type_sf = 4
-        # if type == 3:
-        #     type_sf = 3
-        if type == 4:
-            type_sf = 6
-        # if type == 5:
-        #     type_sf = 5
+    if not det_cam:
+        return det_cam
+    else:
+        h = 0
+        #CAMERA INTRINSICS
+        sf = 0.5
+        dets_cam = np.zeros([len(det_cam), 6])
+        K = np.array([[981.276*sf, 0.0, 985.405*sf],
+                      [0.0, 981.414*sf, 629.584*sf],
+                      [0.0, 0.0, 1.0]])
+        D = np.array([[-0.0387077],[-0.0105319],[-0.0168433],[0.0310624]])
 
-        if type_sf < 4:  #camera should only consider CERTAIN classes!!
-            dets_cam[h][0] = frame_name
-            cam_x = det_cam[j]['relative_coordinates']['center_x'] * 960
-            cam_y = det_cam[j]['relative_coordinates']['center_y'] * 604
-            xy_tuple = (cam_x, cam_y)
-            upts = undistort_points(xy_tuple, K, D)
+        for j in range(len(det_cam)):
+            type = det_cam[j]['class_id']
+            type_sf = type
+            # if type == 0:
+            #     type_sf = 0
+            # if type == 1:
+            #     type_sf = 1
+            if type == 2:
+                type_sf = 4
+            # if type == 3:
+            #     type_sf = 3
+            if type == 4:
+                type_sf = 6
+            # if type == 5:
+            #     type_sf = 5
 
-            if camNum == 0:
-                c2 = -upts[0]  + (960 / 2)
+            if type_sf < 4:  #camera should only consider CERTAIN classes!!
+                dets_cam[h][0] = frame_name
+                cam_x = det_cam[j]['relative_coordinates']['center_x'] * 960
+                cam_y = det_cam[j]['relative_coordinates']['center_y'] * 604
+                xy_tuple = (cam_x, cam_y)
+                upts = undistort_points(xy_tuple, K, D)
 
-            #TODO test for side cameras as well!
-            if camNum == 3:
-                c2 = upts[0]  - (960 / 2)
+                if camNum == 0:
+                    c2 = -upts[0]  + (960 / 2)
 
-            f3 = K[0][0] #Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
-            theta = np.arctan(float(c2)/ f3) #THETA fixed!
-            dets_cam[h][1] = theta
-            #det_id2str = {0: 'Pedestrian', 1: 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car', 5: 'Truck', 6: 'Bus'}
+                #TODO test for side cameras as well!
+                if camNum == 3:
+                    c2 = upts[0]  - (960 / 2)
 
-            dets_cam[h][2] = type_sf
-            dets_cam[h][3] = det_cam[j]['confidence']
-            dets_cam[h][4] = 3  # SENSOR TYPE = 3
+                f3 = K[0][0] #Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
+                theta = np.arctan(float(c2)/ f3) #THETA fixed!
+                dets_cam[h][1] = theta
+                #det_id2str = {0: 'Pedestrian', 1: 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car', 5: 'Truck', 6: 'Bus'}
+
+                dets_cam[h][2] = type_sf
+                dets_cam[h][3] = det_cam[j]['confidence']
+                dets_cam[h][4] = 3  # SENSOR TYPE = 3
+
+                dets_cam[h][5] = det_cam[j]['relative_coordinates']['height']
             h += 1
     return dets_cam
 
@@ -462,96 +541,108 @@ def readJson(pathRadar, pathLidar, pathCamera_a0, pathCamera_a3, pathPose, pathI
 
 def readLidar (det_lidar, frame_name, T1):
 
-    dets_lidar = np.zeros([len(det_lidar), 9])
-    pos_lidar = np.zeros([4, 1])
-    k = 0
-    for j in range(len(det_lidar)):
-        dets_lidar[k][0] = frame_name
-        dets_lidar[k][1] = (det_lidar[j]['centroid'])[0]  # x values in pixor , but y in world frame!!
-        dets_lidar[k][2] = (det_lidar[j]['centroid'])[1]  # y values in pixor , but x in world frame
-        dets_lidar[k][3] = 1
-        dets_lidar[k][4] = det_lidar[j]['heading']
-        dets_lidar[k][5] = det_lidar[j]['width']  # width is in the y direction for Louis
-        dets_lidar[k][6] = det_lidar[j]['length']
-        dets_lidar[k][7] = 1
-        dets_lidar[k][8] = 2  # sensor type: 2
+    if not det_lidar:
+        return det_lidar, det_lidar
+    else:
+        dets_lidar = np.zeros([len(det_lidar), 9])
 
-        pos_lidar[0][0] = dets_lidar[k][1]
-        pos_lidar[1][0] = dets_lidar[k][2]
-        pos_lidar[2][0] = 0
-        pos_lidar[3][0] = 1
-        T2 = np.matmul(T1, pos_lidar)
-        dets_lidar[k][1] = T2[0][0]
-        dets_lidar[k][2] = T2[1][0]
-
-        k += 1
         pos_lidar = np.zeros([4, 1])
+        k = 0
+        for j in range(len(det_lidar)):
+            dets_lidar[k][0] = frame_name
+            dets_lidar[k][1] = (det_lidar[j]['centroid'])[0]  # x values in pixor , but y in world frame!!
+            dets_lidar[k][2] = (det_lidar[j]['centroid'])[1]  # y values in pixor , but x in world frame
+            dets_lidar[k][3] = 1
+            dets_lidar[k][4] = det_lidar[j]['heading']
+            dets_lidar[k][5] = det_lidar[j]['width']  # width is in the y direction for Louis
+            dets_lidar[k][6] = det_lidar[j]['length']
+            dets_lidar[k][7] = 1
+            dets_lidar[k][8] = 2  # sensor type: 2
 
-    return dets_lidar
+            pos_lidar[0][0] = dets_lidar[k][1]
+            pos_lidar[1][0] = dets_lidar[k][2]
+            pos_lidar[2][0] = 0
+            pos_lidar[3][0] = 1
+            T2 = np.matmul(T1, pos_lidar)
+            dets_lidar[k][1] = T2[0][0]
+            dets_lidar[k][2] = T2[1][0]
+
+            k += 1
+            pos_lidar = np.zeros([4, 1])
+
+
+    additional_info = np.zeros([len(dets_lidar), 7])
+    additional_info[:,1] = 4
+    return dets_lidar,additional_info
 
 def readIBEO(frame_name, det_IBEO, T1):
-    dets_IBEO_temp = np.zeros([1, 9])
-    pos_IBEO = np.zeros([4, 1])
-    k = 0
-    additional_info_2_temp = np.zeros([1, 7])
-    dets_IBEO = []
-    additional_info_2 = []
+    if not det_IBEO:
+        return det_IBEO, det_IBEO
 
-    for j in range(len(det_IBEO)):
-        obj_class = det_IBEO[j]['obj_class']
-        width = float(det_IBEO[j]['obj_size']['x'])/100
-        length = float(det_IBEO[j]['obj_size']['y'])/100
-        #if obj_class == 6:
-            #print('Detected Truck!')
-        x_bus = float(det_IBEO[j]['obj_center']['x']) / 100
-        y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
+    else:
+        dets_IBEO_temp = np.zeros([1, 9])
+        pos_IBEO = np.zeros([4, 1])
+        k = 0
+        additional_info_2_temp = np.zeros([1, 7])
+        dets_IBEO = []
+        additional_info_2 = []
 
-        if obj_class >3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
-            #for not no pedesterian detection w IBEO??
-            if obj_class == 3:
-                obj_class_folobus = 0
-                print("Pedesterian detected from IBEO!!")
-            if obj_class == 9 :
-                obj_class_folobus = 1
-            if obj_class == 5:
-                obj_class_folobus = 4
-            if obj_class == 8 or obj_class == 4:
-                obj_class_folobus = 3
-                # if obj_class == 5:
-                #     obj_class_foloyolo = 4
-            if obj_class == 6: #TRUCKO
-                obj_class_folobus = 5
-                if width < 5:
-                    width = 5
+        for j in range(len(det_IBEO)):
+            obj_class = det_IBEO[j]['obj_class']
+            width = float(det_IBEO[j]['obj_size']['x'])/100
+            length = float(det_IBEO[j]['obj_size']['y'])/100
+            #if obj_class == 6:
+                #print('Detected Truck!')
+            x_bus = float(det_IBEO[j]['obj_center']['x']) / 100
+            y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
 
-            dets_IBEO_temp[0][0] = frame_name
-            dets_IBEO_temp[0][1] = x_bus # x values in pixor , but y in world frame!!
-            dets_IBEO_temp[0][2] = y_bus  # y values in pixor , but x in world frame
-            dets_IBEO_temp[0][3] = 1
-            dets_IBEO_temp[0][4] = det_IBEO[j]['yaw']
-            dets_IBEO_temp[0][5] = length  # width is in the y direction for Louis
-            dets_IBEO_temp[0][6] = width
-            dets_IBEO_temp[0][7] = 1
-            dets_IBEO_temp[0][8] = 4  # sensor type: 4 IBEO!!!
+            if obj_class >3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
+                #for not no pedesterian detection w IBEO??
+                if obj_class == 3:
+                    obj_class_folobus = 0
+                    print("Pedesterian detected from IBEO!!")
+                if obj_class == 9 :
+                    obj_class_folobus = 1
+                if obj_class == 5:
+                    obj_class_folobus = 4
+                if obj_class == 8 or obj_class == 4:
+                    obj_class_folobus = 3
+                    # if obj_class == 5:
+                    #     obj_class_foloyolo = 4
+                if obj_class == 6: #TRUCKO
+                    obj_class_folobus = 5
+                    if width < 5:
+                        width = 5
 
-            pos_IBEO[0][0] = dets_IBEO_temp[0][1]
-            pos_IBEO[1][0] = dets_IBEO_temp[0][2]
-            pos_IBEO[2][0] = 0
-            pos_IBEO[3][0] = 1
-            T2 = np.matmul(T1, pos_IBEO)
-            dets_IBEO_temp[0][1] = T2[0][0]
-            dets_IBEO_temp[0][2] = T2[1][0]
-            additional_info_2_temp[0, 1] = obj_class_folobus
-            if k == 0:
-                dets_IBEO = np.copy(dets_IBEO_temp)
-                additional_info_2 = np.copy(additional_info_2_temp)
+                dets_IBEO_temp[0][0] = frame_name
+                dets_IBEO_temp[0][1] = x_bus # x values in pixor , but y in world frame!!
+                dets_IBEO_temp[0][2] = y_bus  # y values in pixor , but x in world frame
+                dets_IBEO_temp[0][3] = 1
+                dets_IBEO_temp[0][4] = det_IBEO[j]['yaw']
+                dets_IBEO_temp[0][5] = length  # width is in the y direction for Louis
+                dets_IBEO_temp[0][6] = width
+                dets_IBEO_temp[0][7] = 1
+                dets_IBEO_temp[0][8] = 4  # sensor type: 4 IBEO!!!
 
-            else:
-                dets_IBEO = np.vstack((dets_IBEO, dets_IBEO_temp))
-                additional_info_2 = np.vstack((additional_info_2, additional_info_2_temp))
-            k += 1
-            # print ('k is = %d' %k)
-            pos_IBEO = np.zeros([4, 1])
+                pos_IBEO[0][0] = dets_IBEO_temp[0][1]
+                pos_IBEO[1][0] = dets_IBEO_temp[0][2]
+                pos_IBEO[2][0] = 0
+                pos_IBEO[3][0] = 1
+                T2 = np.matmul(T1, pos_IBEO)
+                dets_IBEO_temp[0][1] = T2[0][0]
+                dets_IBEO_temp[0][2] = T2[1][0]
+
+                additional_info_2_temp[0, 1] = obj_class_folobus
+                if k == 0:
+                    dets_IBEO = np.copy(dets_IBEO_temp)
+                    additional_info_2 = np.copy(additional_info_2_temp)
+
+                else:
+                    dets_IBEO = np.vstack((dets_IBEO, dets_IBEO_temp))
+                    additional_info_2 = np.vstack((additional_info_2, additional_info_2_temp))
+                k += 1
+                # print ('k is = %d' %k)
+                pos_IBEO = np.zeros([4, 1])
 
  #   print (dets_IBEO, additional_info_2)
 
