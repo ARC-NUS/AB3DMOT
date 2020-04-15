@@ -592,7 +592,7 @@ class AB3DMOT(object):
 
 
         #FIXME Sensor fusion framecount??
-       # self.frame_count += 1
+        self.frame_count += 1
 
         # get predicted locations from existing trackers.
         trks = np.zeros((len(self.trackers), 7))  # N x 7 ,
@@ -611,6 +611,7 @@ class AB3DMOT(object):
         #if len(dets) != 0 :
 
         dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets]
+
         if len(dets_8corner) > 0:
             dets_8corner = np.stack(dets_8corner, axis=0)
         else:
@@ -630,6 +631,7 @@ class AB3DMOT(object):
 
         # create and initialise new trackers for unmatched detections BUT we shouldn't for camera ?????
         #if sensor_type != 2: Cannot birth ONLY with lidar and ibeo ........
+
         for i in unmatched_dets:  # a scalar of index
             trk = KalmanBoxTracker(dets[i, :], info[i, :], self.R, self.Q, self.P_0, self.delta_t)
             self.trackers.append(trk)
@@ -655,8 +657,8 @@ class AB3DMOT(object):
             # choose which tracks to return
 
             #FIXME
-            #if ((trk.time_since_update < self.max_age) and (trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
-            if ((trk.time_since_update < self.max_age) and (trk.hits >= self.min_hits)):
+            if ((trk.time_since_update < self.max_age) and (trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
+            #if ((trk.time_since_update < self.max_age) and (trk.hits >= self.min_hits)):
                 ret.append(
                     np.concatenate((d, [trk.id + 1], trk.info)).reshape(1, -1))  # +1 as MOT benchmark requires positive
             i -= 1

@@ -317,7 +317,7 @@ if __name__ == '__main__':
                                     print('HAMOTA(vehicles) :', HAMOTA_vehicles, 'HAMOTP : ', HAMOTP_vehicles, 'Count', HCv, 'Using Camera Radar:', testCamDar)
                                     print('HAMOTA(pedesterians) :', HAMOTA_ped, 'HAMOTP : ', HAMOTP_ped, 'Count', HCp, 'Using Camera Radar:', testCamDar)
 
-                                print("--- %s seconds ---" % (time.time() - start_time))
+                                #print("--- %s seconds ---" % (time.time() - start_time))
 
 
     print('Completed Tracking')

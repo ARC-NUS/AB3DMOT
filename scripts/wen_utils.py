@@ -601,8 +601,8 @@ def readIBEO(frame_name, det_IBEO, T1):
             x_bus = float(det_IBEO[j]['obj_center']['x']) / 100
             y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
 
-            #if obj_class >3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
-            if  obj_class > 1 and obj_class != 3 and obj_class != 7 and obj_class < 10 and width > 2 and length > 1 and width < 10 and length < 5 and width != length and np.abs(x_bus) < 35 and np.abs(y_bus) < 20:
+            if obj_class >3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
+            #if  obj_class > 1 and obj_class != 3 and obj_class != 7 and obj_class < 10 and width > 2 and length > 1 and width < 10 and length < 5 and width != length and np.abs(x_bus) < 35 and np.abs(y_bus) < 20:
 
                 #for not no pedesterian detection w IBEO??
                 if obj_class == 2:
