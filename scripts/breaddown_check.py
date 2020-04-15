@@ -117,6 +117,7 @@ if __name__ == '__main__':
     HAMOTA_ped = -10
     HAMOTP_ped = 0
     HCp = 0
+    num_class = 8
 
     for rlA in range(len(rng_thres)):
         for rlB in range(len(rng_thres)):
@@ -128,12 +129,12 @@ if __name__ == '__main__':
                                 # for ht in range(len(hung_thresh_total)):
                                 AMOTA = 0
                                 AMOTP = 0
-                                AMOTAclass =np.zeros(7)
-                                AMOTPclass =np.zeros(7)
-                                sum_MOTAclass = np.zeros(7)
-                                sum_MOTPclass = np.zeros(7)
-                                sum_MOTAstatus = np.zeros(7)
-                                sum_MOTPstatus = np.zeros(7)
+                                AMOTAclass =np.zeros(num_class)
+                                AMOTPclass =np.zeros(num_class)
+                                sum_MOTAclass = np.zeros(num_class)
+                                sum_MOTPclass = np.zeros(num_class)
+                                sum_MOTAstatus = np.zeros(num_class)
+                                sum_MOTPstatus = np.zeros(num_class)
 
                                 count = count + 1
                                 #if count == 8681 or count > 8643:

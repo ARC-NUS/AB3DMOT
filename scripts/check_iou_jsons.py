@@ -205,13 +205,16 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
     #   fp_frames=0
 
     # DOING CLASS BASED
-    total_dist_class = np.zeros([7])
-    total_ct_class = np.zeros([7])
-    total_gt_class = np.zeros([7])
-    total_missed_class = np.zeros([7])
-    total_mt_class = np.zeros([7])
-    total_fpt_class = np.zeros([7])
-    total_mmet_class = np.zeros([7])
+    num_class = 8
+
+    total_dist_class = np.zeros([num_class])
+    total_ct_class = np.zeros([num_class])
+    total_gt_class = np.zeros([num_class])
+    total_missed_class = np.zeros([num_class])
+    total_mt_class = np.zeros([num_class])
+    total_fpt_class = np.zeros([num_class])
+    total_mmet_class = np.zeros([num_class])
+
     frame = 0
     for index, labels in enumerate(labels_data):  # for each pcd/timestep labelled
         #print frame
@@ -222,9 +225,9 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
         fp_t = 0
         new_mappings = {}
 
-        mme_t_class = np.zeros([7])
-        m_t_class = np.zeros([7])
-        fp_t_class = np.zeros([7])
+        mme_t_class = np.zeros([num_class])
+        m_t_class = np.zeros([num_class])
+        fp_t_class = np.zeros([num_class])
 
         # match label to tracker output ##############################################
         pcd_name = labels['name']
@@ -428,12 +431,12 @@ def check_iou_json_class(labels_json_path, tracker_json_path, thres_d=100., dist
         MOTA = -float('inf')
         MOTP = 0.
 
-    MOTA_class = np.zeros(7)
-    MOTA_status = np.zeros(7)
-    MOTP_class = np.zeros(7)
-    MOTP_status = np.zeros(7)
+    MOTA_class = np.zeros(num_class)
+    MOTA_status = np.zeros(num_class)
+    MOTP_class = np.zeros(num_class)
+    MOTP_status = np.zeros(num_class)
 
-    for i in range(5):
+    for i in range(num_class):
         if i == 4:
             MOTA_class[i], MOTA_status[i] = safe_div(sum(total_missed_class[i:i+3]), sum(total_gt_class[i:i+3]), 1)
             MOTP_class[i], MOTP_status[i] = safe_div(sum(total_dist_class[i:i+3]), sum(total_ct_class[i:i+3]), 2)

@@ -59,7 +59,7 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
     for frame_name in range(0, len(dataPose)):  # numPose
         #print(frame_name)
         #if frame_name == 162:
-        if frame_name != 16000000:
+        if frame_name != 10000007:
             det_radar = dataR[frame_name]['front_esr_tracklist']
             det_radar_right = dataR[frame_name]['front_right_esr_tracklist']
             det_radar_left = dataR[frame_name]['front_left_esr_tracklist']
@@ -123,50 +123,16 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
                 dets_all2 = {'dets': dets_IBEO[:, 1:8], 'info': additional_info_ibeo}
                 trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 3)
 
-            # dets_total = []
-            # additional_info_total = []
-            #
-            # if testPIXOR ==1 and len(dets_lidar) != 0:
-            #     dets_total = np.vstack((dets_lidar))
-            #     additional_info_total = additional_info_lidar
-            #
-            # if testCamDar == 1 and len(dets_camDar) != 0:
-            #     if len(dets_total) == 0:
-            #         dets_total = np.vstack((dets_camDar))
-            #         additional_info_total = additional_info_2
-            #     else:
-            #         dets_total = np.vstack((dets_total, dets_camDar))
-            #         additional_info_total =  np.vstack((additional_info_total, additional_info_2))
-            #
-            # if testCamDar == 1 and len(dets_camDar_back) != 0 :
-            #     if len(dets_total) == 0 :
-            #         dets_total = np.vstack((dets_camDar_back))
-            #         additional_info_total = additional_info_3
-            #     else:
-            #         dets_total = np.vstack((dets_total, dets_camDar_back))
-            #         additional_info_total = np.vstack((additional_info_total, additional_info_3))
-            #
-            # if testIBEO == 1 and len(dets_IBEO) != 0 :
-            #     if len(dets_total) == 0:
-            #         dets_total = np.vstack((dets_IBEO))
-            #         additional_info_total =   additional_info_ibeo
-            #     else:
-            #         dets_total = np.vstack((dets_total, dets_IBEO))
-            #         additional_info_total = np.vstack((additional_info_total, additional_info_ibeo))
-            #
-            # dets_total = np.vstack((dets_lidar,dets_camDar,dets_camDar_back, dets_IBEO))
-            # additional_info_total = np.vstack((additional_info_lidar, additional_info_2, additional_info_3, additional_info_ibeo))
-            #
-            #
-            # trackers = []
-            #
-            # if len(dets_total) == 0:
-            #     dets_all = {'dets': [], 'info': []}
-            #     trackers = mot_tracker.update(dets_all=dets_all, sensor_type=1)
-            # else:
-            #     dets_all = {'dets': dets_total[:, 1:8], 'info': additional_info_total}
-            #     trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
+            if len(dets_lidar) == 0 and len(dets_camDar) == 0 and len(dets_camDar_back) == 0 and len(mot_tracker.trackers) >0 :                # dets_all = {'dets': empty_dets, 'info': empty_dets}
+                # trackers = mot_tracker.update(dets_all=dets_all2, sensor_type=3)
 
+                dets_all = {'dets':[],  'info': additional_info_lidar}
+                trackers = mot_tracker.update(dets_all=dets_all, sensor_type=1)
+                #print('No detections but still tracking!!')
+
+                #trackers = mot_tracker.update(dets_all=dets_all2, sensor_type=3)
+
+            #print('tracking..')
             cycle_time = time.time() - start_time
             total_time += cycle_time
             result_trks = []  # np.zeros([1,9])
@@ -181,7 +147,8 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
                 T_tracked[3] = 1
                 T_track = np.matmul(T_inv, T_tracked)
 
-                det_id2str = {0: 'Pedestrian', 1 : 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car' , 5: 'Truck', 6: 'Bus'}
+                #det_id2str = {0: 'Pedestrian', 1 : 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car' , 5: 'Truck', 6: 'Bus'}
+                det_id2str = {0: 'Unknown', 1: 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car', 5: 'Truck', 6: 'Bus', 7: 'Pedestrian'}
                 #type_tmp = det_id2str[d[9]]
 
                 obj_dict = {"width": d[1], "height": d[0], "length": d[2], "x": T_track[0][0], "y": T_track[1][0],
@@ -193,6 +160,7 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
                 #            "id": d[9], "classNum": }
 
                 result_trks.append(obj_dict)
+
             total_list.append({"name": dataL[frame_name]['name'], "objects": result_trks})
 
         #print("Total Tracking took: %.3f for %d frames or %.1f FPS" % (total_time, total_frames, total_frames / total_time))

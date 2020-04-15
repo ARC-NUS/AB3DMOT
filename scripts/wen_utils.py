@@ -10,6 +10,7 @@ import numpy as np
 import cv2
 import os
 from pyquaternion import Quaternion
+import os.path, copy, numpy as np, time
 
 STATE_SIZE = 14
 MEAS_SIZE = 7   #measurement model for pixor, 7
@@ -357,8 +358,7 @@ def camRadarFuse(frame_name, dets_cam, dets_radar_total, T1, rcThres,camNum):
                             clusterP =   getCluster(x1, y1, rx, ry, diff, clusterP, theta, camNum)
 
             for n in range(len(clusterP)):
-                dets_camDar, additional_info_2 = getCR(frame_name, clusterP[n][0], clusterP[n][1], T1, classObj, dets_camDar,
-                                                   additional_info_2)
+                dets_camDar, additional_info_2 = getCR(frame_name, clusterP[n][0], clusterP[n][1], T1, classObj, dets_camDar, additional_info_2)
 
 
     return dets_camDar, additional_info_2
@@ -378,7 +378,7 @@ def getCR(frame_name, radarx, radary, T1, classObj, dets_camDar_total, ai_total)
     elif (classObj == 6):  # 6 == bus!!
         length = 12  # 5
         width = 3  # 2.5
-    elif (classObj <= 3):  # 0 == pedesterians/bicycles/pmd/motorbike!!
+    elif (classObj <= 3 or classObj ==7):  # 0 == pedesterians/bicycles/pmd/motorbike!!
         length = 2  # 5
         width = 2 # 2.5
 
@@ -403,7 +403,6 @@ def getCR(frame_name, radarx, radary, T1, classObj, dets_camDar_total, ai_total)
     dets_camDar[k][6] = length
     dets_camDar[k][7] = 1  # HEIGHT
     dets_camDar[k][8] = 2  # sensor type: 2
-
 
 
     additional_info_2[k, 1] = classObj
@@ -440,9 +439,9 @@ def readCamera(frame_name, det_cam, camNum):
 
         for j in range(len(det_cam)):
             type = det_cam[j]['class_id']
-            type_sf = type
-            # if type == 0:
-            #     type_sf = 0
+            type_sf = copy.deepcopy(type)
+            if type == 0:
+                type_sf = 7
             # if type == 1:
             #     type_sf = 1
             if type == 2:
@@ -454,7 +453,7 @@ def readCamera(frame_name, det_cam, camNum):
             # if type == 5:
             #     type_sf = 5
 
-            if type_sf < 4:  #camera should only consider CERTAIN classes!!
+            if type_sf < 4 or type_sf == 7:  #camera should only consider CERTAIN classes!!
                 dets_cam[h][0] = frame_name
                 cam_x = det_cam[j]['relative_coordinates']['center_x'] * 960
                 cam_y = det_cam[j]['relative_coordinates']['center_y'] * 604
@@ -471,7 +470,8 @@ def readCamera(frame_name, det_cam, camNum):
                 f3 = K[0][0] #Camera_Matrix_GMSL_120[0][0]  #* float(416)/float(1920)
                 theta = np.arctan(float(c2)/ f3) #THETA fixed!
                 dets_cam[h][1] = theta
-                #det_id2str = {0: 'Pedestrian', 1: 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car', 5: 'Truck', 6: 'Bus'}
+
+                det_id2str = {1: 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car', 5: 'Truck', 6: 'Bus', 7: 'Pedestrian'}
 
                 dets_cam[h][2] = type_sf
                 dets_cam[h][3] = det_cam[j]['confidence']
@@ -607,8 +607,9 @@ def readIBEO(frame_name, det_IBEO, T1):
                 #for not no pedesterian detection w IBEO??
                 if obj_class == 2:
                     obj_class_folobus = 4
+
                 if obj_class == 3:
-                    obj_class_folobus = 0
+                    obj_class_folobus = 7
                     print("Pedesterian detected from IBEO!!")
                 if obj_class == 9 :
                     obj_class_folobus = 1
