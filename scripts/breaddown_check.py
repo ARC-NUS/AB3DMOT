@@ -7,7 +7,7 @@ from wen_utils import readJson
 from check_iou_jsons import check_iou_json, check_iou_json_class
 import glob
 import csv
-
+import time
 def safe_div(x, y):
     status = 1
     if y == 0:
@@ -17,6 +17,9 @@ def safe_div(x, y):
 
 if __name__ == '__main__':
     print("Initialising...")
+
+
+
 
     det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle', 5: 'Truck'}
 
@@ -134,7 +137,10 @@ if __name__ == '__main__':
 
                                 count = count + 1
                                 #if count == 8681 or count > 8643:
-                                #if count > Test_v :
+                                #if count > 12551 or count < 12575 :
+
+                                start_time = time.time()
+
                                 if count == Test_v:
                                     print(count)
                                     for i in range(len(basedir_total)):
@@ -169,10 +175,6 @@ if __name__ == '__main__':
                                             Qmodel[0][0] *= rng_thres[rlA]
                                             Qmodel[1][1] = Qmodel[0][0]
                                             Qmodel[3][3] *= rng_thres[rlB]
-                                            # Qmodel[4][4] *= rng_thres[rlC]
-                                            # Qmodel[5][5] =Qmodel[4][4]
-                                            # Qmodel[7][7] *= rng_thres[rlD]
-                                            # Qmodel[8][8] =Qmodel[7][7]
 
                                             P_0lidar = np.identity(14)
                                             # tuning
@@ -213,6 +215,8 @@ if __name__ == '__main__':
                                             radarCam_threshold = 0.1  # .05 #radians!!
                                             radar_offset = 0
 
+
+
                                             total_list = happyTracker(dataR, dataL, dataC, dataC_a3,
                                                                       dataPose, dataIB, max_age, min_hits,
                                                                       hung_thresh,
@@ -220,6 +224,8 @@ if __name__ == '__main__':
                                                                       Ribeo, P_0ibeo, radarCam_threshold,
                                                                       radar_offset, testPIXOR, testIBEO,
                                                                       testCamDar)
+
+
 
                                             isPrint = 1
                                             isCheckIOU = 1
@@ -311,5 +317,10 @@ if __name__ == '__main__':
                                     print('HAMOTA(vehicles) :', HAMOTA_vehicles, 'HAMOTP : ', HAMOTP_vehicles, 'Count', HCv, 'Using Camera Radar:', testCamDar)
                                     print('HAMOTA(pedesterians) :', HAMOTA_ped, 'HAMOTP : ', HAMOTP_ped, 'Count', HCp, 'Using Camera Radar:', testCamDar)
 
+                                print("--- %s seconds ---" % (time.time() - start_time))
+
 
     print('Completed Tracking')
+
+
+

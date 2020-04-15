@@ -58,7 +58,8 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
 
     for frame_name in range(0, len(dataPose)):  # numPose
         #print(frame_name)
-        if frame_name != 86000:
+        #if frame_name == 162:
+        if frame_name != 16000000:
             det_radar = dataR[frame_name]['front_esr_tracklist']
             det_radar_right = dataR[frame_name]['front_right_esr_tracklist']
             det_radar_left = dataR[frame_name]['front_left_esr_tracklist']
@@ -104,66 +105,67 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
             start_time = time.time()
             #mot_tracker.frame_count += 1
 
-            # if testPIXOR ==1 and (np.count_nonzero(dets_lidar) != 0):
-            #     additional_info = np.zeros([len(dets_lidar), 7])
-            #     dets_all = {'dets': dets_lidar[:, 1:8], 'info': additional_info}
-            #     trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
+            trackers = []
+
+            if testPIXOR ==1 and (np.count_nonzero(dets_lidar) != 0):
+                dets_all = {'dets': dets_lidar[:, 1:8], 'info': additional_info_lidar}
+                trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
+
+            if testCamDar == 1  and (np.count_nonzero(dets_camDar) != 0):
+                dets_all2 = {'dets': dets_camDar[:, 1:8], 'info': additional_info_2}
+                trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
+            # #
+            if testCamDar == 1 and (np.count_nonzero(dets_camDar_back) != 0):
+                dets_all2 = {'dets': dets_camDar_back[:, 1:8], 'info': additional_info_3}
+                trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
+
+            if testIBEO == 1 and(np.count_nonzero(dets_IBEO) != 0):
+                dets_all2 = {'dets': dets_IBEO[:, 1:8], 'info': additional_info_ibeo}
+                trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 3)
+
+            # dets_total = []
+            # additional_info_total = []
             #
-            # if testCamDar == 1  and (np.count_nonzero(dets_camDar) != 0):
-            #     dets_all2 = {'dets': dets_camDar[:, 1:8], 'info': additional_info_2}
-            #     trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
-            # # #
-            # if testCamDar == 1 and (np.count_nonzero(dets_camDar_back) != 0):
-            #     dets_all2 = {'dets': dets_camDar_back[:, 1:8], 'info': additional_info_3}
-            #     trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
+            # if testPIXOR ==1 and len(dets_lidar) != 0:
+            #     dets_total = np.vstack((dets_lidar))
+            #     additional_info_total = additional_info_lidar
             #
-            # if testIBEO == 1 and(np.count_nonzero(dets_IBEO) != 0):
-            #     dets_all2 = {'dets': dets_IBEO[:, 1:8], 'info': additional_info_ibeo}
-            #     trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 3)
-
-            dets_total = []
-            additional_info_total = []
-
-            if testPIXOR ==1 and len(dets_lidar) != 0:
-                dets_total = np.vstack((dets_lidar))
-                additional_info_total = additional_info_lidar
-
-            if testCamDar == 1 and len(dets_camDar) != 0:
-                if len(dets_total) == 0:
-                    dets_total = np.vstack((dets_camDar))
-                    additional_info_total = additional_info_2
-                else:
-                    dets_total = np.vstack((dets_total, dets_camDar))
-                    additional_info_total =  np.vstack((additional_info_total, additional_info_2))
-
-            if testCamDar == 1 and len(dets_camDar_back) != 0 :
-                if len(dets_total) == 0 :
-                    dets_total = np.vstack((dets_camDar_back))
-                    additional_info_total = additional_info_3
-                else:
-                    dets_total = np.vstack((dets_total, dets_camDar_back))
-                    additional_info_total = np.vstack((additional_info_total, additional_info_3))
-
-            if testIBEO == 1 and len(dets_IBEO) != 0 :
-                if len(dets_total) == 0:
-                    dets_total = np.vstack((dets_IBEO))
-                    additional_info_total =   additional_info_ibeo
-                else:
-                    dets_total = np.vstack((dets_total, dets_IBEO))
-                    additional_info_total = np.vstack((additional_info_total, additional_info_ibeo))
+            # if testCamDar == 1 and len(dets_camDar) != 0:
+            #     if len(dets_total) == 0:
+            #         dets_total = np.vstack((dets_camDar))
+            #         additional_info_total = additional_info_2
+            #     else:
+            #         dets_total = np.vstack((dets_total, dets_camDar))
+            #         additional_info_total =  np.vstack((additional_info_total, additional_info_2))
+            #
+            # if testCamDar == 1 and len(dets_camDar_back) != 0 :
+            #     if len(dets_total) == 0 :
+            #         dets_total = np.vstack((dets_camDar_back))
+            #         additional_info_total = additional_info_3
+            #     else:
+            #         dets_total = np.vstack((dets_total, dets_camDar_back))
+            #         additional_info_total = np.vstack((additional_info_total, additional_info_3))
+            #
+            # if testIBEO == 1 and len(dets_IBEO) != 0 :
+            #     if len(dets_total) == 0:
+            #         dets_total = np.vstack((dets_IBEO))
+            #         additional_info_total =   additional_info_ibeo
+            #     else:
+            #         dets_total = np.vstack((dets_total, dets_IBEO))
+            #         additional_info_total = np.vstack((additional_info_total, additional_info_ibeo))
             #
             # dets_total = np.vstack((dets_lidar,dets_camDar,dets_camDar_back, dets_IBEO))
             # additional_info_total = np.vstack((additional_info_lidar, additional_info_2, additional_info_3, additional_info_ibeo))
             #
-
-            trackers = []
-
-            if len(dets_total) == 0:
-                dets_all = {'dets': [], 'info': []}
-                trackers = mot_tracker.update(dets_all=dets_all, sensor_type=1)
-            else:
-                dets_all = {'dets': dets_total[:, 1:8], 'info': additional_info_total}
-                trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
+            #
+            # trackers = []
+            #
+            # if len(dets_total) == 0:
+            #     dets_all = {'dets': [], 'info': []}
+            #     trackers = mot_tracker.update(dets_all=dets_all, sensor_type=1)
+            # else:
+            #     dets_all = {'dets': dets_total[:, 1:8], 'info': additional_info_total}
+            #     trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
 
             cycle_time = time.time() - start_time
             total_time += cycle_time
@@ -607,16 +609,15 @@ class AB3DMOT(object):
 
         # does NOT project anything, just gives corners in 3D space
         #if len(dets) != 0 :
+
         dets_8corner = [convert_3dbox_to_8corner(det_tmp) for det_tmp in dets]
         if len(dets_8corner) > 0:
             dets_8corner = np.stack(dets_8corner, axis=0)
         else:
             dets_8corner = []
         trks_8corner = [convert_3dbox_to_8corner(trk_tmp) for trk_tmp in trks]
-        if len(trks_8corner) > 0: trks_8corner = np.stack(trks_8corner, axis=0)
-
-        # data association(?)
-        #     matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers_BEV(dets, trks)
+        if len(trks_8corner) > 0:
+            trks_8corner = np.stack(trks_8corner, axis=0)
 
         matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets_8corner, trks_8corner,
                                                                                    self.hungarian_thresh)
@@ -719,16 +720,28 @@ class KalmanBoxTracker(object):
         self.age = 0
         self.info = info  # other info
 
+        self.historytrack = info[0]
+
     def update(self, bbox3D, info):
         """
         Updates the state vector with observed bbox.
         """
+
+
         self.time_since_update = 0
+
+
         self.history = []
+
+        #if info[0] != self.historytrack:
         self.hits += 1
         self.hit_streak += 1  # number of continuing hit
         if self.still_first:
             self.first_continuing_hit += 1  # number of continuing hit in the fist time
+
+        #
+        # else:
+        #     self.historytrack = info[0]
 
         ######################### orientation correction
         if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2  # make the theta still in the range
@@ -908,7 +921,7 @@ if __name__ == '__main__':
                                Rlidar, Qmodel, P_0lidar , Rcr, P_0cr, Ribeo, P_0ibeo, radarCam_threshold, radar_offset, testPIXOR, testIBEO, testCamDar)
 
     isPrint = 1
-    isCheckIOU = 0
+    isCheckIOU = 1
     isVisualise = 0
 
     if isPrint == True:

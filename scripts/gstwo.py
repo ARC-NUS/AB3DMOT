@@ -20,15 +20,6 @@ if __name__ == '__main__':
 
     det_id2str = {0: 'Pedestrian', 2: 'Car', 3: 'Cyclist', 4: 'Motorcycle', 5: 'Truck'}
 
-    # #if testing ALL directories
-    # set_v = glob.glob("/media/wen/demo_ssd/raw_data/*/*/log_high/set*")
-    # sets = []
-    # for set in set_v:
-    #     if (set[-2:-1] + set[-1]) != "_0":
-    #         if sets == []:
-    #             sets = set
-    #         else:
-    #             sets = np.vstack((sets, set))
 
     basedir_total = ['/media/wen/demo_ssd/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/16_sep/log_high/set_8',
                      '/media/wen/demo_ssd/raw_data/ST_CETRAN-cloudy-day_2019-08-27-22-30-18/sep/log_high/set_3',
@@ -108,10 +99,10 @@ if __name__ == '__main__':
 
     count = 0
 
-    Test_v = 17897
+    Test_v = 0
 
     tracker_json_outfile = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_' + str(Test_v) + '.json'
-    savePath = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_' + str(Test_v) + '.csv'
+    savePath = '/home/wen/AB3DMOT/scripts/results/sensorfusion/csv_wCR/allset_w3CR_T2_' + str(Test_v) + '.csv'
     with open(savePath, 'w') as csvfile:
         spamwriter = csv.writer(csvfile, delimiter=',',
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -123,25 +114,25 @@ if __name__ == '__main__':
 
 
 
-    HAMOTA_all = 43.77519
-    HAMOTP_all = 88.081624
-    HC_all = 17670
+    HAMOTA_all = -100
+    HAMOTP_all = -100
+    HC_all = 0
 
-    HAMOTA_vehicles = 52.208708
-    HAMOTP_vehicles = 89.136235
-    HCv = 15817
+    HAMOTA_vehicles = -100
+    HAMOTP_vehicles = -100
+    HCv = 0
 
-    HAMOTA_ped = -3.4477
-    HAMOTP_ped = 50
-    HCp = 15655
+    HAMOTA_ped = -100
+    HAMOTP_ped = -100
+    HCp = 0
 
     for rlA in range(len(rng_thres)):
         for rlB in range(len(rng_thres)):
             for rlC in range(len(rng_thres)):
                 for rlD in range(len(rng_thres)):
                     for rlE in range(len(rng_thres)):
-                        for max_age in range(3, 8):
-                            for min_hits in range(3, 8):
+                        for max_age in range(2, 8):
+                            for min_hits in range(1, 5):
                                 # for ht in range(len(hung_thresh_total)):
                                 AMOTA = 0
                                 AMOTP = 0
@@ -155,7 +146,7 @@ if __name__ == '__main__':
                                 count = count + 1
                                 print(count)
                                 #if count == 8681 or count > 8643:
-                                if count == 10255 or count > Test_v :
+                                if count > Test_v and min_hits == 4 and max_age ==3 :
                                 #if count == Test_v:
 
                                     for i in range(len(basedir_total)):

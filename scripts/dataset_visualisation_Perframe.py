@@ -19,45 +19,29 @@ from matplotlib import pyplot as plt
 import math
 from datetime import date
 import os
-
+import glob
 # In[2]:
-
-
-# 2 hz labels
-# data_path = "/media/yl/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/"
-data_path = "/home/wen/raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/"
-# data_path = "/media/wen/ARC_SSD_2/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/"
-
-# labels_json_path = data_path + "/log_low/set_7/no_qc/Set_7_Correct_annotations.json"
-labels_json_path = data_path + "/log_high/set_1/labels/set1_annotations.json"
-
-# 20hz pixor
-# pixor_json_path = "/media/yl/downloads/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_7/pixor_outputs_tf_epoch_3_valloss_0.0093_2.json"
-# pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_low/set_1/pixor_outputs_tf_epoch_42_valloss_0.0112.json"
-# pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs2_pixorpp_kitti_nuscene.json"
-pixor_json_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/pixor_outputs_pixorpp_kitti_nuscene.json"
-
-# pixor_json_path = data_path + "/log_low/set_1/labels/set1_annotations.json"
-
-# RADAR VALUES
-radar_obstacles_path = "../../raw_data/JI_ST-cloudy-day_2019-08-27-21-55-47/10_jan/log_high/set_1/radar_obstacles/radar_obstacles.json"
-
-# 20hz tracker
-# tracker_json_path = "/media/yl/downloads/tracker_results/set_7/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
-tracker_json_path = "./results/JI_Cetran_Set1/SensorFusedTrackOutput_Set1_05_02_2020.json"
-
-# 20hz tracker
-# tracker_json_path = "/media/yl/downloads/tracker_results/set_7/newfp_cyra_statemax_age=6,min_hits=3,hung_thresh=0.25_Qqv_10.0.json"
-tracker_json_path2 = "./results/JI_Cetran_Set1/yltracker2.json"
-
-# output image folder. WARNING: IMAGE FOLDER MUST ALREADY EXIST
-# img_path = "/home/yl/bus_ws/src/auto_bus/perception/ros_to_rawdata/files/test/"
 
 today = date.today()
 d1 = today.strftime("%Y_%m_%d")
 
-# output image folder. WARNING: IMAGE FOLDER MUST ALREADY EXIST
-img_path = "/home/wen/AB3DMOT/scripts/results/JI_Cetran_Set1/data/tracker_images/" + d1 + "_perframe/"
+
+basedir_total = ['/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_2']
+labels_total = ['/media/wen/demo_ssd/raw_data/eval_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_2/']
+
+print('Trying testcase 12566!! ')
+i = 0  # to be the one with pedesterians
+basedir = basedir_total[i]
+print(basedir)
+labels_json_path = glob.glob(labels_total[i] + "/*annotations.json")
+labels_json_path= labels_json_path[0]
+# Join various path components
+pixor_json_path = basedir + '/pixor_outputs_mdl_tf_epoch_150_valloss_0.2106.json'
+img_path = basedir + "/tracker_visualise/" + d1 + "pf2/"
+tracker_json_path = "/home/wen/AB3DMOT/scripts/results/sensorfusion/checkSF.json"
+tracker_json_path2 = "/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_2/trackerresults_wCR_12566_2020_04_06.json"
+
+pathIBEO = basedir + '/ecu_obj_list/ecu_obj_list.json'
 
 if not os.path.exists(img_path):
     os.makedirs(img_path)
@@ -122,7 +106,7 @@ px_l_ratio = 1
 
 # In[6]:
 
-with open(radar_obstacles_path) as radar_obstacles_file:
+with open(pathIBEO) as ibeo_json_file:
     with open(pixor_json_path) as pixor_json_file:
         with open(labels_json_path) as labels_json_file:
             with open(tracker_json_path) as tracker_json_file:
@@ -131,7 +115,8 @@ with open(radar_obstacles_path) as radar_obstacles_file:
                     labels_data = json.load(labels_json_file, encoding="utf-8")
                     tracker_data = json.load(tracker_json_file, encoding="utf-8")
                     tracker_data2 = json.load(tracker_json_file2, encoding="utf-8")
-                    radar_data = json.load(radar_obstacles_file, encoding="utf-8")
+                    ibeo_data = json.load(ibeo_json_file, encoding="utf-8")
+                    ibeo_data = ibeo_data['ibeo_obj']
                     px_i = 0  # for accounting for empty labels
 
                     for i in range(0, STOP_COUNT):
@@ -186,8 +171,8 @@ with open(radar_obstacles_path) as radar_obstacles_file:
                                 y_c = float(label['geometry']['position']['y'])
                                 theta = float(label['geometry']['rotation']['z'])
                                 pts = get_vertices(w, b, x_c, y_c, theta, img_h, img_w, scale / 100.)
-                                if label['className'].find("truck") >= 0 or label['className'].find("bus") >= 0 or label[
-                                    'className'].find("car") >= 0 or label['className'].find("van") >= 0:
+                                if label['className'].find("Truck") >= 0 or label['className'].find("Bus") >= 0 or label[
+                                    'className'].find("Car") >= 0 or label['className'].find("Van") >= 0:
                                     img = draw_border(img, pts, l_clr)
                                     cv2.putText(img, str(label['classId']), (int(round(img_w / 2.0 + (x_c * 100. / scale))),
                                                                              img_h - int(round(
@@ -236,17 +221,49 @@ with open(radar_obstacles_path) as radar_obstacles_file:
                                                                   img_h - int(
                                                                       round(img_h / 2.0 + y_c * 100. / scale)) - 10),
                                             cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr, 3, cv2.LINE_AA)
+
+                        # IBEO VALUES
+
+                        frame = ibeo_data[i]
+                        # frame = tracker_data2[i * 10 + 9]
+                        for obj in frame['data']:
+                            track_clr = (255, 165, 0)
+                            if (len(obj) != 0):
+
+                                obj_class = obj['obj_class']
+                                width = float(obj['obj_size']['x']) / 100
+                                length = float(obj['obj_size']['y']) / 100
+                                # if obj_class == 6:
+                                # print('Detected Truck!')
+                                x_bus = float(obj['obj_center']['x']) / 100
+                                y_bus = float(obj['obj_center']['y']) / 100
+
+                                if  width > 2 and length > 1 and width < 10 and length < 5 and width != length  and np.abs( x_bus) < 35 and np.abs(y_bus) < 20:
+                                    print('hi')
+                                    w =  float(obj['obj_size']['x']) / 100
+                                    b = float(obj['obj_size']['y']) / 100
+                                    x_c = float(obj['obj_center']['x']) / 100
+                                    y_c = float(obj['obj_center']['y']) / 100
+                                    theta = ( float(obj['obj_orient_mdeg']))
+                                    pts = get_vertices(w, b, x_c, y_c, theta, img_h, img_w, scale / 100.)
+                                    img = draw_border(img, pts, track_clr)
+
+                                    cv2.putText(img, str(obj_class), (int(round(img_w / 2.0 + (x_c * 100. / scale))),
+                                                                      img_h - int(
+                                                                          round(img_h / 2.0 + y_c * 100. / scale)) - 10),
+                                                cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr, 3, cv2.LINE_AA)
+
                         # TODO must add to the bus pose
                         font = cv2.FONT_HERSHEY_SIMPLEX
                         fontScale = 0.7
                         thickness = 1
 
-                        cv2.putText(img, "Tracker_(Lidar Only)", (50, 50), font, fontScale,
+                        cv2.putText(img, "Tracker_(Given to Linn)", (50, 50), font, fontScale,
                                     (50, 205, 50), thickness)
-                        cv2.putText(img, "Tracker_(Sensor Fusion)", (50, 70), font, fontScale, (0, 191, 255), thickness)
+                        cv2.putText(img, "Tracker_(Improvements)", (50, 70), font, fontScale, (0, 191, 255), thickness)
                         cv2.putText(img, "PIXOR++", (50, 90), font, fontScale, (255, 255, 0), thickness)
                         cv2.putText(img, "Labels", (50, 110), font, fontScale, (255, 20, 147), thickness)
-
+                        cv2.putText(img, "IBEO Values", (50, 130), font, fontScale, (255, 165, 0), thickness)
                         im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
                         j = i+1

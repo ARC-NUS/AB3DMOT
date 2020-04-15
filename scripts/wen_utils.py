@@ -404,6 +404,8 @@ def getCR(frame_name, radarx, radary, T1, classObj, dets_camDar_total, ai_total)
     dets_camDar[k][7] = 1  # HEIGHT
     dets_camDar[k][8] = 2  # sensor type: 2
 
+
+
     additional_info_2[k, 1] = classObj
 
     if len(dets_camDar_total) == 0:
@@ -413,7 +415,7 @@ def getCR(frame_name, radarx, radary, T1, classObj, dets_camDar_total, ai_total)
         dets_camDar_total = np.vstack((dets_camDar_total, dets_camDar))
         ai_total = np.vstack((ai_total, additional_info_2))
 
-
+    ai_total[:, 0] = frame_name
     return dets_camDar_total, ai_total
 
 def undistort_points(xy_tuple, K, D):
@@ -572,7 +574,10 @@ def readLidar (det_lidar, frame_name, T1):
 
 
     additional_info = np.zeros([len(dets_lidar), 7])
+
+    additional_info[:, 0] = frame_name
     additional_info[:,1] = 4
+
     return dets_lidar,additional_info
 
 def readIBEO(frame_name, det_IBEO, T1):
@@ -596,8 +601,12 @@ def readIBEO(frame_name, det_IBEO, T1):
             x_bus = float(det_IBEO[j]['obj_center']['x']) / 100
             y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
 
-            if obj_class >3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
+            #if obj_class >3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
+            if  obj_class > 1 and obj_class != 3 and obj_class != 7 and obj_class < 10 and width > 2 and length > 1 and width < 10 and length < 5 and width != length and np.abs(x_bus) < 35 and np.abs(y_bus) < 20:
+
                 #for not no pedesterian detection w IBEO??
+                if obj_class == 2:
+                    obj_class_folobus = 4
                 if obj_class == 3:
                     obj_class_folobus = 0
                     print("Pedesterian detected from IBEO!!")
@@ -618,7 +627,7 @@ def readIBEO(frame_name, det_IBEO, T1):
                 dets_IBEO_temp[0][1] = x_bus # x values in pixor , but y in world frame!!
                 dets_IBEO_temp[0][2] = y_bus  # y values in pixor , but x in world frame
                 dets_IBEO_temp[0][3] = 1
-                dets_IBEO_temp[0][4] = det_IBEO[j]['yaw']
+                dets_IBEO_temp[0][4] = det_IBEO[j]['obj_orient_mdeg']
                 dets_IBEO_temp[0][5] = length  # width is in the y direction for Louis
                 dets_IBEO_temp[0][6] = width
                 dets_IBEO_temp[0][7] = 1
@@ -632,6 +641,7 @@ def readIBEO(frame_name, det_IBEO, T1):
                 dets_IBEO_temp[0][1] = T2[0][0]
                 dets_IBEO_temp[0][2] = T2[1][0]
 
+                additional_info_2_temp[0, 0] = frame_name
                 additional_info_2_temp[0, 1] = obj_class_folobus
                 if k == 0:
                     dets_IBEO = np.copy(dets_IBEO_temp)
