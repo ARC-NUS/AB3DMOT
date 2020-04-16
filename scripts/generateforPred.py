@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     count = 0
 
-    Test_v = 12566
+    Test_v = 15817
 
     HAMOTA_all =   0.431070974899
     HAMOTP_all = 87.10681218624508

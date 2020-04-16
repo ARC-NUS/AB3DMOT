@@ -105,6 +105,7 @@ STOP_COUNT = 1000
 px_l_ratio = 1
 
 # In[6]:
+fthick =2
 
 with open(pathIBEO) as ibeo_json_file:
     with open(pixor_json_path) as pixor_json_file:
@@ -177,14 +178,14 @@ with open(pathIBEO) as ibeo_json_file:
                                     cv2.putText(img, str(label['classId']), (int(round(img_w / 2.0 + (x_c * 100. / scale))),
                                                                              img_h - int(round(
                                                                                  img_h / 2.0 + y_c * 100. / scale)) + 30),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 1, l_clr, 3, cv2.LINE_AA)
+                                                cv2.FONT_HERSHEY_SIMPLEX, 1, l_clr, fthick, cv2.LINE_AA)
                                 else:
                                     #                                 print "label class:" ,label['className']
                                     img = draw_border(img, pts, (100, 100, 100))
                                     cv2.putText(img, str(label['classId']), (int(round(img_w / 2.0 + (x_c * 100. / scale))),
                                                                              img_h - int(round(
                                                                                  img_h / 2.0 + y_c * 100. / scale)) + 30),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 100, 100), 3, cv2.LINE_AA)
+                                                cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 100, 100), fthick, cv2.LINE_AA)
 
                         # tracker 2 json --> green
                         frame = tracker_data2[i]
@@ -202,7 +203,7 @@ with open(pathIBEO) as ibeo_json_file:
                                 cv2.putText(img, str(obj['id']), (int(round(img_w / 2.0 + (x_c * 100. / scale))),
                                                                   img_h - int(
                                                                       round(img_h / 2.0 + y_c * 100. / scale)) - 10),
-                                            cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr, 3, cv2.LINE_AA)
+                                            cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr, fthick, cv2.LINE_AA)
 
                         # tracker json --> blue
                         frame = tracker_data[i]
@@ -220,7 +221,7 @@ with open(pathIBEO) as ibeo_json_file:
                                 cv2.putText(img, str(obj['id']), (int(round(img_w / 2.0 + (x_c * 100. / scale))),
                                                                   img_h - int(
                                                                       round(img_h / 2.0 + y_c * 100. / scale)) - 10),
-                                            cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr, 3, cv2.LINE_AA)
+                                            cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr, fthick, cv2.LINE_AA)
 
                         # IBEO VALUES
 
@@ -238,20 +239,33 @@ with open(pathIBEO) as ibeo_json_file:
                                 x_bus = float(obj['obj_center']['x']) / 100
                                 y_bus = float(obj['obj_center']['y']) / 100
 
-                                if  width > 2 and length > 1 and width < 10 and length < 5 and width != length  and np.abs( x_bus) < 35 and np.abs(y_bus) < 20:
-                                    print('hi')
-                                    w =  float(obj['obj_size']['x']) / 100
-                                    b = float(obj['obj_size']['y']) / 100
-                                    x_c = float(obj['obj_center']['x']) / 100
-                                    y_c = float(obj['obj_center']['y']) / 100
-                                    theta = ( float(obj['obj_orient_mdeg']))
-                                    pts = get_vertices(w, b, x_c, y_c, theta, img_h, img_w, scale / 100.)
-                                    img = draw_border(img, pts, track_clr)
 
-                                    cv2.putText(img, str(obj_class), (int(round(img_w / 2.0 + (x_c * 100. / scale))),
-                                                                      img_h - int(
-                                                                          round(img_h / 2.0 + y_c * 100. / scale)) - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr, 3, cv2.LINE_AA)
+
+                                if  width > 2 and length > 1.5 and width < 10 and length < 5 and width != length  and np.abs( x_bus) < 35 and np.abs(y_bus) < 20 :
+                                    ratiowl = round(width / length)
+
+                                    if ratiowl > 1 and ratiowl < 5:
+
+                                        #print('hi')
+                                        w =  float(obj['obj_size']['x']) / 100
+                                        b = float(obj['obj_size']['y']) / 100
+                                        x_c = float(obj['obj_center']['x']) / 100
+                                        y_c = float(obj['obj_center']['y']) / 100
+                                        theta = ( float(obj['obj_orient_mdeg']))
+                                        pts = get_vertices(w, b, x_c, y_c, theta, img_h, img_w, scale / 100.)
+                                        img = draw_border(img, pts, track_clr)
+
+                                        cv2.putText(img, str(obj_class), (int(round(img_w / 2.0 + (x_c * 100. / scale))),
+                                                                          img_h - int(round(img_h / 2.0 + y_c * 100. / scale)) - 10),
+                                                    cv2.FONT_HERSHEY_SIMPLEX, 1, track_clr, fthick, cv2.LINE_AA)
+                                        class_certainty = (float(obj['class_certainty']))
+                                        name =  "Width" + str(width) + " Length" + str(length) + " Class certainty" + str(class_certainty)
+
+                                        x_p = int((x_c)*100/scale)
+                                        y_p = int((y_c)*100/scale)
+                                        cv2.putText(img, name, (int(round(img_w / 2.0 + (x_c * 100. / scale))),
+                                                                          img_h - int(round(img_h / 2.0 + y_c * 100. / scale)) + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, track_clr,  fthick)
+
 
                         # TODO must add to the bus pose
                         font = cv2.FONT_HERSHEY_SIMPLEX

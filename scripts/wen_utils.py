@@ -601,59 +601,62 @@ def readIBEO(frame_name, det_IBEO, T1):
             x_bus = float(det_IBEO[j]['obj_center']['x']) / 100
             y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
 
-            if obj_class >3 and obj_class != 7 and obj_class < 10 and width != 0 and length != 0 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
-            #if  obj_class > 1 and obj_class != 3 and obj_class != 7 and obj_class < 10 and width > 2 and length > 1 and width < 10 and length < 5 and width != length and np.abs(x_bus) < 35 and np.abs(y_bus) < 20:
+            #for uncertain model...
+            if width > 2 and length > 1 and width < 10 and length < 5 and width != length and np.abs(x_bus) < 35 and np.abs(y_bus) < 20:
 
-                #for not no pedesterian detection w IBEO??
-                if obj_class == 2:
-                    obj_class_folobus = 4
+                ratiowl = round(width /length)
+                #if obj_class >= 2 and obj_class !=3 and obj_class != 7 and obj_class < 10 and width > 2 and length > 1.5 and width < 10 and length < 5 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
+                #if  (obj_class == 2 and ratiowl > 1 and ratiowl < 5) or (obj_class > 3 and obj_class != 7 and obj_class < 10):
+                if (obj_class > 3 and obj_class != 7 and obj_class < 10):
+                    #for not no pedesterian detection w IBEO??
+                    if obj_class == 2 and ratiowl > 1 and ratiowl < 5:
+                        obj_class_folobus = 4
 
-                if obj_class == 3:
-                    obj_class_folobus = 7
-                    print("Pedesterian detected from IBEO!!")
-                if obj_class == 9 :
-                    obj_class_folobus = 1
-                if obj_class == 5:
-                    obj_class_folobus = 4
-                if obj_class == 8 or obj_class == 4:
-                    obj_class_folobus = 3
-                    # if obj_class == 5:
-                    #     obj_class_foloyolo = 4
-                if obj_class == 6: #TRUCKO
-                    obj_class_folobus = 5
-                    if width < 5:
-                        width = 5
+                    if obj_class == 3:
+                        obj_class_folobus = 7
+                        print("Pedesterian detected from IBEO!!")
+                    if obj_class == 9 :
+                        obj_class_folobus = 1
+                    if obj_class == 5:
+                        obj_class_folobus = 4
+                    if obj_class == 8 or obj_class == 4:
+                        obj_class_folobus = 3
 
-                dets_IBEO_temp[0][0] = frame_name
-                dets_IBEO_temp[0][1] = x_bus # x values in pixor , but y in world frame!!
-                dets_IBEO_temp[0][2] = y_bus  # y values in pixor , but x in world frame
-                dets_IBEO_temp[0][3] = 1
-                dets_IBEO_temp[0][4] = det_IBEO[j]['obj_orient_mdeg']
-                dets_IBEO_temp[0][5] = length  # width is in the y direction for Louis
-                dets_IBEO_temp[0][6] = width
-                dets_IBEO_temp[0][7] = 1
-                dets_IBEO_temp[0][8] = 4  # sensor type: 4 IBEO!!!
+                    if obj_class == 6: #TRUCKO
+                        obj_class_folobus = 5
+                        if width < 5:
+                            width = 5
 
-                pos_IBEO[0][0] = dets_IBEO_temp[0][1]
-                pos_IBEO[1][0] = dets_IBEO_temp[0][2]
-                pos_IBEO[2][0] = 0
-                pos_IBEO[3][0] = 1
-                T2 = np.matmul(T1, pos_IBEO)
-                dets_IBEO_temp[0][1] = T2[0][0]
-                dets_IBEO_temp[0][2] = T2[1][0]
+                    dets_IBEO_temp[0][0] = frame_name
+                    dets_IBEO_temp[0][1] = x_bus # x values in pixor , but y in world frame!!
+                    dets_IBEO_temp[0][2] = y_bus  # y values in pixor , but x in world frame
+                    dets_IBEO_temp[0][3] = 1
+                    dets_IBEO_temp[0][4] = det_IBEO[j]['obj_orient_mdeg']
+                    dets_IBEO_temp[0][5] = length  # width is in the y direction for Louis
+                    dets_IBEO_temp[0][6] = width
+                    dets_IBEO_temp[0][7] = 1
+                    dets_IBEO_temp[0][8] = 4  # sensor type: 4 IBEO!!!
 
-                additional_info_2_temp[0, 0] = frame_name
-                additional_info_2_temp[0, 1] = obj_class_folobus
-                if k == 0:
-                    dets_IBEO = np.copy(dets_IBEO_temp)
-                    additional_info_2 = np.copy(additional_info_2_temp)
+                    pos_IBEO[0][0] = dets_IBEO_temp[0][1]
+                    pos_IBEO[1][0] = dets_IBEO_temp[0][2]
+                    pos_IBEO[2][0] = 0
+                    pos_IBEO[3][0] = 1
+                    T2 = np.matmul(T1, pos_IBEO)
+                    dets_IBEO_temp[0][1] = T2[0][0]
+                    dets_IBEO_temp[0][2] = T2[1][0]
 
-                else:
-                    dets_IBEO = np.vstack((dets_IBEO, dets_IBEO_temp))
-                    additional_info_2 = np.vstack((additional_info_2, additional_info_2_temp))
-                k += 1
-                # print ('k is = %d' %k)
-                pos_IBEO = np.zeros([4, 1])
+                    additional_info_2_temp[0, 0] = frame_name
+                    additional_info_2_temp[0, 1] = obj_class_folobus
+                    if k == 0:
+                        dets_IBEO = np.copy(dets_IBEO_temp)
+                        additional_info_2 = np.copy(additional_info_2_temp)
+
+                    else:
+                        dets_IBEO = np.vstack((dets_IBEO, dets_IBEO_temp))
+                        additional_info_2 = np.vstack((additional_info_2, additional_info_2_temp))
+                    k += 1
+                    # print ('k is = %d' %k)
+                    pos_IBEO = np.zeros([4, 1])
 
  #   print (dets_IBEO, additional_info_2)
 

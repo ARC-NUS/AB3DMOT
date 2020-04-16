@@ -54,7 +54,7 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
 
     total_list = []
 
-    #print ('Beginning tracking..')
+
 
     for frame_name in range(0, len(dataPose)):  # numPose
         #print(frame_name)
@@ -111,11 +111,11 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
                 dets_all = {'dets': dets_lidar[:, 1:8], 'info': additional_info_lidar}
                 trackers = mot_tracker.update(dets_all = dets_all, sensor_type = 1)
 
-            if testCamDar == 1  and (np.count_nonzero(dets_camDar) != 0):
+            if testCamDar == 1  and (np.count_nonzero(dets_camDar) != 0) and frame_name %2 ==0 :
                 dets_all2 = {'dets': dets_camDar[:, 1:8], 'info': additional_info_2}
                 trackers = mot_tracker.update(dets_all =dets_all2 , sensor_type = 2)
             # #
-            if testCamDar == 1 and (np.count_nonzero(dets_camDar_back) != 0):
+            if testCamDar == 1 and (np.count_nonzero(dets_camDar_back) != 0) and frame_name %2 ==0 :
                 dets_all2 = {'dets': dets_camDar_back[:, 1:8], 'info': additional_info_3}
                 trackers = mot_tracker.update(dets_all =dets_all2, sensor_type = 2)
 
@@ -125,7 +125,6 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
 
             if len(dets_lidar) == 0 and len(dets_camDar) == 0 and len(dets_camDar_back) == 0 and len(mot_tracker.trackers) >0 :                # dets_all = {'dets': empty_dets, 'info': empty_dets}
                 # trackers = mot_tracker.update(dets_all=dets_all2, sensor_type=3)
-
                 dets_all = {'dets':[],  'info': additional_info_lidar}
                 trackers = mot_tracker.update(dets_all=dets_all, sensor_type=1)
                 #print('No detections but still tracking!!')

@@ -145,8 +145,9 @@ if __name__ == '__main__':
 
                                 count = count + 1
                                 print(count)
+
                                 #if count == 8681 or count > 8643:
-                                if count > Test_v and min_hits == 4 and max_age ==3 :
+                                if count > Test_v :
                                 #if count == Test_v:
 
                                     for i in range(len(basedir_total)):

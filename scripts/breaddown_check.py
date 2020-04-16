@@ -100,7 +100,8 @@ if __name__ == '__main__':
 
     count = 0
 
-    Test_v = 12566
+    Test_v = 15817
+
 
     HAMOTA_all =   0.431070974899
     HAMOTP_all = 87.10681218624508
@@ -110,9 +111,14 @@ if __name__ == '__main__':
     HAMOTP_vehicles =  87.81524986706007
     HCv = 12566
 
-    # HAMOTA_ped = -0.00980392156862747
-    # HAMOTP_ped = 25.0
-    # HCp = 10255
+    #
+    # HAMOTA_all =   0.431070974899
+    # HAMOTP_all = 87.10681218624508
+    # HC_all = 12569
+    #
+    # HAMOTA_vehicles = 0.5132928917168759
+    # HAMOTP_vehicles =  87.81524986706007
+    # HCv = 12566
 
     HAMOTA_ped = -10
     HAMOTP_ped = 0
@@ -145,6 +151,8 @@ if __name__ == '__main__':
                                 if count == Test_v:
                                     print(count)
                                     for i in range(len(basedir_total)):
+                                        print(
+                                            'Beginning tracking: with All sensors, camera is at 10Hz, Lidar at 20Hz, IBEO at 20Hz??, tracker output at 20Hz.. ..')
                                         dataR = dataR_total[i];
                                         dataL = dataL_total[i];
                                         dataC = dataC_total[i];
