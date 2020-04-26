@@ -8,7 +8,7 @@ from filterpy.kalman import ExtendedKalmanFilter
 from utils import load_list_from_folder, fileparts, mkdir_if_missing
 from scipy.spatial import ConvexHull
 from pyquaternion import Quaternion
-from wen_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F, camRadarFuse, readCamera, readRadar,readJson, readLidar, readIBEO
+from wen_utils import STATE_SIZE, MEAS_SIZE, MOTION_MODEL, get_CV_F, get_CA_F,get_CYRA_F,  camRadarFuse, readCamera, readRadar,readJson, readLidar, readIBEO
 import json
 from datetime import datetime
 from shapely.geometry import Polygon
@@ -76,6 +76,7 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
             seq_dets_pose[frame_name][2] = dataPose[frame_name]['pose']['position']['x']
             seq_dets_pose[frame_name][3] = dataPose[frame_name]['pose']['position']['y']
             seq_dets_pose[frame_name][4] = dataPose[frame_name]['pose']['attitude']['yaw']
+
             q1 = Quaternion(axis=[0, 0, 1], angle=seq_dets_pose[frame_name][4])
             T1 = q1.transformation_matrix
             T1[0][3] = seq_dets_pose[frame_name][2]
@@ -139,11 +140,21 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
             T_inv = np.linalg.inv(T1)
             T_tracked = np.zeros([4, 1])
 
+
             for d in trackers:
 
                 T_tracked[0] = d[3]
                 T_tracked[1] = d[4]
                 T_tracked[3] = 1
+                #q_tracked = Quaternion(matrix=transformation)
+                #yaw, pitch, roll = q_tracked.yaw_pitch_roll
+                p2 =  Quaternion(matrix=T1)
+                p3 = Quaternion(axis=[1, 0, 0], angle=d[6])
+                q_tracked = p2 * p3
+                utmyaw, utmpitch, utmroll = q_tracked.yaw_pitch_roll
+                utmx = T_tracked[0][0]
+                utmy = T_tracked[1][0]
+
                 T_track = np.matmul(T_inv, T_tracked)
 
                 #det_id2str = {0: 'Pedestrian', 1 : 'Bicycles', 2: 'PMD', 3: 'Motorbike', 4: 'Car' , 5: 'Truck', 6: 'Bus'}
@@ -151,7 +162,7 @@ def happyTracker  (dataR , dataL , dataC , dataC_a3 , dataPose, dataIB,  max_age
                 #type_tmp = det_id2str[d[9]]
 
                 obj_dict = {"width": d[1], "height": d[0], "length": d[2], "x": T_track[0][0], "y": T_track[1][0],
-                            "z": d[5], "yaw": d[6],
+                            "z": d[5], "yaw": d[6], "utmx": utmx,  "utmy" : utmy, "utmyaw" : utmyaw,
                             "id": d[7], "className": det_id2str[d[9]], "classType": d[9]}
                 #
                 # obj_dict = {"width": d[1], "height": d[0], "length": d[2], "x": T_track[0][0], "y": T_track[1][0],
@@ -244,32 +255,6 @@ def polygon_clip(subjectPolygon, clipPolygon):
         if len(outputList) == 0:
             return None
     return (outputList)
-#
-# def iou3d(corners1, corners2):
-#     ''' Compute 3D bounding box IoU.
-#     Input:
-#         corners1: numpy array (8,3), assume up direction is negative Y
-#         corners2: numpy array (8,3), assume up direction is negative Y
-#     Output:
-#         iou: 3D bounding box IoU
-#         iou_2d: bird's eye view 2D bounding box IoU
-#
-#     '''
-#     # corner points are in counter clockwise order
-#     rect1 = [(corners1[i, 0], corners1[i, 2]) for i in range(3, -1, -1)]
-#     rect2 = [(corners2[i, 0], corners2[i, 2]) for i in range(3, -1, -1)]
-#     area1 = poly_area(np.array(rect1)[:, 0], np.array(rect1)[:, 1])
-#     area2 = poly_area(np.array(rect2)[:, 0], np.array(rect2)[:, 1])
-#     inter, inter_area = convex_hull_intersection(rect1, rect2)
-#     iou_2d = inter_area / (area1 + area2 - inter_area)
-#     ymax = min(corners1[0, 1], corners2[0, 1])
-#     ymin = max(corners1[4, 1], corners2[4, 1])
-#     inter_vol = inter_area * max(0.0, ymax - ymin)
-#     vol1 = box3d_vol(corners1)
-#     vol2 = box3d_vol(corners2)
-#     iou = inter_vol / (vol1 + vol2 - inter_vol)
-#     return iou, iou_2d
-
 
 def shapely_polygon_intersection(poly1, poly2):
     """
@@ -277,7 +262,6 @@ def shapely_polygon_intersection(poly1, poly2):
     poly1 = Polygon(poly1)
     poly2 = Polygon(poly2)
     return poly1.intersection(poly2).area
-
 
 def test_shapely_polygon_intersection1():
     """
@@ -298,7 +282,6 @@ def test_shapely_polygon_intersection1():
         ])
     inter_area = shapely_polygon_intersection(poly1, poly2)
     assert inter_area == 2
-
 
 def test_shapely_polygon_intersection2():
     """
@@ -666,15 +649,7 @@ class KalmanBoxTracker(object):
 
         self.kf.R[0:, 0:] = R  # measurement uncertainty
 
-        # initialisation cov
-        #     self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-        #     self.kf.P *= 10.
-
         self.kf.P = P_0
-        # self.kf.P *= 10.
-        # self.kf.P[7:, 7:] *= 1000.  #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-        # self.kf.Q[-1,-1] *= 0.01
-        # self.kf.Q[7:,7:] *= 0.01 # process uncertainty
         self.kf.Q = Q
         self.kf.x[:7] = bbox3D.reshape((7, 1))
 
@@ -808,8 +783,8 @@ if __name__ == '__main__':
 
 
     # #
-    basedir_total = ['/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_2']
-    labels_total = ['/media/wen/demo_ssd/raw_data/eval_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_2/']
+    basedir_total = ['/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1']
+    labels_total = ['/media/wen/demo_ssd/raw_data/eval_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_1']
 
     print('Trying testcase 12566!! ')
     i = 0 #to be the one with pedesterians

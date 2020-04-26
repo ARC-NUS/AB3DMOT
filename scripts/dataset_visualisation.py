@@ -93,6 +93,11 @@ labels_json_path = '/media/wen/demo_ssd/raw_data/eval_labels/ST_CETRAN-cloudy-da
 basedir_total = ['/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_2']
 labels_total = ['/media/wen/demo_ssd/raw_data/eval_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_2/']
 
+
+basedir_total = ['/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1']
+labels_total = ['/media/wen/demo_ssd/raw_data/eval_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_1']
+
+
 print('Trying testcase 12566!! ')
 i = 0  # to be the one with pedesterians
 basedir = basedir_total[i]
@@ -103,6 +108,10 @@ labels_json_path= labels_json_path[0]
 pixor_json_path = basedir + '/pixor_outputs_mdl_tf_epoch_150_valloss_0.2106.json'
 img_path = basedir + "/tracker_visualise/" + d1 + "/"
 
+tracker_json_path = "/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1/trackerresults_wCR_12566_2020_04_06.json"
+tracker_json_path2 = "/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1/trackerresults_wCR_12566_2020_04_06.json"
+
+pathIBEO = basedir + '/ecu_obj_list/ecu_obj_list.json'
 
 
 

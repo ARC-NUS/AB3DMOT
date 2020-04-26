@@ -125,6 +125,8 @@ if __name__ == '__main__':
     HCp = 0
     num_class = 8
 
+
+
     for rlA in range(len(rng_thres)):
         for rlB in range(len(rng_thres)):
             for rlC in range(len(rng_thres)):
@@ -142,6 +144,8 @@ if __name__ == '__main__':
                                 sum_MOTAstatus = np.zeros(num_class)
                                 sum_MOTPstatus = np.zeros(num_class)
 
+                                hung_thresh = 0.01  # hung_thresh_total[ht]
+
                                 count = count + 1
                                 #if count == 8681 or count > 8643:
                                 #if count > 12551 or count < 12575 :
@@ -150,9 +154,14 @@ if __name__ == '__main__':
 
                                 if count == Test_v:
                                     print(count)
+                                    print('Count:', count, 'Max Age : ', max_age, 'Min Hits', min_hits,
+                                          'Hung Thres:', hung_thresh, 'rlA:', rlA, 'rlB:', rlB, 'rlC:', rlC,
+                                          'rlD:', rlD, 'rlE:', rlE)
+                                    print(
+                                        'Beginning tracking: with All sensors, camera is at 10Hz, Lidar at 20Hz, IBEO at 20Hz??, tracker output at 20Hz.. ..')
+
                                     for i in range(len(basedir_total)):
-                                        print(
-                                            'Beginning tracking: with All sensors, camera is at 10Hz, Lidar at 20Hz, IBEO at 20Hz??, tracker output at 20Hz.. ..')
+
                                         dataR = dataR_total[i];
                                         dataL = dataL_total[i];
                                         dataC = dataC_total[i];
@@ -173,7 +182,7 @@ if __name__ == '__main__':
                                         # print (count)
 
                                         if isReady == 1:
-                                            hung_thresh = 0.01  # hung_thresh_total[ht]
+
 
                                             Rlidar = np.identity(7)
                                             Rlidar[2, 2] = 10. ** -5  # z
@@ -223,7 +232,6 @@ if __name__ == '__main__':
 
                                             radarCam_threshold = 0.1  # .05 #radians!!
                                             radar_offset = 0
-
 
 
                                             total_list = happyTracker(dataR, dataL, dataC, dataC_a3,
@@ -325,6 +333,8 @@ if __name__ == '__main__':
                                     print('HAMOTA(ALL) :', HAMOTA_all, 'HAMOTP : ', HAMOTP_all, 'Count', HC_all, 'Using Camera Radar:', testCamDar)
                                     print('HAMOTA(vehicles) :', HAMOTA_vehicles, 'HAMOTP : ', HAMOTP_vehicles, 'Count', HCv, 'Using Camera Radar:', testCamDar)
                                     print('HAMOTA(pedesterians) :', HAMOTA_ped, 'HAMOTP : ', HAMOTP_ped, 'Count', HCp, 'Using Camera Radar:', testCamDar)
+
+
 
                                 #print("--- %s seconds ---" % (time.time() - start_time))
 

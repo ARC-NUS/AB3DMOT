@@ -26,8 +26,8 @@ today = date.today()
 d1 = today.strftime("%Y_%m_%d")
 
 
-basedir_total = ['/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_2']
-labels_total = ['/media/wen/demo_ssd/raw_data/eval_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_2/']
+basedir_total = ['/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1']
+labels_total = ['/media/wen/demo_ssd/raw_data/eval_labels/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/set_1']
 
 print('Trying testcase 12566!! ')
 i = 0  # to be the one with pedesterians
@@ -38,8 +38,8 @@ labels_json_path= labels_json_path[0]
 # Join various path components
 pixor_json_path = basedir + '/pixor_outputs_mdl_tf_epoch_150_valloss_0.2106.json'
 img_path = basedir + "/tracker_visualise/" + d1 + "pf2/"
-tracker_json_path = "/home/wen/AB3DMOT/scripts/results/sensorfusion/checkSF.json"
-tracker_json_path2 = "/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_2/trackerresults_wCR_12566_2020_04_06.json"
+tracker_json_path =  "/home/wen/AB3DMOT/scripts/results/sensorfusion/checkSF.json"
+tracker_json_path2 = "/media/wen/demo_ssd/raw_data/CETRAN_ST-cloudy-day_2019-08-27-22-47-10/11_sep/log_high/set_1/trackerresults_wCR_12566_2020_04_06.json"
 
 pathIBEO = basedir + '/ecu_obj_list/ecu_obj_list.json'
 
@@ -241,7 +241,7 @@ with open(pathIBEO) as ibeo_json_file:
 
 
 
-                                if  width > 2 and length > 1.5 and width < 10 and length < 5 and width != length  and np.abs( x_bus) < 35 and np.abs(y_bus) < 20 :
+                                if  width > 2 and length > 1 and width < 10 and length < 5 and width != length  and np.abs( x_bus) < 35 and np.abs(y_bus) < 20 :
                                     ratiowl = round(width / length)
 
                                     if ratiowl > 1 and ratiowl < 5:

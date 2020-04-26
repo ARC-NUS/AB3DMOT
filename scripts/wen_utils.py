@@ -38,7 +38,6 @@ def px_stats_get_R(pixor_stats_json):
         R[6, 6] = 10. ** -5  # h
     return R
 
-
 def px_stats_get_P_0(pixor_stats_json, p0_v=1000., factor=1.):
     with open(pixor_stats_json) as pixor_stats_file:
         data = json.load(pixor_stats_file, encoding="utf-8")
@@ -63,7 +62,6 @@ def px_stats_get_P_0(pixor_stats_json, p0_v=1000., factor=1.):
         # print "P_O", P_0
     return P_0
 
-
 def get_CV_Q(q_v, delta_t):
     Q = np.zeros((STATE_SIZE, STATE_SIZE))
     Q[0, 0] = delta_t ** 3 * q_v / 3.
@@ -77,14 +75,12 @@ def get_CV_Q(q_v, delta_t):
     # print "Q", Q
     return Q
 
-
 def get_CV_F(delta_t):
     F = np.eye(STATE_SIZE)
     F[0, 7] = delta_t
     F[1, 8] = delta_t
     F[2, 9] = delta_t
     return F
-
 
 def get_CA_Q(q_a, delta_t):
     Q = np.zeros((STATE_SIZE, STATE_SIZE))
@@ -203,33 +199,6 @@ def getTransform(x,y,z,roll, pitch, yaw):
     T1[2][3] = z
     T1[3][3] = 1
     return T1
-#
-# def getCluster(x1, y1, rx, ry, diff, clusterP, theta, camNum):
-#     minTest = 10
-#     ip = -1
-#     d = np.sqrt((x1 - rx) ** 2 + (y1 - ry) ** 2) * np.sin(diff)
-#     if d < 0.1:
-#         wt = 0.9
-#     else:
-#         wt = 0.5
-#     if clusterP == []:
-#         clusterP = np.array([[rx, ry]])
-#     else:
-#         for i in range((len(clusterP))):
-#             test = np.sqrt((clusterP[i][0] - rx) ** 2 + (clusterP[i][1] - ry) ** 2)
-#
-#             if test < minTest:
-#                 minTest = test
-#                 ip = i
-#
-#         if ip > (-1):
-#             clusterP[ip][0] = clusterP[ip][0] * (1 - wt) + rx * wt
-#             clusterP[ip][1] = clusterP[ip][1] * (1 - wt) + ry * wt
-#         else:
-#             temp = np.array([[rx, ry]])
-#             clusterP = np.vstack((clusterP, temp))
-#     return clusterP
-
 
 def getCluster(x1, y1, rx, ry, diff, clusterP, theta, camNum):
     minTest = 5
@@ -362,11 +331,6 @@ def camRadarFuse(frame_name, dets_cam, dets_radar_total, T1, rcThres,camNum):
 
 
     return dets_camDar, additional_info_2
-
-
-
-
-
 
 def getCR(frame_name, radarx, radary, T1, classObj, dets_camDar_total, ai_total):
     if (classObj == 4):  # 4 ==car
@@ -602,7 +566,7 @@ def readIBEO(frame_name, det_IBEO, T1):
             y_bus = float(det_IBEO[j]['obj_center']['y']) / 100
 
             #for uncertain model...
-            if width > 2 and length > 1 and width < 10 and length < 5 and width != length and np.abs(x_bus) < 35 and np.abs(y_bus) < 20:
+            if width > 2 and length > 1.5 and width < 10 and length < 5 and width != length and np.abs(x_bus) < 35 and np.abs(y_bus) < 20:
 
                 ratiowl = round(width /length)
                 #if obj_class >= 2 and obj_class !=3 and obj_class != 7 and obj_class < 10 and width > 2 and length > 1.5 and width < 10 and length < 5 and np.abs(x_bus) < 35 and np.abs(y_bus) < 20 :
